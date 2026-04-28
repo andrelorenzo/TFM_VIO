@@ -1,0 +1,409 @@
+#define LOGGER_IMP
+#include "plotter.hpp"
+#include "source_man.hpp"
+#include "csv_logger.hpp"
+#include "gt_est.hpp"
+// TEMPORALMENTE desactivados para comparar con RVIO2.
+#include "pre_int.hpp"
+// #include "vio_update.hpp"
+#include "lie_math.hpp"
+#include "../rvio2/System.h"
+
+#include <algorithm>
+#include <chrono>
+#include <limits>
+#include <string>
+#include <thread>
+
+static Config config;
+static SourceIn source;
+static StateOut state;
+static std::string g_config_path;
+
+namespace {
+
+struct Rvio2PacketFeed {
+    bool has_last_sample = false;
+    vec3 last_acc_body = vec3::Zero();
+    vec3 last_gyr_body = vec3::Zero();
+    int pushed_samples = 0;
+};
+
+class TemporaryRvio2Runner {
+public:
+    explicit TemporaryRvio2Runner(const std::string& config_path)
+        : system_(config_path) {
+    }
+
+    void pushImuSample(double timestamp_sec, const vec3& gyr_body, const vec3& acc_body) {
+        if (last_imu_timestamp_sec_ >= 0.0 && timestamp_sec <= last_imu_timestamp_sec_ + 1e-9) {
+            return;
+        }
+
+        RVIO2::ImuData* data = new RVIO2::ImuData();
+        data->Timestamp = timestamp_sec;
+        data->AngularVel << static_cast<float>(gyr_body.x()),
+                            static_cast<float>(gyr_body.y()),
+                            static_cast<float>(gyr_body.z());
+        data->LinearAccel << static_cast<float>(acc_body.x()),
+                             static_cast<float>(acc_body.y()),
+                             static_cast<float>(acc_body.z());
+        data->TimeInterval = last_imu_timestamp_sec_ < 0.0 ? 0.0 : (timestamp_sec - last_imu_timestamp_sec_);
+
+        last_imu_timestamp_sec_ = timestamp_sec;
+        system_.PushImuData(data);
+    }
+
+    bool pushImageAndRun(double timestamp_sec, const cv::Mat& image, RVIO2::PoseEstimate* out_pose) {
+        RVIO2::ImageData* data = new RVIO2::ImageData();
+        data->Timestamp = timestamp_sec;
+        data->Image = image.clone();
+        system_.PushImageData(data);
+
+        RVIO2::PoseEstimate pose;
+        bool got_pose = false;
+        while (system_.run(&pose)) {
+            latest_pose_ = pose;
+            has_latest_pose_ = true;
+            got_pose = true;
+        }
+
+        if (got_pose && out_pose != nullptr) {
+            *out_pose = latest_pose_;
+        }
+        return got_pose;
+    }
+
+    bool hasLatestPose() const {
+        return has_latest_pose_;
+    }
+
+    const RVIO2::PoseEstimate& latestPose() const {
+        return latest_pose_;
+    }
+
+private:
+    double last_imu_timestamp_sec_ = -1.0;
+    bool has_latest_pose_ = false;
+    RVIO2::PoseEstimate latest_pose_;
+    RVIO2::System system_;
+};
+
+bool sourceManRotatedImuToColor(const Config& cfg) {
+    return !cfg.imu.T.empty() &&
+           (cfg.gen.type == SOURCE_BAG || cfg.gen.type == SOURCE_RSCAM);
+}
+
+mat3 getColorToImuRotation(const Config& cfg) {
+    mat3 R_ic = mat3::Identity();
+    if (!sourceManRotatedImuToColor(cfg)) {
+        return R_ic;
+    }
+
+    mat3 R_ci = mat3::Identity();
+    for (int r = 0; r < 3; ++r) {
+        for (int c = 0; c < 3; ++c) {
+            R_ci(r, c) = cfg.imu.T.at<double>(r, c);
+        }
+    }
+    return R_ci.transpose();
+}
+
+vec3 interpolateAccelAtTimestamp(const std::deque<vec3>& acc,
+                                 const std::deque<double>& acc_tsms,
+                                 double ts_ms) {
+    if (acc.empty() || acc_tsms.empty()) {
+        return vec3::Zero();
+    }
+    if (acc.size() == 1 || acc_tsms.size() == 1) {
+        return acc.front();
+    }
+    if (ts_ms <= acc_tsms.front()) {
+        return acc.front();
+    }
+    if (ts_ms >= acc_tsms.back()) {
+        return acc.back();
+    }
+
+    auto upper = std::upper_bound(acc_tsms.begin(), acc_tsms.end(), ts_ms);
+    if (upper == acc_tsms.begin()) {
+        return acc.front();
+    }
+    if (upper == acc_tsms.end()) {
+        return acc.back();
+    }
+
+    const size_t idx1 = static_cast<size_t>(upper - acc_tsms.begin());
+    const size_t idx0 = idx1 - 1;
+    const double t0 = acc_tsms[idx0];
+    const double t1 = acc_tsms[idx1];
+    if (std::abs(t1 - t0) < 1e-9) {
+        return acc[idx0];
+    }
+
+    const double alpha = std::clamp((ts_ms - t0) / (t1 - t0), 0.0, 1.0);
+    return (1.0 - alpha) * acc[idx0] + alpha * acc[idx1];
+}
+
+Rvio2PacketFeed feedSourceImuToRvio2(SourceIn& src,
+                                     const Config& cfg,
+                                     TemporaryRvio2Runner* runner) {
+    Rvio2PacketFeed out;
+    if (runner == nullptr || src.gyr.empty() || src.acc.empty() ||
+        src.gyr_tsms.empty() || src.acc_tsms.empty()) {
+        return out;
+    }
+    if(!ResampleAccToGyroInPlace(&src))return out;
+
+    const mat3 R_ic = getColorToImuRotation(cfg);
+    const bool undo_color_rotation = sourceManRotatedImuToColor(cfg);
+    const double acc_t0 = src.acc_tsms.front();
+    const double acc_tf = src.acc_tsms.back();
+
+    for (size_t i = 0; i < src.gyr.size() && i < src.gyr_tsms.size(); ++i) {
+        const double ts_ms = src.gyr_tsms[i];
+        if (ts_ms < acc_t0 - 1e-6 || ts_ms > acc_tf + 1e-6) {
+            continue;
+        }
+
+        vec3 gyr_body = src.gyr[i];
+        vec3 acc_body = interpolateAccelAtTimestamp(src.acc, src.acc_tsms, ts_ms);
+
+        if (undo_color_rotation) {
+            gyr_body = R_ic * gyr_body;
+            acc_body = R_ic * acc_body;
+        }
+
+        runner->pushImuSample(ts_ms, gyr_body, acc_body);
+        out.last_gyr_body = gyr_body;
+        out.last_acc_body = acc_body;
+        out.has_last_sample = true;
+        out.pushed_samples++;
+    }
+
+    return out;
+}
+
+void applyRvio2PoseToState(const RVIO2::PoseEstimate& pose,
+                           double fallback_dt_sec,
+                           const Rvio2PacketFeed& feed,
+                           StateOut* state,
+                           double* last_pose_ts_sec,
+                           vec3* last_pose_position,
+                           bool* has_last_pose) {
+    if (state == nullptr || last_pose_ts_sec == nullptr ||
+        last_pose_position == nullptr || has_last_pose == nullptr) {
+        return;
+    }
+
+    const vec3 position_body(static_cast<double>(pose.Position(0)),
+                             static_cast<double>(pose.Position(1)),
+                             static_cast<double>(pose.Position(2)));
+    const quat q_iG = normalizeQ(quat(static_cast<double>(pose.Quaternion(3)),
+                                      static_cast<double>(pose.Quaternion(0)),
+                                      static_cast<double>(pose.Quaternion(1)),
+                                      static_cast<double>(pose.Quaternion(2))));
+
+    mat3 R_ci = mat3::Identity();
+    vec3 t_ci = vec3::Zero();
+    if (!config.imu.T.empty()) {
+        for (int r = 0; r < 3; ++r) {
+            for (int c = 0; c < 3; ++c) {
+                R_ci(r, c) = config.imu.T.at<double>(r, c);
+            }
+            t_ci(r) = config.imu.T.at<double>(r, 3);
+        }
+    }
+    const mat3 R_ic = R_ci.transpose();
+    const vec3 t_ic = -R_ic * t_ci;
+
+    const mat3 R_iG = q_iG.toRotationMatrix();
+    const mat3 R_Gi = R_iG.transpose();
+    const mat3 R_cG = R_ci * R_iG;
+    const vec3 position = position_body + R_Gi * t_ic;
+    const quat orientation = normalizeQ(quat(R_cG));
+
+    double dt_sec = fallback_dt_sec;
+    if (*has_last_pose) {
+        const double pose_dt = pose.Timestamp - *last_pose_ts_sec;
+        if (pose_dt > 1e-6) {
+            dt_sec = pose_dt;
+        }
+    }
+
+    state->ts_ms = pose.Timestamp * 1000.0;
+    state->dt = dt_sec;
+    state->pos_m = position;
+    state->quat_rad = orientation;
+    state->rpy_rad = quatToCameraRpyRad(state->quat_rad);
+    if (*has_last_pose && dt_sec > 1e-6) {
+        state->vel_ms = (position - *last_pose_position) / dt_sec;
+    } else {
+        state->vel_ms = vec3::Zero();
+    }
+    state->gravv = config.imu.gv;
+
+    if (feed.has_last_sample) {
+        state->acc_cal_ms2 = feed.last_acc_body;
+        state->gyr_cal_rads = feed.last_gyr_body;
+        state->deb.acc_ms2 = feed.last_acc_body;
+        state->deb.gyr_rads = feed.last_gyr_body;
+    }
+
+    // Volcamos la salida temporal de RVIO2 en los campos que ya usan plots/logger.
+    state->deb.imu_xyz = state->pos_m;
+    state->deb.imu_rpy = state->rpy_rad;
+    state->deb.vis_xyz = state->pos_m;
+    state->deb.vis_rpy = state->rpy_rad;
+    state->deb.scale = 1.0f;
+    state->deb.vio_valid = true;
+
+    *last_pose_ts_sec = pose.Timestamp;
+    *last_pose_position = position;
+    *has_last_pose = true;
+}
+
+} // namespace
+
+void projectInit(int argc, char ** argv){
+    LoggerSetVerbsity(DEBUG);
+
+    if(argc < 3){
+        Logger(ERROR, "Usage: %s <path-to-yaml> <path-to-rvio-yaml>", argv[0]);
+        exit(-1);
+    }
+    g_config_path = argv[2];
+    bool ok = config.parseYAML(argv[1]);
+
+    if(!ok)exit(-1);
+
+    config.print();
+}
+
+void exitProgram(){
+    int c = getc(stdin);
+
+    exit(-1);
+}
+
+int main(int argc, char ** argv){
+    projectInit(argc, argv);
+    std::thread exitTh(exitProgram);
+    exitTh.detach();
+
+    // Init Logger
+    std::vector<std::string> header(std::begin(STATEOUT_HEADER), std::end(STATEOUT_HEADER));
+    if(config.gen.debug) {
+        std::vector<std::string> deb_h(std::begin(DEBUGSTATE_HEADER), std::end(DEBUGSTATE_HEADER));
+        header.insert(header.end(), deb_h.begin(), deb_h.end());
+    }
+    CSVLogger logger(config.gen.output.c_str(), &header);
+
+    // Init Modules
+    initSourceMan(&config);
+    gtInit(&config);
+    // TEMPORALMENTE desactivado para comparar solo contra RVIO2.
+    // imuPreInit(&config);
+    // vioInit(&config);
+    // da3Init(&config);
+    // globalPlanInit(&config);
+    // localPlanInit(&config);
+    // controllerInit(&config);
+    // commanderInit(&config);
+    initPlotters(&config);
+    TemporaryRvio2Runner rvio_runner(g_config_path);
+    double last_pose_ts_sec = -1.0;
+    vec3 last_pose_position = vec3::Zero();
+    bool has_last_pose = false;
+
+    if(config.gen.show && config.gen.color_on){
+        cv::namedWindow("vio", cv::WINDOW_NORMAL);
+        cv::resizeWindow("vio", 1280, 720);
+    }
+    
+    while(1){
+        SourceManType ret = getSourceMan(&source);
+
+        // source.print();
+        // const bool has_source_data =
+        //     !source.frame.empty() ||
+        //     !source.depth.empty() ||
+        //     !source.acc.empty() ||
+        //     !source.gyr.empty();
+
+        // // source_man may transiently wait for the next bundle to be complete.
+        // // Skip the whole update chain in that case so we do not keep reusing
+        // // stale state/log rows while the producer finishes the packet.
+        // if (!has_source_data) {
+        //     if(ret != SOURCEMAN_OK){
+        //         Logger(ERROR, "Ret number: %i", ret);
+        //         break;
+        //     }
+        //     std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        //     continue;
+        // }
+
+        
+        gtUpdate(&source, &state);
+        // TEMPORALMENTE desactivado para comparar solo contra RVIO2.
+        // imuPreUpdate(&source, &state);
+        // vioUpdate(&source, &state);
+
+        const Rvio2PacketFeed feed = feedSourceImuToRvio2(source, config, &rvio_runner);
+        if (feed.has_last_sample) {
+            state.acc_cal_ms2 = feed.last_acc_body;
+            state.gyr_cal_rads = feed.last_gyr_body;
+            state.deb.acc_ms2 = feed.last_acc_body;
+            state.deb.gyr_rads = feed.last_gyr_body;
+        }
+
+        if (source.frame_tsms > 0.0) {
+            state.ts_ms = source.frame_tsms;
+        }
+        if (source.frame_dtms > 0.0) {
+            state.dt = source.frame_dtms * 1e-3;
+        }
+
+        RVIO2::PoseEstimate rvio_pose;
+        const bool got_rvio_pose =
+            !source.frame.empty() &&
+            source.frame_tsms > 0.0 &&
+            rvio_runner.pushImageAndRun(source.frame_tsms * 1e-3, source.frame, &rvio_pose);
+
+        if (got_rvio_pose) {
+            applyRvio2PoseToState(rvio_pose,
+                                  source.frame_dtms > 0.0 ? source.frame_dtms * 1e-3 : 0.0,
+                                  feed,
+                                  &state,
+                                  &last_pose_ts_sec,
+                                  &last_pose_position,
+                                  &has_last_pose);
+        }
+
+        
+        // da3Update(source, state);            // pensar si meter en un thread a parte
+        // globalPlanUpdate(state, tray);
+        // localPlanUpdate(state, waypoints, tray);
+        // controllerUpdate(state, tray, cmd);
+
+        // commanderSend(cmd);              // Send command to drone
+
+        if(config.gen.show && !source.frame.empty())cv::imshow("vio", source.frame);
+        const int key = cv::waitKey(1);
+        if (key == 27 || key == 'q' || key == 'Q') break;
+        
+        updatePlots(&state);
+        if(!config.gen.output.empty())logger.addRow(state.toVector(config.gen.debug));    // Log
+        // std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        // printf("\x1B[2J\x1B[H");
+        if(ret != SOURCEMAN_OK){
+            Logger(ERROR, "Ret number: %i", ret);
+            break; // Capture Sources
+        }
+
+    }
+
+    closePlotters();
+    Logger(INFO, "Exiting succesfully, bye..");
+    return 0;
+}

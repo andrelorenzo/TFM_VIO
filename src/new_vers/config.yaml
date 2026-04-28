@@ -1,0 +1,217 @@
+%YAML:1.0
+---
+
+# gen.input: ""
+gen.input: "../../bags/SlowStraightShort_Full.bag"
+# gen.input: "../../bags/OnlyIMU_Still_11min.bag"
+# gen.input: "../../bags/synz/custom_demo.csv"
+# gen.input: "../../bags/phone_long.mp4"
+# gen.input: "COM6"
+gen.output: "../../output/traynn.csv"
+
+gen.groundt: true
+gen.color_on: true
+gen.imu_on: true
+gen.show: true
+gen.debug: true
+
+# Plots for visualizing
+gen.plot_tray: false
+gen.plot_vis_tray: false
+gen.plot_imu_tray: false
+gen.plot_gt_with_tray: true
+gen.plot_gt_with_vis_tray: true
+gen.plot_gt_with_imu_tray: true
+gen.plot_imu: false
+gen.plot_rpy: false
+gen.plot_vis_rpy: false
+gen.plot_gt_with_rpy: false
+gen.plot_gt_with_vis_rpy: false
+gen.plot_2d: false         # false = XZ, true = XY
+
+# ORB tunning
+orb.min_dist: 0.1
+orb.quality: 0.01
+orb.lk_max_lvl: 8
+orb.max_feat: 2500
+orb.min_pts: 100
+orb.min_inliers: 80
+orb.lk_win_size: 21
+orb.patch_r: 1
+
+# Tracker frontend tuning
+trk.min_ransac_points: 12
+trk.ransac_f_px: 1.5
+trk.ransac_conf: 0.99
+trk.fb_max_err_px: 0.75
+trk.lk_iters: 8
+trk.lk_eps: 0.01
+trk.gftt_block_size: 3
+trk.gftt_k: 0.04
+
+# Visual odometry tuning
+vio.visual_step_scale: 1.0             # tocar hasta tener VIO completo
+vio.window_size: 12                     # tocar
+vio.min_parallax_deg: 0.5             # tocar
+vio.good_parallax_deg: 5.0
+vio.min_track_length: 5                # tocar
+vio.keyframe_max_age: 15               # tocar
+vio.keyframe_parallax_deg: 4.0         # tocar
+vio.triang_min_points: 12
+vio.triang_max_reproj_px: 2.0
+vio.pnp_min_points: 12
+vio.pnp_reproj_px: 3.0
+vio.pnp_conf: 0.99
+vio.landmark_min_obs: 4
+vio.landmark_max_age: 15
+vio.landmark_max_reproj_px: 1.2
+vio.pnp_use_pose: false
+vio.pose_refine_enable: true
+vio.pose_refine_min_points: 20
+vio.pose_refine_max_iters: 8
+vio.pose_refine_reproj_px: 3.0
+vio.pose_refine_huber_px: 2.0
+vio.pose_refine_stop_dx: 0.0001
+vio.local_ba_enable: true
+vio.local_ba_min_landmarks: 20
+vio.local_ba_max_landmarks: 80
+vio.local_ba_max_iters: 6
+vio.local_ba_reproj_px: 3.0
+vio.local_ba_huber_px: 2.0
+vio.local_ba_stop_dx: 0.0001
+vio.local_ba_min_improve_px: 0.03
+vio.local_ba_accept_rot_deg: 0.5
+vio.local_ba_accept_pos_m: 0.03
+vio.clone_factor_enable: true
+vio.fuse_enable: true
+vio.fuse_min_inliers: 140
+vio.fuse_max_reproj_px: 0.9
+vio.fuse_min_parallax_deg: 1.5
+vio.fuse_pos_gain: 0.12
+vio.fuse_vel_gain: 0.05
+vio.fuse_ori_gain: 0.00
+vio.fuse_max_pos_corr_m: 0.08
+vio.fuse_max_vel_corr_ms: 0.35
+vio.fuse_max_ori_corr_deg: 1.0
+
+
+# Inverse Brown Conrady ("Color" / 1280x720 / {RGB8})
+cam.width: 1280
+cam.height: 720
+cam.fps: 30                # set it higher than cameras default fps to autoadjust
+
+cam.K: !!opencv-matrix
+   rows: 3
+   cols: 3
+   dt: d
+   data: [906.56982421875, 0.0, 655.935668945312,
+         0.0, 906.161865234375, 380.526672363281,
+         0.0, 0.0, 1.0]
+
+cam.D: !!opencv-matrix
+   rows: 1
+   cols: 5
+   dt: d
+   data: [ 0.0, 0.0, 0.0, 0.0, 0.0 ]
+
+# Shared frontend tuning for visual tracking and GT-from-depth
+dep.min_dist: 8.0
+dep.quality: 0.01
+dep.lk_max_lvl: 6
+dep.max_feat: 2000
+dep.min_pts: 80
+dep.min_inliers: 40
+dep.lk_win_size: 21
+dep.patch_r: 1
+
+# Gyro / Accel (MOTION_XYZ32F)  @ 200 / 100 Hz
+imu.accfps: 100
+imu.gyrfps: 200
+imu.batch_ms: 1
+imu.small_angle: 0.000017
+imu.stationary_enable: true
+imu.zupt_enable: true
+imu.bias_refine_enable: true
+imu.stationary_min_samples: 2
+imu.stationary_gyro_mean_max: 0.02     # tocar
+imu.stationary_acc_mean_tol: 10.20      # tocar
+imu.stationary_gyro_std_max: 0.01      # tocar
+imu.stationary_acc_std_max: 10.08       # tocar
+imu.stationary_bias_alpha: 0.02        # tocar
+
+imu.gv: !!opencv-matrix
+   rows: 1
+   cols: 3
+   dt: d
+   data: [ 0.0, -9.770184612169, 0.0 ]
+
+# static bias of gyro
+imu.bg: !!opencv-matrix
+   rows: 1
+   cols: 3
+   dt: d
+   # data: [ 0.0,0.0,0.0 ]
+   data: [ -4.091119565602e-03, -7.001988462187e-03, -1.025929590318e-02 ]
+
+
+# static bias of accel
+imu.ba: !!opencv-matrix
+   rows: 1
+   cols: 3
+   dt: d
+   # data: [ 0.0,0.0,0.0 ]
+   data: [ 8.685984191869e-03, 2.721909010006e-05, 1.801531853081e-02 ]
+
+
+# allan parameters (N, B, K) 
+imu.allangx: !!opencv-matrix
+   rows: 1
+   cols: 3
+   dt: d
+   data: [ 1.760746e-04, 4.905703e-05, 9.688587e-06 ]
+
+imu.allangy: !!opencv-matrix
+   rows: 1
+   cols: 3
+   dt: d
+   data: [ 2.162940e-04, 5.834342e-05, 8.238686e-06 ]
+
+imu.allangz: !!opencv-matrix
+   rows: 1
+   cols: 3
+   dt: d
+   data: [ 1.744383e-04, 1.041124e-04, 9.037183e-07 ]
+
+imu.allanax: !!opencv-matrix
+   rows: 1
+   cols: 3
+   dt: d
+   data: [ 7.828322e-04, 2.988438e-04, 2.614310e-05 ]
+
+imu.allanay: !!opencv-matrix
+   rows: 1
+   cols: 3
+   dt: d
+   data: [ 1.513294e-03, 7.386173e-04, 6.116699e-05 ]
+
+imu.allanaz: !!opencv-matrix
+   rows: 1
+   cols: 3
+   dt: d
+   data: [ 1.139234e-03, 2.559483e-04, 3.076175e-04 ]
+
+
+imu.tocolor: !!opencv-matrix
+  rows: 4
+  cols: 4
+  dt: d
+  data: [ 1.0, 0.0, 0.0, 0.0,
+          0.0, 1.0, 0.0, 0.0,
+          0.0, 0.0, 1.0, 0.0,
+          0.0, 0.0, 0.0, 1.0 ]
+#   data: [0.999924, 0.0122098, -0.00183793, 0.0203500390052795,
+#          -0.0122028, 0.999918, 0.00377862, -0.00535600678995252,
+#          0.00188392, -0.0037559, 0.999991, 0.0114900199696422,
+#          0.0, 0.0, 0.0, 1.0 ]
+
+

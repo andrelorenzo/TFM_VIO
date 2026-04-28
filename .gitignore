@@ -1,0 +1,5 @@
+/build/*
+/bags/*
+/.vscode/
+/output/*
+/thirds/

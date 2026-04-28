@@ -1,0 +1,160 @@
+%YAML:1.0
+---
+#general viewer parameters
+gen.show: true
+gen.mono-inertial: true
+
+# ""            => searches a RS camera
+# "rtsp:://..." => feed is rtsp stream
+# "cam"         => camera 0 from PC
+# "...*.bag"    => feed from .bag file
+
+# gen.input: "../../bags/RS_435i_test.bag"
+gen.input: "../../bags/phone_long.mp4"
+# gen.input: "../../output/test_imu_ekf2_prepared.csv"
+# gen.input: "COM6"
+# gen.script: "python ../../scripts/plot_rpy.py ../../output/tray.csv --time-col timestamp --roll-col roll_deg --pitch-col pitch_deg --yaw-col yaw_deg --live --interval 0.05"
+gen.script: "python ../../scripts/plot_tray.py ../../output/tray.csv --series est --topdown xz --live --interval 0.1"
+# gen.script: "python ../../scripts/plot_imu.py ../../output/tray.csv --live --mode both --sensor both"
+gen.out: "../../output/tray.csv"
+gen.gt: false
+gen.debug: true
+gen.use_allan: true
+
+
+# camera parameters
+cam.imu: true
+cam.width: 1280
+cam.height: 720
+cam.fps: 30
+cam.RGB: 1     # (0: BGR, 1: RGB)
+cam.fisheye: 0
+
+cam.fx: 906.57
+cam.fy: 906.162
+cam.cx: 655.936
+cam.cy: 380.527
+
+cam.dist: !!opencv-matrix
+   rows: 1
+   cols: 5
+   dt: d
+   data: [ 0.0, 0.0, 0.0, 0.0, 0.0 ]
+
+# RVIO2 image noise / sync parameters
+cam.sigma_px: 2.180293e-03
+cam.sigma_py: 2.186767e-03
+cam.timeoffset: 0.0
+cam.timeoffset_gt: 0.0
+
+
+# imu parameters
+
+# Gravity in the chosen world frame.
+# For the RealSense camera-style convention (x right, y down, z forward), gravity points +Y.
+imu.gv: !!opencv-matrix
+   rows: 1
+   cols: 3
+   dt: d
+   data: [ 0.0, 0.0, -9.80665 ]
+
+# static bias of gyro
+imu.bg: !!opencv-matrix
+   rows: 1
+   cols: 3
+   dt: d
+   data: [ -3.953998335645e-02, -1.286214337937e-02, -4.484531785842e-02 ]
+
+# static bias of accel
+imu.ba: !!opencv-matrix
+   rows: 1
+   cols: 3
+   dt: d
+   data: [ 2.926474101974e-02, -7.168433031569e-02, 2.529648889327e-02 ]
+
+
+# allan parameters (N, B, K) 
+imu.allangx: !!opencv-matrix
+   rows: 1
+   cols: 3
+   dt: d
+   data: [ 9.947163643841e-05, 6.866465271708e-05, 1.696116599080e-06 ]
+imu.allangy: !!opencv-matrix
+   rows: 1
+   cols: 3
+   dt: d
+   data: [ 1.241490345774e-04, 7.945412208038e-05, 1.985035213080e-06 ]
+imu.allangz: !!opencv-matrix
+   rows: 1
+   cols: 3
+   dt: d
+   data: [ 1.089265057253e-04, 2.409801710452e-05, 1.023234419501e-06 ]
+
+imu.allanax: !!opencv-matrix
+   rows: 1
+   cols: 3
+   dt: d
+   data: [ 2.922703675203e-03, 4.708427885962e-04, 1.459531188316e-05 ]
+imu.allanay: !!opencv-matrix
+   rows: 1
+   cols: 3
+   dt: d
+   data: [ 2.877209498495e-03, 5.084895446483e-04, 1.811682345380e-05 ]
+imu.allanaz: !!opencv-matrix
+   rows: 1
+   cols: 3
+   dt: d
+   data: [ 3.963057979962e-03, 7.811325844831e-04, 2.910878629052e-05 ]
+
+# RVIO2 scalar IMU noise parameters derived from Allan data above
+imu.sigma_g: 1.10849058913703e-04
+imu.sigma_wg: 1.56812874388700e-06
+imu.sigma_a: 3.25432371788667e-03
+imu.sigma_wa: 2.06069738758267e-05
+imu.small_angle: 1.745329e-03
+
+imu.freq: 30.0
+
+imu.tocolor: !!opencv-matrix
+   rows: 4
+   cols: 4
+   dt: d
+   data: [ 0.999924, 0.0122098, -0.00183793, 0.0203500390052795,
+           -0.0122028, 0.999918, 0.00377862, -0.00535600678995252,
+           0.00188392, -0.0037559, 0.999991, -0.0114900199696422,
+           0.0, 0.0, 0.0, 1.0 ]
+
+# ORB estractor
+orb.nFeatures: 1250
+orb.scaleFactor: 1.2
+orb.nLevels: 8
+orb.iniThFAST: 20
+orb.minThFAST: 7
+
+# RVIO2-specific tuning with project nomenclature
+rvio.record_outputs: 0
+rvio.enable_alignment: 1
+rvio.use_gt_calib: 0
+rvio.timeskip: 0.0
+rvio.angle_thrd_deg: 0.3
+rvio.length_thrd_m: 0.01
+
+rvio.nFeatures: 200
+rvio.min_track_length: 3
+rvio.max_track_length: 15
+rvio.feature_quality: 1.0e-2
+rvio.min_feature_distance: 15
+rvio.max_slam_points: 0
+rvio.good_parallax_deg: 5.0
+rvio.block_size_x: 150
+rvio.block_size_y: 120
+rvio.enable_filter: 0
+rvio.enable_equalizer: 1
+rvio.ransac_iter: 16
+rvio.use_sampson: 1
+rvio.sampson_err_thrd: 1.0e-6
+rvio.algebraic_err_thrd: 1.0e-3
+rvio.show_track: 1
+rvio.show_newer: 0
+rvio.landmark_scale: 0.03
+rvio.landmark_pub_rate: 5
