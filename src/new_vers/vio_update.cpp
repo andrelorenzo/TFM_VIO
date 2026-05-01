@@ -79,6 +79,9 @@ static std::deque<KeyframeState> g_kf_window;
 static std::unordered_map<int, LandmarkState> g_landmarks;
 static int g_frames_from_kf = 0;
 static ViFusionState g_vi_fuse;
+static bool g_inc_vo_ready = false;
+static vec3 g_inc_prev_imu_p = vec3::Zero();
+static double g_inc_prev_ts_ms = 0.0;
 
 static double normalizedRansacThreshold() {
     if (g_vio_cfg.cam.K.empty()) {
@@ -120,6 +123,23 @@ static double elapsedSecondsFromKeyframe(const KeyframeState& ref_kf, double fra
 
 static double computeStepMetersFromKeyframe(const KeyframeState& ref_kf, double frame_ts_ms) {
     return std::max(0.0, g_vio_cfg.vio.visual_step_scale) * elapsedSecondsFromKeyframe(ref_kf, frame_ts_ms);
+}
+
+static cv::Point2f normToPixel(const cv::Point2f& un) {
+    if (g_vio_cfg.cam.K.empty()) return un;
+    const double fx = g_vio_cfg.cam.K.at<double>(0, 0);
+    const double fy = g_vio_cfg.cam.K.at<double>(1, 1);
+    const double cx = g_vio_cfg.cam.K.at<double>(0, 2);
+    const double cy = g_vio_cfg.cam.K.at<double>(1, 2);
+    return cv::Point2f(static_cast<float>(fx * un.x + cx), static_cast<float>(fy * un.y + cy));
+}
+
+static double computeStepMetersFromState(const KeyframeState& ref_kf, const StateOut& state, double frame_ts_ms) {
+    if (g_vio_cfg.gen.imu_on && state.pos_m.allFinite()) {
+        const double imu_step = (state.pos_m - ref_kf.p_w).norm();
+        if (std::isfinite(imu_step) && imu_step > 1e-5) return imu_step;
+    }
+    return computeStepMetersFromKeyframe(ref_kf, frame_ts_ms);
 }
 
 static double medianParallaxDeg(const std::vector<cv::Point2f>& ref_un,
@@ -192,6 +212,18 @@ static void collectCurrentMeasurements(const TrackerOutput& track,
     }
 }
 
+static void touchTrackedLandmarks(const TrackerOutput& track) {
+    for (int id : track.tracked_ids) {
+        auto it = g_landmarks.find(id);
+        if (it == g_landmarks.end()) continue;
+        LandmarkState& lm = it->second;
+        if (lm.last_image_id != track.image_id) {
+            lm.obs_count = std::max(lm.obs_count, 1) + 1;
+        }
+        lm.last_image_id = track.image_id;
+    }
+}
+
 static void setKeyframeFromTrack(const TrackerOutput& track,
                                  double ts_ms,
                                  const quat& q_wc,
@@ -208,6 +240,27 @@ static void setKeyframeFromTrack(const TrackerOutput& track,
         g_kf_window.pop_front();
     }
     g_frames_from_kf = 0;
+}
+
+static void resetVisualMapToState(const TrackerOutput& track, double ts_ms, StateOut* state, const char* reason) {
+    if (state == nullptr) return;
+    g_vis_q = state->quat_rad.coeffs().allFinite() ? normalizeQ(state->quat_rad) : quat::Identity();
+    g_vis_p = state->pos_m.allFinite() ? state->pos_m : vec3::Zero();
+    g_kf_window.clear();
+    g_landmarks.clear();
+    g_frames_from_kf = 0;
+    g_vi_fuse = ViFusionState{};
+    g_inc_vo_ready = false;
+    g_inc_prev_imu_p = vec3::Zero();
+    g_inc_prev_ts_ms = 0.0;
+    setKeyframeFromTrack(track, ts_ms, g_vis_q, g_vis_p);
+    state->deb.vis_xyz = g_vis_p;
+    state->deb.vis_rpy = quatToCameraRpyRad(g_vis_q);
+    state->deb.vio_window_kfs = static_cast<int>(g_kf_window.size());
+    state->deb.vio_landmarks = 0;
+    Logger(WARN, "[VIO_RESET] reason=%s img=%d ts=%.3f p=[%.3f %.3f %.3f] rpy=[%.3f %.3f %.3f]",
+           reason != nullptr ? reason : "?", track.image_id, ts_ms,
+           g_vis_p.x(), g_vis_p.y(), g_vis_p.z(), state->deb.vis_rpy.x(), state->deb.vis_rpy.y(), state->deb.vis_rpy.z());
 }
 
 static void extractKeyframeMatches(const TrackerOutput& track,
@@ -264,7 +317,7 @@ static std::vector<LocalBaLandmark> collectLocalBaLandmarks(const TrackerOutput&
     std::vector<Candidate> candidates;
     candidates.reserve(track.tracked_ids.size());
 
-    for (size_t i = 0; i < track.tracked_ids.size() && i < track.tracked_px.size(); ++i) {
+    for (size_t i = 0; i < track.tracked_ids.size() && i < track.tracked_un.size(); ++i) {
         const int id = track.tracked_ids[i];
         auto it = g_landmarks.find(id);
         if (it == g_landmarks.end()) continue;
@@ -280,13 +333,13 @@ static std::vector<LocalBaLandmark> collectLocalBaLandmarks(const TrackerOutput&
         Candidate cand;
         cand.lm.id = id;
         cand.lm.lm = &lm;
-        cand.lm.current_px = track.tracked_px[i];
+        cand.lm.current_px = normToPixel(track.tracked_un[i]);
 
         for (const KeyframeState& kf : g_kf_window) {
             if (kf.image_id == lm.anchor_image_id) continue;
-            const auto it_px = kf.px_by_id.find(id);
-            if (it_px == kf.px_by_id.end()) continue;
-            cand.lm.fixed_obs.push_back(LocalBaObs{&kf, it_px->second});
+            const auto it_un = kf.un_by_id.find(id);
+            if (it_un == kf.un_by_id.end()) continue;
+            cand.lm.fixed_obs.push_back(LocalBaObs{&kf, normToPixel(it_un->second)});
         }
 
         if (cand.lm.fixed_obs.empty()) continue;
@@ -491,6 +544,75 @@ static bool estimateRelativeVisualPose(const std::vector<cv::Point2f>& ref_un,
     return R_ref_curr->allFinite() && t_ref_curr_dir->allFinite() && t_ref_curr_dir->norm() > 1e-9;
 }
 
+static double visualScaleFromImuStep(const StateOut& state, double dt_ms) {
+    const double dt_s = std::isfinite(dt_ms) && dt_ms > 0.0 ? 1e-3 * dt_ms : 0.0;
+    double step = 0.0;
+
+    if (g_inc_vo_ready && state.deb.imu_xyz.allFinite() && g_inc_prev_imu_p.allFinite()) {
+        step = (state.deb.imu_xyz - g_inc_prev_imu_p).norm();
+    }
+
+    if ((!std::isfinite(step) || step < 1e-5) && state.vel_ms.allFinite() && dt_s > 0.0) {
+        step = state.vel_ms.norm() * dt_s;
+    }
+
+    const double nominal_speed = std::max(0.05, g_vio_cfg.vio.visual_step_scale);
+    const double max_step = std::max(0.02, 2.5 * nominal_speed * std::max(dt_s, 1e-3));
+
+    if (!std::isfinite(step) || step < 0.0) step = 0.0;
+    return std::clamp(step, 0.0, max_step);
+}
+
+static bool updateIncrementalVisualOdometry(const TrackerOutput& track, const StateOut& state, double frame_ts_ms, int* n_corr, int* n_inliers, int* n_pose_inliers, double* parallax_deg, double* step_m) {
+    if (n_corr != nullptr) *n_corr = 0;
+    if (n_inliers != nullptr) *n_inliers = 0;
+    if (n_pose_inliers != nullptr) *n_pose_inliers = 0;
+    if (parallax_deg != nullptr) *parallax_deg = 0.0;
+    if (step_m != nullptr) *step_m = 0.0;
+
+    if (!g_inc_vo_ready) {
+        g_inc_vo_ready = true;
+        g_inc_prev_imu_p = state.deb.imu_xyz.allFinite() ? state.deb.imu_xyz : state.pos_m;
+        g_inc_prev_ts_ms = frame_ts_ms;
+        return false;
+    }
+
+    mat3 R_prev_curr = mat3::Identity();
+    vec3 t_prev_curr_dir = vec3::Zero();
+    int nc = 0;
+    int ni = 0;
+    int npi = 0;
+    double para = 0.0;
+
+    const bool rel_ok = estimateRelativeVisualPose(track.tracked_prev_un, track.tracked_un, &R_prev_curr, &t_prev_curr_dir, &nc, &ni, &npi, &para);
+    const double dt_ms = frame_ts_ms - g_inc_prev_ts_ms;
+    const double scale = visualScaleFromImuStep(state, dt_ms);
+
+    if (n_corr != nullptr) *n_corr = nc;
+    if (n_inliers != nullptr) *n_inliers = ni;
+    if (n_pose_inliers != nullptr) *n_pose_inliers = npi;
+    if (parallax_deg != nullptr) *parallax_deg = para;
+    if (step_m != nullptr) *step_m = scale;
+
+    bool ok = false;
+    if (rel_ok && scale > 0.0 && t_prev_curr_dir.norm() > 1e-9) {
+        const quat q_prev = normalizeQ(g_vis_q);
+        const vec3 p_prev = g_vis_p;
+        const quat q_new = normalizeQ(q_prev * quat(R_prev_curr));
+        const vec3 p_new = p_prev + q_prev.toRotationMatrix() * (scale * t_prev_curr_dir.normalized());
+
+        if (q_new.coeffs().allFinite() && p_new.allFinite()) {
+            g_vis_q = q_new;
+            g_vis_p = p_new;
+            ok = true;
+        }
+    }
+
+    g_inc_prev_imu_p = state.deb.imu_xyz.allFinite() ? state.deb.imu_xyz : state.pos_m;
+    g_inc_prev_ts_ms = frame_ts_ms;
+    return ok;
+}
+
 static void worldPoseToExtrinsics(const quat& q_wc,
                                   const vec3& p_w,
                                   mat3* R_cw,
@@ -590,6 +712,34 @@ static void buildPnPCorrespondences(const TrackerOutput& track,
     }
 }
 
+static void buildPoseCorrespondencesUndistPx(const TrackerOutput& track, std::vector<cv::Point3f>* pts3, std::vector<cv::Point2f>* pts2, std::vector<int>* ids) {
+    if (pts3 == nullptr || pts2 == nullptr || ids == nullptr) return;
+
+    pts3->clear();
+    pts2->clear();
+    ids->clear();
+
+    for (size_t i = 0; i < track.tracked_ids.size() && i < track.tracked_un.size(); ++i) {
+        const int id = track.tracked_ids[i];
+        const auto it = g_landmarks.find(id);
+        if (it == g_landmarks.end()) continue;
+
+        const LandmarkState& lm = it->second;
+        const int track_len = (i < track.tracked_track_len.size()) ? track.tracked_track_len[i] : 0;
+        const int age = (lm.last_image_id >= 0) ? (track.image_id - lm.last_image_id) : std::numeric_limits<int>::max();
+        vec3 p_w = vec3::Zero();
+        if (!landmarkWorldPoint(lm, &p_w)) continue;
+        if (track_len < g_vio_cfg.vio.min_track_length) continue;
+        if (lm.obs_count < g_vio_cfg.vio.landmark_min_obs) continue;
+        if (age > g_vio_cfg.vio.landmark_max_age) continue;
+        if (lm.last_reproj_px > g_vio_cfg.vio.landmark_max_reproj_px) continue;
+
+        pts3->emplace_back(static_cast<float>(p_w.x()), static_cast<float>(p_w.y()), static_cast<float>(p_w.z()));
+        pts2->push_back(normToPixel(track.tracked_un[i]));
+        ids->push_back(id);
+    }
+}
+
 static mat3 expSO3Std(const vec3& w) {
     const double theta = w.norm();
     if (theta < 1e-12) {
@@ -611,6 +761,42 @@ static vec3 clampVecNorm(const vec3& v, double max_norm) {
     return (max_norm / n) * v;
 }
 
+static double visualPoseMaxResidualM(const StateOut& state) {
+    const double dt = std::isfinite(state.dt) && state.dt > 1e-4 ? state.dt : 0.10;
+    const double v = state.vel_ms.allFinite() ? state.vel_ms.norm() : 0.0;
+    const double dyn = 5.0 + 3.0 * v * dt;
+    return std::clamp(dyn, 5.0, 25.0);
+}
+
+static bool visualPoseConsistent(const char* tag, const quat& q_wc, const vec3& p_w, const StateOut& state, double frame_ts_ms, int image_id) {
+    if (!g_vio_cfg.gen.imu_on) return true;
+    if (!p_w.allFinite() || !q_wc.coeffs().allFinite()) return false;
+    if (!state.pos_m.allFinite() || !state.quat_rad.coeffs().allFinite()) return true;
+
+    const double pos_err = (p_w - state.pos_m).norm();
+    const double pos_max = visualPoseMaxResidualM(state);
+    const double ori_err = quatDeltaDeg(state.quat_rad, q_wc);
+    const double ori_max = std::max(20.0, g_vio_cfg.vio.fuse_max_ori_corr_deg);
+
+    if (!std::isfinite(pos_err) || pos_err > pos_max || !std::isfinite(ori_err) || ori_err > ori_max) {
+        Logger(WARN, "[VIO_POSE_REJECT] tag=%s img=%d ts=%.3f pos_err=%.3f pos_max=%.3f ori_err=%.3f ori_max=%.3f visual_p=[%.3f %.3f %.3f] imu_p=[%.3f %.3f %.3f]",
+               tag != nullptr ? tag : "?", image_id, frame_ts_ms, pos_err, pos_max, ori_err, ori_max,
+               p_w.x(), p_w.y(), p_w.z(), state.pos_m.x(), state.pos_m.y(), state.pos_m.z());
+        return false;
+    }
+
+    return true;
+}
+
+static bool visualMapDiverged(const StateOut& state, double* err_out) {
+    if (!g_vio_cfg.gen.imu_on) return false;
+    if (!g_vis_p.allFinite() || !state.pos_m.allFinite()) return false;
+    const double err = (g_vis_p - state.pos_m).norm();
+    if (err_out != nullptr) *err_out = err;
+    const double reset_thr = std::max(30.0, 3.0 * visualPoseMaxResidualM(state));
+    return std::isfinite(err) && err > reset_thr;
+}
+
 static bool runVisualInertialCorrection(StateOut* state,
                                         bool visual_pose_ok,
                                         int visual_inliers,
@@ -630,15 +816,14 @@ static bool runVisualInertialCorrection(StateOut* state,
     if (!std::isfinite(visual_parallax_deg) || visual_parallax_deg < g_vio_cfg.vio.fuse_min_parallax_deg) return false;
 
     if (!g_vi_fuse.aligned) {
-        g_vi_fuse.q_fuse_from_vis = normalizeQ(state->quat_rad * g_vis_q.conjugate());
-        g_vi_fuse.p_fuse_from_vis = state->pos_m - g_vi_fuse.q_fuse_from_vis.toRotationMatrix() * g_vis_p;
         g_vi_fuse.prev_vis_valid = false;
         g_vi_fuse.aligned = true;
     }
 
-    const mat3 R_fuse_vis = g_vi_fuse.q_fuse_from_vis.toRotationMatrix();
-    const quat q_vis_in_fuse = normalizeQ(g_vi_fuse.q_fuse_from_vis * g_vis_q);
-    const vec3 p_vis_in_fuse = R_fuse_vis * g_vis_p + g_vi_fuse.p_fuse_from_vis;
+    const quat q_vis_in_fuse = normalizeQ(g_vis_q);
+    const vec3 p_vis_in_fuse = g_vis_p;
+
+    if (!visualPoseConsistent("FUSE", q_vis_in_fuse, p_vis_in_fuse, *state, state->ts_ms, -1)) return false;
 
     const vec3 pos_res = p_vis_in_fuse - state->pos_m;
     const vec3 pos_corr = clampVecNorm(
@@ -702,7 +887,7 @@ static bool refinePosePoseOnly(const TrackerOutput& track,
     std::vector<cv::Point3f> pts3;
     std::vector<cv::Point2f> pts2;
     std::vector<int> ids;
-    buildPnPCorrespondences(track, &pts3, &pts2, &ids);
+    buildPoseCorrespondencesUndistPx(track, &pts3, &pts2, &ids);
     *n_corr = static_cast<int>(pts3.size());
     if (*n_corr < std::max(6, g_vio_cfg.vio.pose_refine_min_points)) return false;
 
@@ -1229,7 +1414,7 @@ static bool runCloneFactorUpdate(const TrackerOutput& track,
             if (feat_obs < 2 || s <= 1e-12) continue;
 
             H.noalias() += AtA - (Atb * Atb.transpose()) / s;
-            g.noalias() += Atr - Atb * (br / s);
+            g.noalias() += -Atr + Atb * (br / s);
             feat_lin[i].valid = true;
             feat_lin[i].Atb = Atb;
             feat_lin[i].s = s;
@@ -1396,6 +1581,8 @@ static int triangulateLandmarks(const KeyframeState& ref_kf,
     if (mean_reproj_px != nullptr) {
         *mean_reproj_px = 0.0;
     }
+    (void)ref_px;
+    (void)cur_px;
 
     const int min_pts = std::max(4, g_vio_cfg.vio.triang_min_points);
     if (ids.size() < static_cast<size_t>(min_pts)) return 0;
@@ -1430,8 +1617,8 @@ static int triangulateLandmarks(const KeyframeState& ref_kf,
         if (!projectWorldPointPx(p_w, q_wc_cur, p_w_cur, &reproj_cur, &depth_cur)) continue;
         if (depth_ref <= 1e-9 || depth_cur <= 1e-9) continue;
 
-        const double err_ref = cv::norm(reproj_ref - ref_px[i]);
-        const double err_cur = cv::norm(reproj_cur - cur_px[i]);
+        const double err_ref = cv::norm(reproj_ref - normToPixel(ref_un[i]));
+        const double err_cur = cv::norm(reproj_cur - normToPixel(cur_un[i]));
         const double err = 0.5 * (err_ref + err_cur);
         if (!std::isfinite(err) || err > g_vio_cfg.vio.triang_max_reproj_px) continue;
 
@@ -1541,10 +1728,48 @@ void vioInit(Config * config) {
 
 void vioUpdate(SourceIn * source, StateOut * state) {
     if (!g_vio_ready || source == nullptr || state == nullptr) return;
-    if (!g_vio_cfg.gen.color_on || source->frame.empty()) return;
+    if (!g_vio_cfg.gen.color_on) return;
+    if (source->frame.empty() || source->frame.cols <= 0 || source->frame.rows <= 0) return;
+    if (!std::isfinite(source->frame_tsms)) return;
+
+    if (g_vio_cfg.gen.imu_on) {
+        const double ts_err_ms = std::abs(state->ts_ms - source->frame_tsms);
+        if (std::isfinite(ts_err_ms) && ts_err_ms > 2.0) {
+            Logger(WARN, "[VIO_TS_WARN] state_ts=%.3f frame_ts=%.3f err=%.3f ms. Run imuPreUpdate before vioUpdate.", state->ts_ms, source->frame_tsms, ts_err_ms);
+        }
+    }
+
+    const vec3 imu_pred_p = state->pos_m;
+    const quat imu_pred_q = normalizeQ(state->quat_rad);
+    state->deb.imu_xyz = imu_pred_p;
+    state->deb.imu_rpy = quatToCameraRpyRad(imu_pred_q);
 
     TrackerOutput track;
     if (!trackerTrackFrame(source->frame, &track)) return;
+    touchTrackedLandmarks(track);
+
+    int n_inc_corr = 0;
+    int n_inc_inliers = 0;
+    int n_inc_pose_inliers = 0;
+    double inc_parallax_deg = 0.0;
+    double inc_step_m = 0.0;
+    const bool inc_vo_ok = updateIncrementalVisualOdometry(track, *state, source->frame_tsms, &n_inc_corr, &n_inc_inliers, &n_inc_pose_inliers, &inc_parallax_deg, &inc_step_m);
+    if (inc_vo_ok) {
+        state->deb.vis_xyz = g_vis_p;
+        state->deb.vis_rpy = quatToCameraRpyRad(g_vis_q);
+    }
+
+    double map_err = 0.0;
+    if (latestKeyframe() != nullptr && visualMapDiverged(*state, &map_err)) {
+        state->deb.vis_xyz = g_vis_p;
+        state->deb.vis_rpy = quatToCameraRpyRad(g_vis_q);
+        Logger(WARN, "[VIO_MAP_DIVERGED] img=%d ts=%.3f err=%.3f reset_thr=%.3f vis_p=[%.3f %.3f %.3f] imu_p=[%.3f %.3f %.3f] fused_p=[%.3f %.3f %.3f]",
+               track.image_id, source->frame_tsms, map_err, std::max(30.0, 3.0 * visualPoseMaxResidualM(*state)),
+               g_vis_p.x(), g_vis_p.y(), g_vis_p.z(), state->deb.imu_xyz.x(), state->deb.imu_xyz.y(), state->deb.imu_xyz.z(), state->pos_m.x(), state->pos_m.y(), state->pos_m.z());
+        resetVisualMapToState(track, source->frame_tsms, state, "map_diverged");
+        drawVisualOverlay(&source->frame, track, 0, 0, 0, 0, 0, 0.0, 0.0, false);
+        return;
+    }
 
     state->deb.vio_valid = false;
     state->deb.vio_rel_valid = false;
@@ -1585,9 +1810,18 @@ void vioUpdate(SourceIn * source, StateOut * state) {
     state->deb.scale = 0.0f;
 
     if (latestKeyframe() == nullptr) {
-        g_vis_q = quat::Identity();
-        g_vis_p = vec3::Zero();
+        if (g_vio_cfg.gen.imu_on && state->pos_m.allFinite() && state->quat_rad.coeffs().allFinite()) {
+            g_vis_q = normalizeQ(state->quat_rad);
+            g_vis_p = state->pos_m;
+        } else {
+            g_vis_q = quat::Identity();
+            g_vis_p = vec3::Zero();
+        }
+
         setKeyframeFromTrack(track, source->frame_tsms, g_vis_q, g_vis_p);
+        g_inc_vo_ready = true;
+        g_inc_prev_imu_p = state->deb.imu_xyz.allFinite() ? state->deb.imu_xyz : state->pos_m;
+        g_inc_prev_ts_ms = source->frame_tsms;
         state->deb.vis_xyz = g_vis_p;
         state->deb.vis_rpy = quatToCameraRpyRad(g_vis_q);
         state->deb.vio_window_kfs = static_cast<int>(g_kf_window.size());
@@ -1595,7 +1829,7 @@ void vioUpdate(SourceIn * source, StateOut * state) {
         drawVisualOverlay(&source->frame, track, 0, 0, 0, 0, 0, 0.0, 0.0, false);
         const KeyframeState* kf0 = latestKeyframe();
         const int visible = (kf0 != nullptr) ? static_cast<int>(kf0->un_by_id.size()) : 0;
-        Logger(DEBUG, "VIS ODO init frame=%d visible=%d keyframe=1", track.image_id, visible);
+        Logger(INFO, "[VIO_INIT] frame=%d ts=%.3f visible=%d keyframe=1 p=[%.6f %.6f %.6f] rpy=[%.6f %.6f %.6f]", track.image_id, source->frame_tsms, visible, g_vis_p.x(), g_vis_p.y(), g_vis_p.z(), quatToCameraRpyRad(g_vis_q).x(), quatToCameraRpyRad(g_vis_q).y(), quatToCameraRpyRad(g_vis_q).z());
         return;
     }
 
@@ -1606,14 +1840,35 @@ void vioUpdate(SourceIn * source, StateOut * state) {
         pruneLandmarks(track.image_id);
         state->deb.vis_xyz = g_vis_p;
         state->deb.vis_rpy = quatToCameraRpyRad(g_vis_q);
+        state->deb.vio_rel_valid = inc_vo_ok;
+        state->deb.vio_trans_valid = inc_vo_ok && inc_parallax_deg >= g_vio_cfg.vio.min_parallax_deg;
+        state->deb.vio_valid = inc_vo_ok;
+        state->deb.vio_matches = n_inc_corr;
+        state->deb.vio_inliers = n_inc_inliers;
+        state->deb.vio_kf_parallax_deg = inc_parallax_deg;
+
+        const bool inc_metric_ok = inc_vo_ok && visualPoseConsistent("INC_NO_REF", g_vis_q, g_vis_p, *state, source->frame_tsms, track.image_id);
+        if (inc_metric_ok) {
+            runVisualInertialCorrection(state, true, n_inc_inliers, 0.0, inc_parallax_deg);
+        }
+
+        bool new_keyframe = false;
+        const int n_visible = static_cast<int>(track.tracked_ids.size() + track.new_ids.size());
+        if (n_visible >= std::max(5, g_vio_cfg.trk.min_ransac_points)) {
+            setKeyframeFromTrack(track, source->frame_tsms, g_vis_q, g_vis_p);
+            new_keyframe = true;
+        }
+
         state->deb.vio_window_kfs = static_cast<int>(g_kf_window.size());
-        drawVisualOverlay(&source->frame, track, 0, 0, 0, static_cast<int>(g_landmarks.size()),
-                          g_frames_from_kf, 0.0, 0.0, false);
-        Logger(DEBUG, "VIS ODO valid=0 rel=0 trans=0 pnp=0 ref=0 cl=0 ba=0 kf_new=0 win=%d refAge=0 init=0 pose=0 explo=0 corr=0 Einl=0 Pinl=0 pnpCorr=0 pnpInl=0 refCorr=0 refInl=0 clFeat=0 clObs=0 clInl=0 baLm=0 baObs=0 baInl=0 tri=0 lm=%d para=0.000deg repr=0.000 refRepr=0.000 clRepr=0.000 baRepr=0.000 p=[%.6f %.6f %.6f] rpy=[%.6f %.6f %.6f]",
-               static_cast<int>(g_kf_window.size()),
-               static_cast<int>(g_landmarks.size()),
-               g_vis_p.x(), g_vis_p.y(), g_vis_p.z(),
-               quatToCameraRpyRad(g_vis_q).x(), quatToCameraRpyRad(g_vis_q).y(), quatToCameraRpyRad(g_vis_q).z());
+        drawVisualOverlay(&source->frame, track, n_inc_inliers, 0, 0, static_cast<int>(g_landmarks.size()), g_frames_from_kf, inc_parallax_deg, 0.0, inc_vo_ok);
+
+        const double vis_imu_dp = (state->deb.vis_xyz - state->deb.imu_xyz).norm();
+        Logger(INFO, "[VIO_NO_REF] img=%d ts=%.3f tracked=%zu new=%zu visible=%d inc_ok=%d inc_corr=%d inc_inl=%d inc_pose=%d inc_para=%.3f inc_step=%.4f new_kf=%d win=%d lm=%d vis_p=[%.3f %.3f %.3f] imu_p=[%.3f %.3f %.3f] vis_imu_dp=%.3f",
+               track.image_id, source->frame_tsms, track.tracked_ids.size(), track.new_ids.size(), n_visible,
+               inc_vo_ok ? 1 : 0, n_inc_corr, n_inc_inliers, n_inc_pose_inliers, inc_parallax_deg, inc_step_m, new_keyframe ? 1 : 0,
+               static_cast<int>(g_kf_window.size()), static_cast<int>(g_landmarks.size()),
+               state->deb.vis_xyz.x(), state->deb.vis_xyz.y(), state->deb.vis_xyz.z(),
+               state->deb.imu_xyz.x(), state->deb.imu_xyz.y(), state->deb.imu_xyz.z(), vis_imu_dp);
         return;
     }
 
@@ -1648,6 +1903,8 @@ void vioUpdate(SourceIn * source, StateOut * state) {
     state->deb.vio_kf_age = g_frames_from_kf;
     state->deb.vio_kf_parallax_deg = parallax_deg;
 
+    
+
     const vec3 prev_p = g_vis_p;
 
     quat pose_q = g_vis_q;
@@ -1656,7 +1913,7 @@ void vioUpdate(SourceIn * source, StateOut * state) {
     if (rel_ok) {
         pose_q = normalizeQ(ref_kf.q_wc * quat(R_kf_curr));
         if (trans_ok) {
-            const double step_m = computeStepMetersFromKeyframe(ref_kf, source->frame_tsms);
+            const double step_m = computeStepMetersFromState(ref_kf, *state, source->frame_tsms);
             pose_p = ref_kf.p_w + ref_kf.q_wc.toRotationMatrix() * (step_m * t_kf_curr_dir.normalized());
         }
         pose_from_rel = true;
@@ -1667,9 +1924,15 @@ void vioUpdate(SourceIn * source, StateOut * state) {
     double pnp_reproj_px = 0.0;
     quat pnp_q = quat::Identity();
     vec3 pnp_p = vec3::Zero();
-    const bool pnp_ok = estimatePosePnP(track, &pnp_q, &pnp_p, &n_pnp_corr, &n_pnp_inliers, &pnp_reproj_px);
+    const bool pnp_raw_ok = estimatePosePnP(track, &pnp_q, &pnp_p, &n_pnp_corr, &n_pnp_inliers, &pnp_reproj_px);
+    const bool pnp_ok = pnp_raw_ok && visualPoseConsistent("PNP", pnp_q, pnp_p, *state, source->frame_tsms, track.image_id);
     state->deb.vio_pnp_valid = pnp_ok;
     state->deb.vio_pnp_corr = n_pnp_corr;
+    if (pnp_raw_ok && !pnp_ok) {
+        Logger(WARN, "[VIO_PNP_IGNORED] img=%d corr=%d inl=%d reproj=%.3f pnp_p=[%.3f %.3f %.3f] imu_p=[%.3f %.3f %.3f]",
+               track.image_id, n_pnp_corr, n_pnp_inliers, pnp_reproj_px,
+               pnp_p.x(), pnp_p.y(), pnp_p.z(), state->pos_m.x(), state->pos_m.y(), state->pos_m.z());
+    }
     if (pnp_ok && g_vio_cfg.vio.pnp_use_pose) {
         pose_q = pnp_q;
         pose_p = pnp_p;
@@ -1680,10 +1943,13 @@ void vioUpdate(SourceIn * source, StateOut * state) {
     double refine_reproj_px = 0.0;
     quat refine_q = pose_q;
     vec3 refine_p = pose_p;
-    const bool refine_ok =
+    bool refine_ok =
         pose_from_rel &&
         refinePosePoseOnly(track, pose_q, pose_p, &refine_q, &refine_p,
                            &n_refine_corr, &n_refine_inliers, &refine_reproj_px);
+    if (refine_ok && !visualPoseConsistent("REFINE", refine_q, refine_p, *state, source->frame_tsms, track.image_id)) {
+        refine_ok = false;
+    }
     if (refine_ok) {
         pose_q = refine_q;
         pose_p = refine_p;
@@ -1698,10 +1964,13 @@ void vioUpdate(SourceIn * source, StateOut * state) {
     double clone_reproj_px = 0.0;
     quat clone_q = pose_q;
     vec3 clone_p = pose_p;
-    const bool clone_ok =
+    bool clone_ok =
         pose_from_rel &&
         runCloneFactorUpdate(track, pose_q, pose_p, &clone_q, &clone_p,
                              &n_clone_features, &n_clone_obs, &n_clone_inliers, &clone_reproj_px);
+    if (clone_ok && !visualPoseConsistent("CLONE", clone_q, clone_p, *state, source->frame_tsms, track.image_id)) {
+        clone_ok = false;
+    }
     if (clone_ok) {
         pose_q = clone_q;
         pose_p = clone_p;
@@ -1718,10 +1987,13 @@ void vioUpdate(SourceIn * source, StateOut * state) {
     double ba_reproj_px = 0.0;
     quat ba_q = pose_q;
     vec3 ba_p = pose_p;
-    const bool ba_ok =
+    bool ba_ok =
         pose_from_rel &&
         runLocalWindowBa(track, pose_q, pose_p, &ba_q, &ba_p,
                          &n_ba_landmarks, &n_ba_obs, &n_ba_inliers, &ba_reproj_px);
+    if (ba_ok && !visualPoseConsistent("BA", ba_q, ba_p, *state, source->frame_tsms, track.image_id)) {
+        ba_ok = false;
+    }
     if (ba_ok) {
         pose_q = ba_q;
         pose_p = ba_p;
@@ -1732,7 +2004,14 @@ void vioUpdate(SourceIn * source, StateOut * state) {
     state->deb.vio_ba_inliers = n_ba_inliers;
     state->deb.vio_ba_reproj_px = ba_reproj_px;
 
-    const bool pose_valid = pose_from_rel || (pnp_ok && g_vio_cfg.vio.pnp_use_pose);
+    const bool visual_candidate_available = pose_from_rel || (pnp_raw_ok && g_vio_cfg.vio.pnp_use_pose);
+    const quat visual_candidate_q = normalizeQ(pose_q);
+    const vec3 visual_candidate_p = pose_p;
+
+    bool pose_valid = pose_from_rel || (pnp_ok && g_vio_cfg.vio.pnp_use_pose);
+    if (pose_valid && !visualPoseConsistent("FINAL", pose_q, pose_p, *state, source->frame_tsms, track.image_id)) {
+        pose_valid = false;
+    }
 
     std::vector<int> init_ids;
     std::vector<cv::Point2f> init_kf_px, init_kf_un, init_cur_px, init_cur_un;
@@ -1742,6 +2021,7 @@ void vioUpdate(SourceIn * source, StateOut * state) {
         &init_ids, &init_kf_px, &init_kf_un, &init_cur_px, &init_cur_un);
 
     const bool can_triangulate =
+        pose_valid &&
         rel_ok &&
         trans_ok &&
         static_cast<int>(init_ids.size()) >= std::max(4, g_vio_cfg.vio.triang_min_points);
@@ -1764,8 +2044,13 @@ void vioUpdate(SourceIn * source, StateOut * state) {
         state->deb.scale = static_cast<float>((g_vis_p - prev_p).norm());
     }
 
-    state->deb.vis_xyz = g_vis_p;
-    state->deb.vis_rpy = quatToCameraRpyRad(g_vis_q);
+    if (visual_candidate_available) {
+        state->deb.vis_xyz = visual_candidate_p;
+        state->deb.vis_rpy = quatToCameraRpyRad(visual_candidate_q);
+    } else {
+        state->deb.vis_xyz = g_vis_p;
+        state->deb.vis_rpy = quatToCameraRpyRad(g_vis_q);
+    }
     state->deb.vio_pnp_inliers = n_pnp_inliers;
     state->deb.vio_triangulated = tri_good;
     state->deb.vio_landmarks = static_cast<int>(g_landmarks.size());
@@ -1779,7 +2064,8 @@ void vioUpdate(SourceIn * source, StateOut * state) {
         ba_ok ? ba_reproj_px :
         (clone_ok ? clone_reproj_px :
         (refine_ok ? refine_reproj_px : state->deb.vio_reproj_px));
-    runVisualInertialCorrection(state, pose_valid && trans_ok, fuse_inliers, fuse_reproj_px, parallax_deg);
+    const bool metric_visual_pose_ok = pose_valid && (trans_ok || (pnp_ok && g_vio_cfg.vio.pnp_use_pose));
+    runVisualInertialCorrection(state, metric_visual_pose_ok, fuse_inliers, fuse_reproj_px, parallax_deg);
 
     bool new_keyframe = false;
     if (pose_valid) {
@@ -1810,8 +2096,35 @@ void vioUpdate(SourceIn * source, StateOut * state) {
                       static_cast<int>(g_landmarks.size()), ref_sel.ref_age,
                       parallax_deg, state->deb.vio_reproj_px, state->deb.vio_valid);
 
+    const double vis_imu_dp = (state->deb.vis_xyz - state->deb.imu_xyz).norm();
+    const double fused_imu_dp = (state->pos_m - state->deb.imu_xyz).norm();
+    const double fused_vis_dp = (state->pos_m - state->deb.vis_xyz).norm();
+
+    Logger(INFO, "[VIO_INC] img=%d ok=%d corr=%d inl=%d pose_inl=%d para=%.3f step=%.4f tracked=%zu new=%zu",
+           track.image_id, inc_vo_ok ? 1 : 0, n_inc_corr, n_inc_inliers, n_inc_pose_inliers, inc_parallax_deg, inc_step_m, track.tracked_ids.size(), track.new_ids.size());
+
+    Logger(INFO, "[VIO_LAYERS] img=%d ts=%.3f imu_p=[%.3f %.3f %.3f] vis_p=[%.3f %.3f %.3f] fused_p=[%.3f %.3f %.3f] vis_imu_dp=%.3f fused_imu_dp=%.3f fused_vis_dp=%.3f imu_rpy=[%.3f %.3f %.3f] vis_rpy=[%.3f %.3f %.3f] fused_rpy=[%.3f %.3f %.3f] rel=%d trans=%d pnp=%d visual_accepted=%d fuse=%d",
+           track.image_id, source->frame_tsms,
+           state->deb.imu_xyz.x(), state->deb.imu_xyz.y(), state->deb.imu_xyz.z(),
+           state->deb.vis_xyz.x(), state->deb.vis_xyz.y(), state->deb.vis_xyz.z(),
+           state->pos_m.x(), state->pos_m.y(), state->pos_m.z(),
+           vis_imu_dp, fused_imu_dp, fused_vis_dp,
+           state->deb.imu_rpy.x(), state->deb.imu_rpy.y(), state->deb.imu_rpy.z(),
+           state->deb.vis_rpy.x(), state->deb.vis_rpy.y(), state->deb.vis_rpy.z(),
+           state->rpy_rad.x(), state->rpy_rad.y(), state->rpy_rad.z(),
+           rel_ok ? 1 : 0, trans_ok ? 1 : 0, pnp_ok ? 1 : 0, pose_valid ? 1 : 0, state->deb.vio_fused ? 1 : 0);
+
+    Logger(INFO, "[VIO_CHECK] img=%d frame_ts=%.3f state_ts=%.3f imu_p=[%.3f %.3f %.3f] vis_p=[%.3f %.3f %.3f] fused_p=[%.3f %.3f %.3f] vis_imu_dp=%.3f fused_imu_dp=%.3f rel=%d trans=%d pnp=%d fuse=%d para=%.3f repr=%.3f lm=%d",
+           track.image_id, source->frame_tsms, state->ts_ms,
+           state->deb.imu_xyz.x(), state->deb.imu_xyz.y(), state->deb.imu_xyz.z(),
+           state->deb.vis_xyz.x(), state->deb.vis_xyz.y(), state->deb.vis_xyz.z(),
+           state->pos_m.x(), state->pos_m.y(), state->pos_m.z(),
+           vis_imu_dp, fused_imu_dp,
+           rel_ok ? 1 : 0, trans_ok ? 1 : 0, pnp_ok ? 1 : 0, state->deb.vio_fused ? 1 : 0,
+           parallax_deg, state->deb.vio_reproj_px, static_cast<int>(g_landmarks.size()));
+
     Logger(DEBUG,
-        "VIS ODO valid=%d rel=%d trans=%d pnp=%d ref=%d cl=%d ba=%d fuse=%d kf_new=%d win=%d refAge=%d init=%d pose=%d explo=%d corr=%d Einl=%d Pinl=%d pnpCorr=%d pnpInl=%d refCorr=%d refInl=%d clFeat=%d clObs=%d clInl=%d baLm=%d baObs=%d baInl=%d tri=%d lm=%d para=%.3fdeg repr=%.3f refRepr=%.3f clRepr=%.3f baRepr=%.3f fusePos=%.3f fuseVel=%.3f fuseOri=%.3f p=[%.6f %.6f %.6f] rpy=[%.6f %.6f %.6f]",
+        "VIS ODO valid=%d rel=%d trans=%d pnp=%d ref=%d cl=%d ba=%d fuse=%d kf_new=%d win=%d refAge=%d init=%d pose=%d explo=%d corr=%d Einl=%d Pinl=%d pnpCorr=%d pnpInl=%d refCorr=%d refInl=%d clFeat=%d clObs=%d clInl=%d baLm=%d baObs=%d baInl=%d tri=%d lm=%d para=%.3fdeg repr=%.3f refRepr=%.3f clRepr=%.3f baRepr=%.3f fusePos=%.3f fuseVel=%.3f fuseOri=%.3f imu_p=[%.6f %.6f %.6f] vis_p=[%.6f %.6f %.6f] fused_p=[%.6f %.6f %.6f] imu_rpy=[%.6f %.6f %.6f] vis_rpy=[%.6f %.6f %.6f] fused_rpy=[%.6f %.6f %.6f]",
         state->deb.vio_valid ? 1 : 0,
         rel_ok ? 1 : 0,
         trans_ok ? 1 : 0,
@@ -1849,6 +2162,12 @@ void vioUpdate(SourceIn * source, StateOut * state) {
         state->deb.vio_fuse_pos_res_m,
         state->deb.vio_fuse_vel_res_ms,
         state->deb.vio_fuse_ori_res_deg,
+        state->deb.imu_xyz.x(), state->deb.imu_xyz.y(), state->deb.imu_xyz.z(),
+        state->deb.vis_xyz.x(), state->deb.vis_xyz.y(), state->deb.vis_xyz.z(),
         state->pos_m.x(), state->pos_m.y(), state->pos_m.z(),
+        state->deb.imu_rpy.x(), state->deb.imu_rpy.y(), state->deb.imu_rpy.z(),
+        state->deb.vis_rpy.x(), state->deb.vis_rpy.y(), state->deb.vis_rpy.z(),
         state->rpy_rad.x(), state->rpy_rad.y(), state->rpy_rad.z());
+    source->frame.release();
+    source->imu.clear();
 }

@@ -1,4 +1,5 @@
 #include "tracker.hpp"
+#include "csv_logger.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -118,6 +119,7 @@ bool trackerTrackFrame(const cv::Mat& frame_bgr, TrackerOutput* out){
         }
 
         g_prev_gray = gray;
+        Logger(DEBUG, "[TRK] img=%d first=1 prev=0 tracked=0 new=%zu lost=0", out->image_id, out->new_ids.size());
         return true;
     }
 
@@ -142,6 +144,8 @@ bool trackerTrackFrame(const cv::Mat& frame_bgr, TrackerOutput* out){
     std::vector<cv::Point2f> kept_curr_px;
     out->lost_ids.clear();
     out->lost_track_len.clear();
+
+    const int n_prev_points = static_cast<int>(g_prev_px.size());
 
     for (size_t i = 0; i < g_prev_px.size(); ++i) {
         if (i >= curr_px.size() || i >= lk_status.size() || !lk_status[i] || !insideFrame(curr_px[i], gray)) {
@@ -176,7 +180,7 @@ bool trackerTrackFrame(const cv::Mat& frame_bgr, TrackerOutput* out){
         std::vector<int> fb_ids;
         std::vector<cv::Point2f> fb_prev_px;
         std::vector<cv::Point2f> fb_curr_px;
-        const double fb_max_err_px = std::max(0.05, g_tracker_cfg.trk.fb_max_err_px);
+        const double fb_max_err_px = std::max(2.0, g_tracker_cfg.trk.fb_max_err_px);
 
         for (size_t i = 0; i < kept_curr_px.size(); ++i) {
             if (i >= back_px.size() || i >= back_status.size() || !back_status[i]) {
@@ -206,28 +210,27 @@ bool trackerTrackFrame(const cv::Mat& frame_bgr, TrackerOutput* out){
         kept_curr_px.swap(fb_curr_px);
     }
 
+    int n_f_inliers = -1;
     if (kept_curr_px.size() >= static_cast<size_t>(std::max(5, g_tracker_cfg.trk.min_ransac_points))) {
         std::vector<uchar> ransac_mask;
-        cv::findFundamentalMat( kept_prev_px, kept_curr_px, cv::FM_RANSAC, std::max(0.1, g_tracker_cfg.trk.ransac_f_px), std::clamp(g_tracker_cfg.trk.ransac_conf, 0.5, 0.9999), ransac_mask);
+        cv::findFundamentalMat(kept_prev_px, kept_curr_px, cv::FM_RANSAC, std::max(0.1, g_tracker_cfg.trk.ransac_f_px), std::clamp(g_tracker_cfg.trk.ransac_conf, 0.5, 0.9999), ransac_mask);
         if (ransac_mask.size() == kept_curr_px.size()) {
-            std::vector<int> inlier_ids;
-            std::vector<cv::Point2f> inlier_prev_px;
-            std::vector<cv::Point2f> inlier_curr_px;
-            for (size_t i = 0; i < kept_curr_px.size(); ++i) {
-                if (ransac_mask[i]) {
-                    inlier_ids.push_back(kept_ids[i]);
-                    inlier_prev_px.push_back(kept_prev_px[i]);
-                    inlier_curr_px.push_back(kept_curr_px[i]);
-                } else {
-                    out->lost_ids.push_back(kept_ids[i]);
-                    const auto it_len = g_track_len_by_id.find(kept_ids[i]);
-                    out->lost_track_len.push_back(it_len != g_track_len_by_id.end() ? it_len->second : 0);
-                    g_track_len_by_id.erase(kept_ids[i]);
+            n_f_inliers = cv::countNonZero(ransac_mask);
+            if (n_f_inliers >= std::max(5, g_tracker_cfg.trk.min_ransac_points)) {
+                std::vector<int> inlier_ids;
+                std::vector<cv::Point2f> inlier_prev_px;
+                std::vector<cv::Point2f> inlier_curr_px;
+                for (size_t i = 0; i < kept_curr_px.size(); ++i) {
+                    if (ransac_mask[i]) {
+                        inlier_ids.push_back(kept_ids[i]);
+                        inlier_prev_px.push_back(kept_prev_px[i]);
+                        inlier_curr_px.push_back(kept_curr_px[i]);
+                    }
                 }
+                kept_ids.swap(inlier_ids);
+                kept_prev_px.swap(inlier_prev_px);
+                kept_curr_px.swap(inlier_curr_px);
             }
-            kept_ids.swap(inlier_ids);
-            kept_prev_px.swap(inlier_prev_px);
-            kept_curr_px.swap(inlier_curr_px);
         }
     }
 
@@ -264,5 +267,6 @@ bool trackerTrackFrame(const cv::Mat& frame_bgr, TrackerOutput* out){
     }
 
     g_prev_gray = gray;
+    Logger(DEBUG, "[TRK] img=%d first=0 prev=%d tracked=%zu new=%zu lost=%zu f_inl=%d", out->image_id, n_prev_points, out->tracked_ids.size(), out->new_ids.size(), out->lost_ids.size(), n_f_inliers);
     return true;
 }

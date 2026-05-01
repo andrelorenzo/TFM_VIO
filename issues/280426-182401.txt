@@ -1,0 +1,4 @@
+TITLE: Clean repo of old code and add all necessary comoditias, as config for each device
+PRIORITY: 80
+TYPE: TODO
+STATE: OPEN

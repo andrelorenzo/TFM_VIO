@@ -9,6 +9,9 @@
 #include <sstream>
 #include "seconds/logger.h"
 #include <vector>
+#include <iostream>
+#include <iomanip>
+#include <sstream>
 
 typedef Eigen::Vector3d vec3;
 typedef Eigen::Vector4d vec4;
@@ -150,7 +153,7 @@ struct VioTune {
     double fuse_min_parallax_deg = 1.0;
     double fuse_pos_gain = 0.35;
     double fuse_vel_gain = 0.20;
-    double fuse_ori_gain = 0.00;
+    double fuse_ori_gain = 0.02;
     double fuse_max_pos_corr_m = 0.25;
     double fuse_max_vel_corr_ms = 0.80;
     double fuse_max_ori_corr_deg = 2.0;
@@ -606,25 +609,23 @@ private:
         return oss.str();
     }
 };
-#include <iostream>
-#include <iomanip>
-#include <sstream>
+
+struct ImuSample {
+    double ts = 0.0;
+    double dt = 0.0;
+    vec3 vgyr;
+    vec3 vacc;
+};
 
 struct SourceIn {
     cv::Mat frame;
-    double frame_tsms;
-    double frame_dtms;
+    double frame_tsms = 0.0;
+    double frame_dtms = 0.0;
 
     cv::Mat depth;
-    double depth_tsms;
+    double depth_tsms = 0.0;
 
-    std::deque<vec3> gyr;
-    std::deque<double> gyr_tsms;
-    std::deque<double> gyr_dtms;
-
-    std::deque<vec3> acc;
-    std::deque<double> acc_tsms;
-    std::deque<double> acc_dtms;
+    std::deque<ImuSample> imu;
 
     static std::string VecToStr(const vec3& v) {
         std::ostringstream os;
@@ -636,25 +637,27 @@ struct SourceIn {
     void print() const {
         std::cout << std::fixed << std::setprecision(3);
 
-        std::cout << "frame: " << frame.cols << "x" << frame.rows
-                  << " ts=" << frame_tsms << " dt=" << frame_dtms << "\n";
+        std::cout << "frame: " << frame.cols << "x" << frame.rows << " ts=" << frame_tsms << " dt=" << frame_dtms << "\n";
 
-        std::cout << "depth: " << depth.cols << "x" << depth.rows
-                  << " ts=" << depth_tsms << "\n";
+        std::cout << "depth: " << depth.cols << "x" << depth.rows << " ts=" << depth_tsms << "\n";
 
-        std::cout << "gyr(" << gyr.size() << ")\n";
-        for (size_t i = 0; i < gyr.size(); ++i) {
-            std::cout << "  [" << i << "] t=" << gyr_tsms[i];
-            if (i < gyr_dtms.size()) std::cout << " dt=" << gyr_dtms[i];
-            std::cout << " v=" << VecToStr(gyr[i]) << "\n";
+        vec3 gyr_mean = vec3::Zero();
+        vec3 acc_mean = vec3::Zero();
+        double dt_sum = 0.0;
+
+        for (const ImuSample& s : imu) {
+            gyr_mean += s.vgyr;
+            acc_mean += s.vacc;
+            dt_sum += s.dt;
         }
 
-        std::cout << "acc(" << acc.size() << ")\n";
-        for (size_t i = 0; i < acc.size(); ++i) {
-            std::cout << "  [" << i << "] t=" << acc_tsms[i];
-            if (i < acc_dtms.size()) std::cout << " dt=" << acc_dtms[i];
-            std::cout << " v=" << VecToStr(acc[i]) << "\n";
+        if (!imu.empty()) {
+            const double n = static_cast<double>(imu.size());
+            gyr_mean /= n;
+            acc_mean /= n;
         }
+
+        std::cout << "imu(" << imu.size() << ")" << " t0=" << (imu.empty() ? 0.0 : imu.front().ts) << " t1=" << (imu.empty() ? 0.0 : imu.back().ts) << " dt_sum=" << dt_sum << " gyr_mean=" << VecToStr(gyr_mean) << " acc_mean=" << VecToStr(acc_mean) << "\n";
     }
 };
 
