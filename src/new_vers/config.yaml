@@ -3,7 +3,7 @@
 
 # gen.input: ""
 gen.input: "../../bags/SlowStraightShort_Full.bag"
-# gen.input: "../../bags/RS_435i_idle.bag"
+# gen.input: "../../bags/OnlyIMU_Still_11min.bag"
 # gen.input: "../../bags/synz/custom_demo.csv"
 # gen.input: "../../bags/phone_long.mp4"
 # gen.input: "COM6"
@@ -12,23 +12,22 @@ gen.output: "../../output/traynn.csv"
 gen.groundt: true
 gen.color_on: true
 gen.imu_on: true
-gen.show: true
+gen.show: false
 gen.debug: true
 
 # Plots for visualizing
-gen.plot_tray: true
-gen.plot_vis_tray: true
-gen.plot_imu_tray: true
-gen.plot_gt_with_tray: false
-gen.plot_gt_with_vis_tray: false
-gen.plot_gt_with_imu_tray: false
+gen.plot_tray: false
+gen.plot_vis_tray: false
+gen.plot_imu_tray: false
+gen.plot_gt_with_tray: true
+gen.plot_gt_with_vis_tray: true
+gen.plot_gt_with_imu_tray: true
 gen.plot_imu: false
-gen.plot_rpy: true
+gen.plot_rpy: false
 gen.plot_vis_rpy: false
 gen.plot_gt_with_rpy: false
 gen.plot_gt_with_vis_rpy: false
-gen.plot_2d: false
-
+gen.plot_2d: false         # false = XZ, true = XY
 
 # ORB tunning
 orb.min_dist: 0.1
@@ -99,7 +98,7 @@ vio.fuse_max_ori_corr_deg: 1.0
 # Inverse Brown Conrady ("Color" / 1280x720 / {RGB8})
 cam.width: 1280
 cam.height: 720
-cam.fps: 30                # set it higher than cameras default fps to autoadjust
+cam.fps: 10                # set it higher than cameras default fps to autoadjust
 
 cam.K: !!opencv-matrix
    rows: 3
@@ -144,7 +143,7 @@ imu.gv: !!opencv-matrix
    rows: 1
    cols: 3
    dt: d
-   data: [ 0.0, -9.808, 0.0 ]
+   data: [ 0.0, -9.770184612169, 0.0 ]
 
 # static bias of gyro
 imu.bg: !!opencv-matrix
@@ -206,9 +205,12 @@ imu.tocolor: !!opencv-matrix
   rows: 4
   cols: 4
   dt: d
-  data: [0.999924, 0.0122098, -0.00183793, 0.0203500390052795,
-         -0.0122028, 0.999918, 0.00377862, -0.00535600678995252,
-         0.00188392, -0.0037559, 0.999991, 0.0114900199696422,
-         0.0, 0.0, 0.0, 1.0 ]
-
+  data: [ 1.0, 0.0, 0.0, 0.0,
+          0.0, 1.0, 0.0, 0.0,
+          0.0, 0.0, 1.0, 0.0,
+          0.0, 0.0, 0.0, 1.0 ]
+#   data: [0.999924, 0.0122098, -0.00183793, 0.0203500390052795,
+#          -0.0122028, 0.999918, 0.00377862, -0.00535600678995252,
+#          0.00188392, -0.0037559, 0.999991, 0.0114900199696422,
+#          0.0, 0.0, 0.0, 1.0 ]
 

@@ -20,11 +20,11 @@ mat3 expSO3(const vec3& w, double sa) {
     const mat3 W = skewMat(w);
     if (theta < sa) {
         Logger(WARN, "SMALLL ANGLE ON EXPSO3");
-        return I - W + 0.5 * W * W;
+        return I + W + 0.5 * W * W;
     }
 
-    // RVIO2 convention: Exp(-w^) = I - sin(theta)/theta W + (1-cos(theta))/theta^2 W^2
-    return I - (std::sin(theta) * W / theta) + (((1.0 - std::cos(theta)) * W * W) / (theta * theta));
+    // Standard right-handed SO(3) exponential used with body-frame gyro rates.
+    return I + (std::sin(theta) * W / theta) + (((1.0 - std::cos(theta)) * W * W) / (theta * theta));
 }
 
 mat3 rightJacobianSO3(const vec3& w, double sa) {
@@ -99,7 +99,7 @@ quat quatFromAccel(const vec3& acc_body, const vec3& gv) {
         return quat::Identity();
     }
 
-    return normalizeQ(quat::FromTwoVectors(acc_body.normalized(), (-gv).normalized()));
+    return normalizeQ(quat::FromTwoVectors(acc_body.normalized(), gv.normalized()));
 }
 
 

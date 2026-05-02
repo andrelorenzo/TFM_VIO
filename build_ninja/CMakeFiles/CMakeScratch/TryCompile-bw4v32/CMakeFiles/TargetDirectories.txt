@@ -1,0 +1,3 @@
+C:/Users/ajlorenzo/Documents/AAS_projects/VISLAM/build_ninja/CMakeFiles/CMakeScratch/TryCompile-bw4v32/CMakeFiles/cmTC_32383.dir
+C:/Users/ajlorenzo/Documents/AAS_projects/VISLAM/build_ninja/CMakeFiles/CMakeScratch/TryCompile-bw4v32/CMakeFiles/edit_cache.dir
+C:/Users/ajlorenzo/Documents/AAS_projects/VISLAM/build_ninja/CMakeFiles/CMakeScratch/TryCompile-bw4v32/CMakeFiles/rebuild_cache.dir

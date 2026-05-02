@@ -1,0 +1,3 @@
+C:/Users/ajlorenzo/Documents/AAS_projects/VISLAM/build_ninja_x64_static/CMakeFiles/CMakeScratch/TryCompile-5fi4ef/CMakeFiles/cmTC_76022.dir
+C:/Users/ajlorenzo/Documents/AAS_projects/VISLAM/build_ninja_x64_static/CMakeFiles/CMakeScratch/TryCompile-5fi4ef/CMakeFiles/edit_cache.dir
+C:/Users/ajlorenzo/Documents/AAS_projects/VISLAM/build_ninja_x64_static/CMakeFiles/CMakeScratch/TryCompile-5fi4ef/CMakeFiles/rebuild_cache.dir

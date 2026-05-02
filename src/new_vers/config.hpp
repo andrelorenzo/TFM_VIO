@@ -115,21 +115,21 @@ struct TrackerTune {
 };
 struct VioTune {
     double visual_step_scale = 1.0;
-    int window_size = 5;
-    double min_parallax_deg = 0.10;
+    int window_size = 8;
+    double min_parallax_deg = 0.30;
     double good_parallax_deg = 2.0;
     int min_track_length = 3;
     int keyframe_max_age = 8;
     double keyframe_parallax_deg = 2.0;
     int triang_min_points = 12;
-    double triang_max_reproj_px = 3.0;
+    double triang_max_reproj_px = 2.0;
     int pnp_min_points = 12;
     double pnp_reproj_px = 3.0;
     double pnp_conf = 0.99;
     int landmark_min_obs = 3;
     int landmark_max_age = 30;
     double landmark_max_reproj_px = 2.0;
-    bool pnp_use_pose = false;
+    bool pnp_use_pose = true;
     bool pose_refine_enable = true;
     int pose_refine_min_points = 20;
     int pose_refine_max_iters = 8;
@@ -150,13 +150,13 @@ struct VioTune {
     bool fuse_enable = true;
     int fuse_min_inliers = 80;
     double fuse_max_reproj_px = 1.5;
-    double fuse_min_parallax_deg = 1.0;
-    double fuse_pos_gain = 0.35;
-    double fuse_vel_gain = 0.20;
-    double fuse_ori_gain = 0.02;
+    double fuse_min_parallax_deg = 0.8;
+    double fuse_pos_gain = 0.30;
+    double fuse_vel_gain = 0.15;
+    double fuse_ori_gain = 0.05;
     double fuse_max_pos_corr_m = 0.25;
     double fuse_max_vel_corr_ms = 0.80;
-    double fuse_max_ori_corr_deg = 2.0;
+    double fuse_max_ori_corr_deg = 1.0;
 };
 struct General{
     SourceType type;
@@ -501,9 +501,7 @@ private:
     }
 
     bool yamlReadBool(const cv::FileStorage& fs, const char * key){ 
-        std::string temp;
-        fs[key] >> temp;
-        return (temp == "true");
+        return yamlReadBool(fs, key, false);
     }
 
     bool yamlReadBool(const cv::FileStorage& fs, const char * key, bool fallback){
@@ -512,12 +510,20 @@ private:
             return fallback;
         }
 
-        std::string temp;
-        node >> temp;
-        if (temp.empty()) {
+        if (node.isString()) {
+            std::string temp;
+            node >> temp;
+            temp = toLower(temp);
+            if (temp == "true" || temp == "1" || temp == "yes" || temp == "on") return true;
+            if (temp == "false" || temp == "0" || temp == "no" || temp == "off") return false;
             return fallback;
         }
-        return (temp == "true");
+
+        const double numeric = static_cast<double>(node.real());
+        if (std::isfinite(numeric)) {
+            return std::abs(numeric) > 0.5;
+        }
+        return fallback;
     }
 
     double yamlReadDouble(const cv::FileStorage& fs, const char * key, double fallback = 0.0){

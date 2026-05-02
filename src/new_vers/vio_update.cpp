@@ -17,6 +17,9 @@ struct KeyframeState {
     double ts_ms = 0.0;
     quat q_wc = quat::Identity();
     vec3 p_w = vec3::Zero();
+    bool imu_pose_valid = false;
+    quat q_wc_imu = quat::Identity();
+    vec3 p_w_imu = vec3::Zero();
     std::unordered_map<int, cv::Point2f> px_by_id;
     std::unordered_map<int, cv::Point2f> un_by_id;
 };
@@ -81,7 +84,124 @@ static int g_frames_from_kf = 0;
 static ViFusionState g_vi_fuse;
 static bool g_inc_vo_ready = false;
 static vec3 g_inc_prev_imu_p = vec3::Zero();
+static quat g_inc_prev_imu_q = quat::Identity();
 static double g_inc_prev_ts_ms = 0.0;
+static mat3 g_R_ic = mat3::Identity();
+static vec3 g_t_ic = vec3::Zero();
+static mat3 g_R_ci = mat3::Identity();
+static vec3 g_t_ci = vec3::Zero();
+static bool g_have_cam_imu_extr = false;
+static bool g_curr_imu_cam_pose_valid = false;
+static quat g_curr_imu_cam_q = quat::Identity();
+static vec3 g_curr_imu_cam_p = vec3::Zero();
+
+static cv::Mat normalizeTransform4x4(const cv::Mat& input) {
+    if (input.empty()) return cv::Mat();
+
+    cv::Mat output = cv::Mat::eye(4, 4, CV_64F);
+    cv::Mat source;
+    input.convertTo(source, CV_64F);
+    if (source.rows < 3 || source.cols < 4) return cv::Mat();
+
+    source(cv::Range(0, 3), cv::Range(0, 4)).copyTo(output(cv::Range(0, 3), cv::Range(0, 4)));
+    return output;
+}
+
+static cv::Mat invertRigidTransform4x4(const cv::Mat& input) {
+    const cv::Mat T = normalizeTransform4x4(input);
+    if (T.empty()) return cv::Mat();
+
+    const cv::Mat R = T(cv::Range(0, 3), cv::Range(0, 3)).clone();
+    const cv::Mat t = T(cv::Range(0, 3), cv::Range(3, 4)).clone();
+    const cv::Mat R_inv = R.t();
+    const cv::Mat t_inv = -R_inv * t;
+
+    cv::Mat output = cv::Mat::eye(4, 4, CV_64F);
+    R_inv.copyTo(output(cv::Range(0, 3), cv::Range(0, 3)));
+    t_inv.copyTo(output(cv::Range(0, 3), cv::Range(3, 4)));
+    return output;
+}
+
+static void loadImuCameraExtrinsics() {
+    g_R_ic = mat3::Identity();
+    g_t_ic = vec3::Zero();
+    g_R_ci = mat3::Identity();
+    g_t_ci = vec3::Zero();
+    g_have_cam_imu_extr = false;
+
+    const cv::Mat T_raw = normalizeTransform4x4(g_vio_cfg.imu.T);
+    if (T_raw.empty()) return;
+
+    const cv::Mat T_ic = invertRigidTransform4x4(T_raw);
+    if (T_ic.empty()) return;
+
+    for (int r = 0; r < 3; ++r) {
+        for (int c = 0; c < 3; ++c) {
+            g_R_ic(r, c) = T_ic.at<double>(r, c);
+        }
+        g_t_ic(r) = T_ic.at<double>(r, 3);
+    }
+
+    g_R_ci = g_R_ic.transpose();
+    g_t_ci = -g_R_ci * g_t_ic;
+    g_have_cam_imu_extr = true;
+}
+
+static bool cameraPoseFromImuPose(const quat& q_wi,
+                                  const vec3& p_iw,
+                                  quat* q_wc,
+                                  vec3* p_cw) {
+    if (q_wc == nullptr || p_cw == nullptr) return false;
+    if (!q_wi.coeffs().allFinite() || !p_iw.allFinite()) return false;
+
+    const mat3 R_wi = normalizeQ(q_wi).toRotationMatrix();
+    const mat3 R_wc = R_wi * g_R_ic;
+    *q_wc = normalizeQ(quat(R_wc));
+    *p_cw = p_iw + R_wi * g_t_ic;
+    return q_wc->coeffs().allFinite() && p_cw->allFinite();
+}
+
+static bool imuPoseFromCameraPose(const quat& q_wc,
+                                  const vec3& p_cw,
+                                  quat* q_wi,
+                                  vec3* p_iw) {
+    if (q_wi == nullptr || p_iw == nullptr) return false;
+    if (!q_wc.coeffs().allFinite() || !p_cw.allFinite()) return false;
+
+    const mat3 R_wc = normalizeQ(q_wc).toRotationMatrix();
+    const mat3 R_wi = R_wc * g_R_ci;
+    *q_wi = normalizeQ(quat(R_wi));
+    *p_iw = p_cw - R_wi * g_t_ic;
+    return q_wi->coeffs().allFinite() && p_iw->allFinite();
+}
+
+static bool imuCameraPoseFromState(const StateOut& state, quat* q_wc, vec3* p_cw) {
+    if (!g_vio_cfg.gen.imu_on) return false;
+    return cameraPoseFromImuPose(state.quat_rad, state.pos_m, q_wc, p_cw);
+}
+
+static void setVisualDebugFromCameraPose(const quat& q_wc, const vec3& p_cw, DebugState* deb) {
+    if (deb == nullptr) return;
+
+    quat q_wi = quat::Identity();
+    vec3 p_iw = vec3::Zero();
+    if (imuPoseFromCameraPose(q_wc, p_cw, &q_wi, &p_iw)) {
+        deb->vis_xyz = p_iw;
+        deb->vis_rpy = quatToCameraRpyRad(q_wi);
+        return;
+    }
+
+    deb->vis_xyz = p_cw;
+    deb->vis_rpy = quatToCameraRpyRad(q_wc);
+}
+
+static void updateCurrentImuCameraPose(const StateOut& state) {
+    g_curr_imu_cam_pose_valid = imuCameraPoseFromState(state, &g_curr_imu_cam_q, &g_curr_imu_cam_p);
+    if (!g_curr_imu_cam_pose_valid) {
+        g_curr_imu_cam_q = quat::Identity();
+        g_curr_imu_cam_p = vec3::Zero();
+    }
+}
 
 static double normalizedRansacThreshold() {
     if (g_vio_cfg.cam.K.empty()) {
@@ -135,16 +255,31 @@ static cv::Point2f normToPixel(const cv::Point2f& un) {
 }
 
 static double computeStepMetersFromState(const KeyframeState& ref_kf, const StateOut& state, double frame_ts_ms) {
-    if (g_vio_cfg.gen.imu_on && state.pos_m.allFinite()) {
-        const double imu_step = (state.pos_m - ref_kf.p_w).norm();
+    if (g_curr_imu_cam_pose_valid && ref_kf.imu_pose_valid) {
+        const double imu_step = (g_curr_imu_cam_p - ref_kf.p_w_imu).norm();
         if (std::isfinite(imu_step) && imu_step > 1e-5) return imu_step;
     }
     return computeStepMetersFromKeyframe(ref_kf, frame_ts_ms);
 }
 
+static vec3 rotateRefBearingToCurrent(const cv::Point2f& ref_un,
+                                      const quat& q_ref_wc,
+                                      const quat& q_cur_wc) {
+    vec3 b_ref(ref_un.x, ref_un.y, 1.0);
+    b_ref.normalize();
+    const mat3 R_cur_ref =
+        normalizeQ(q_cur_wc).toRotationMatrix().transpose() *
+        normalizeQ(q_ref_wc).toRotationMatrix();
+    vec3 b_cur = R_cur_ref * b_ref;
+    if (b_cur.norm() > 1e-12) b_cur.normalize();
+    return b_cur;
+}
+
 static double medianParallaxDeg(const std::vector<cv::Point2f>& ref_un,
                                 const std::vector<cv::Point2f>& cur_un,
-                                const cv::Mat& mask) {
+                                const cv::Mat& mask,
+                                const quat* q_ref_wc = nullptr,
+                                const quat* q_cur_wc = nullptr) {
     std::vector<double> angles_deg;
     const uchar* mask_ptr = mask.empty() ? nullptr : mask.ptr<uchar>(0);
 
@@ -153,7 +288,11 @@ static double medianParallaxDeg(const std::vector<cv::Point2f>& ref_un,
 
         vec3 b0(ref_un[i].x, ref_un[i].y, 1.0);
         vec3 b1(cur_un[i].x, cur_un[i].y, 1.0);
-        b0.normalize();
+        if (q_ref_wc != nullptr && q_cur_wc != nullptr) {
+            b0 = rotateRefBearingToCurrent(ref_un[i], *q_ref_wc, *q_cur_wc);
+        } else {
+            b0.normalize();
+        }
         b1.normalize();
         const double c = std::clamp(b0.dot(b1), -1.0, 1.0);
         angles_deg.push_back(std::acos(c) * 180.0 / M_PI);
@@ -165,10 +304,17 @@ static double medianParallaxDeg(const std::vector<cv::Point2f>& ref_un,
     return angles_deg[mid];
 }
 
-static double parallaxDeg(const cv::Point2f& ref_un, const cv::Point2f& cur_un) {
+static double parallaxDeg(const cv::Point2f& ref_un,
+                          const cv::Point2f& cur_un,
+                          const quat* q_ref_wc = nullptr,
+                          const quat* q_cur_wc = nullptr) {
     vec3 b0(ref_un.x, ref_un.y, 1.0);
     vec3 b1(cur_un.x, cur_un.y, 1.0);
-    b0.normalize();
+    if (q_ref_wc != nullptr && q_cur_wc != nullptr) {
+        b0 = rotateRefBearingToCurrent(ref_un, *q_ref_wc, *q_cur_wc);
+    } else {
+        b0.normalize();
+    }
     b1.normalize();
     const double c = std::clamp(b0.dot(b1), -1.0, 1.0);
     return std::acos(c) * 180.0 / M_PI;
@@ -227,13 +373,20 @@ static void touchTrackedLandmarks(const TrackerOutput& track) {
 static void setKeyframeFromTrack(const TrackerOutput& track,
                                  double ts_ms,
                                  const quat& q_wc,
-                                 const vec3& p_w) {
+                                 const vec3& p_w,
+                                 const quat* q_wc_imu = nullptr,
+                                 const vec3* p_w_imu = nullptr) {
     KeyframeState kf;
     kf.valid = true;
     kf.image_id = track.image_id;
     kf.ts_ms = ts_ms;
     kf.q_wc = normalizeQ(q_wc);
     kf.p_w = p_w;
+    if (q_wc_imu != nullptr && p_w_imu != nullptr && q_wc_imu->coeffs().allFinite() && p_w_imu->allFinite()) {
+        kf.imu_pose_valid = true;
+        kf.q_wc_imu = normalizeQ(*q_wc_imu);
+        kf.p_w_imu = *p_w_imu;
+    }
     collectCurrentMeasurements(track, &kf.px_by_id, &kf.un_by_id);
     g_kf_window.push_back(std::move(kf));
     while (static_cast<int>(g_kf_window.size()) > std::max(1, g_vio_cfg.vio.window_size)) {
@@ -244,18 +397,25 @@ static void setKeyframeFromTrack(const TrackerOutput& track,
 
 static void resetVisualMapToState(const TrackerOutput& track, double ts_ms, StateOut* state, const char* reason) {
     if (state == nullptr) return;
-    g_vis_q = state->quat_rad.coeffs().allFinite() ? normalizeQ(state->quat_rad) : quat::Identity();
-    g_vis_p = state->pos_m.allFinite() ? state->pos_m : vec3::Zero();
+    quat imu_cam_q = quat::Identity();
+    vec3 imu_cam_p = vec3::Zero();
+    if (!imuCameraPoseFromState(*state, &imu_cam_q, &imu_cam_p)) {
+        imu_cam_q = quat::Identity();
+        imu_cam_p = vec3::Zero();
+    }
+
+    g_vis_q = imu_cam_q;
+    g_vis_p = imu_cam_p;
     g_kf_window.clear();
     g_landmarks.clear();
     g_frames_from_kf = 0;
     g_vi_fuse = ViFusionState{};
     g_inc_vo_ready = false;
     g_inc_prev_imu_p = vec3::Zero();
+    g_inc_prev_imu_q = quat::Identity();
     g_inc_prev_ts_ms = 0.0;
-    setKeyframeFromTrack(track, ts_ms, g_vis_q, g_vis_p);
-    state->deb.vis_xyz = g_vis_p;
-    state->deb.vis_rpy = quatToCameraRpyRad(g_vis_q);
+    setKeyframeFromTrack(track, ts_ms, g_vis_q, g_vis_p, &imu_cam_q, &imu_cam_p);
+    setVisualDebugFromCameraPose(g_vis_q, g_vis_p, &state->deb);
     state->deb.vio_window_kfs = static_cast<int>(g_kf_window.size());
     state->deb.vio_landmarks = 0;
     Logger(WARN, "[VIO_RESET] reason=%s img=%d ts=%.3f p=[%.3f %.3f %.3f] rpy=[%.3f %.3f %.3f]",
@@ -362,17 +522,20 @@ static std::vector<LocalBaLandmark> collectLocalBaLandmarks(const TrackerOutput&
     return out;
 }
 
-static MatchBuckets classifyKeyframeMatches(const std::vector<int>& ids,
+static MatchBuckets classifyKeyframeMatches(const KeyframeState& ref_kf,
+                                            const std::vector<int>& ids,
                                             const std::vector<cv::Point2f>& kf_un,
                                             const std::vector<cv::Point2f>& cur_un,
                                             const std::unordered_map<int, int>& track_len_by_id) {
     MatchBuckets buckets;
+    const quat* q_ref = ref_kf.imu_pose_valid ? &ref_kf.q_wc_imu : nullptr;
+    const quat* q_cur = g_curr_imu_cam_pose_valid ? &g_curr_imu_cam_q : nullptr;
 
     for (size_t i = 0; i < ids.size() && i < kf_un.size() && i < cur_un.size(); ++i) {
         const int id = ids[i];
         const auto it_len = track_len_by_id.find(id);
         const int track_len = (it_len != track_len_by_id.end()) ? it_len->second : 0;
-        const double para_deg = parallaxDeg(kf_un[i], cur_un[i]);
+        const double para_deg = parallaxDeg(kf_un[i], cur_un[i], q_ref, q_cur);
 
         const auto it_lm = g_landmarks.find(id);
         const bool has_landmark =
@@ -454,8 +617,13 @@ static bool chooseReferenceKeyframe(const TrackerOutput& track,
         extractKeyframeMatches(track, *it, &cand.ids, &cand.kf_px, &cand.kf_un, &cand.cur_px, &cand.cur_un);
         if (static_cast<int>(cand.ids.size()) < std::max(5, g_vio_cfg.trk.min_ransac_points)) continue;
 
-        cand.raw_parallax_deg = medianParallaxDeg(cand.kf_un, cand.cur_un, cv::Mat());
-        cand.buckets = classifyKeyframeMatches(cand.ids, cand.kf_un, cand.cur_un, track_len_by_id);
+        cand.raw_parallax_deg = medianParallaxDeg(
+            cand.kf_un,
+            cand.cur_un,
+            cv::Mat(),
+            it->imu_pose_valid ? &it->q_wc_imu : nullptr,
+            g_curr_imu_cam_pose_valid ? &g_curr_imu_cam_q : nullptr);
+        cand.buckets = classifyKeyframeMatches(*it, cand.ids, cand.kf_un, cand.cur_un, track_len_by_id);
 
         const double score =
             static_cast<double>(cand.ids.size()) +
@@ -548,8 +716,12 @@ static double visualScaleFromImuStep(const StateOut& state, double dt_ms) {
     const double dt_s = std::isfinite(dt_ms) && dt_ms > 0.0 ? 1e-3 * dt_ms : 0.0;
     double step = 0.0;
 
-    if (g_inc_vo_ready && state.deb.imu_xyz.allFinite() && g_inc_prev_imu_p.allFinite()) {
-        step = (state.deb.imu_xyz - g_inc_prev_imu_p).norm();
+    if (g_inc_vo_ready && g_curr_imu_cam_pose_valid && g_inc_prev_imu_p.allFinite()) {
+        step = (g_curr_imu_cam_p - g_inc_prev_imu_p).norm();
+    }
+
+    if ((!std::isfinite(step) || step < 1e-5) && state.deb.imu_dp.allFinite()) {
+        step = state.deb.imu_dp.norm();
     }
 
     if ((!std::isfinite(step) || step < 1e-5) && state.vel_ms.allFinite() && dt_s > 0.0) {
@@ -572,7 +744,8 @@ static bool updateIncrementalVisualOdometry(const TrackerOutput& track, const St
 
     if (!g_inc_vo_ready) {
         g_inc_vo_ready = true;
-        g_inc_prev_imu_p = state.deb.imu_xyz.allFinite() ? state.deb.imu_xyz : state.pos_m;
+        g_inc_prev_imu_p = g_curr_imu_cam_pose_valid ? g_curr_imu_cam_p : vec3::Zero();
+        g_inc_prev_imu_q = g_curr_imu_cam_pose_valid ? g_curr_imu_cam_q : quat::Identity();
         g_inc_prev_ts_ms = frame_ts_ms;
         return false;
     }
@@ -585,6 +758,9 @@ static bool updateIncrementalVisualOdometry(const TrackerOutput& track, const St
     double para = 0.0;
 
     const bool rel_ok = estimateRelativeVisualPose(track.tracked_prev_un, track.tracked_un, &R_prev_curr, &t_prev_curr_dir, &nc, &ni, &npi, &para);
+    if (rel_ok && g_curr_imu_cam_pose_valid && g_inc_prev_imu_q.coeffs().allFinite()) {
+        para = medianParallaxDeg(track.tracked_prev_un, track.tracked_un, cv::Mat(), &g_inc_prev_imu_q, &g_curr_imu_cam_q);
+    }
     const double dt_ms = frame_ts_ms - g_inc_prev_ts_ms;
     const double scale = visualScaleFromImuStep(state, dt_ms);
 
@@ -608,7 +784,8 @@ static bool updateIncrementalVisualOdometry(const TrackerOutput& track, const St
         }
     }
 
-    g_inc_prev_imu_p = state.deb.imu_xyz.allFinite() ? state.deb.imu_xyz : state.pos_m;
+    g_inc_prev_imu_p = g_curr_imu_cam_pose_valid ? g_curr_imu_cam_p : vec3::Zero();
+    g_inc_prev_imu_q = g_curr_imu_cam_pose_valid ? g_curr_imu_cam_q : quat::Identity();
     g_inc_prev_ts_ms = frame_ts_ms;
     return ok;
 }
@@ -764,8 +941,8 @@ static vec3 clampVecNorm(const vec3& v, double max_norm) {
 static double visualPoseMaxResidualM(const StateOut& state) {
     const double dt = std::isfinite(state.dt) && state.dt > 1e-4 ? state.dt : 0.10;
     const double v = state.vel_ms.allFinite() ? state.vel_ms.norm() : 0.0;
-    const double dyn = 5.0 + 3.0 * v * dt;
-    return std::clamp(dyn, 5.0, 25.0);
+    const double dyn = 0.75 + 2.0 * v * dt;
+    return std::clamp(dyn, 0.75, 8.0);
 }
 
 static bool visualPoseConsistent(const char* tag, const quat& q_wc, const vec3& p_w, const StateOut& state, double frame_ts_ms, int image_id) {
@@ -773,15 +950,37 @@ static bool visualPoseConsistent(const char* tag, const quat& q_wc, const vec3& 
     if (!p_w.allFinite() || !q_wc.coeffs().allFinite()) return false;
     if (!state.pos_m.allFinite() || !state.quat_rad.coeffs().allFinite()) return true;
 
-    const double pos_err = (p_w - state.pos_m).norm();
+    quat q_wi_vis = quat::Identity();
+    vec3 p_iw_vis = vec3::Zero();
+    if (!imuPoseFromCameraPose(q_wc, p_w, &q_wi_vis, &p_iw_vis)) return false;
+
+    const double pos_err = (p_iw_vis - state.pos_m).norm();
     const double pos_max = visualPoseMaxResidualM(state);
-    const double ori_err = quatDeltaDeg(state.quat_rad, q_wc);
+    const double ori_err = quatDeltaDeg(state.quat_rad, q_wi_vis);
     const double ori_max = std::max(20.0, g_vio_cfg.vio.fuse_max_ori_corr_deg);
 
     if (!std::isfinite(pos_err) || pos_err > pos_max || !std::isfinite(ori_err) || ori_err > ori_max) {
         Logger(WARN, "[VIO_POSE_REJECT] tag=%s img=%d ts=%.3f pos_err=%.3f pos_max=%.3f ori_err=%.3f ori_max=%.3f visual_p=[%.3f %.3f %.3f] imu_p=[%.3f %.3f %.3f]",
                tag != nullptr ? tag : "?", image_id, frame_ts_ms, pos_err, pos_max, ori_err, ori_max,
-               p_w.x(), p_w.y(), p_w.z(), state.pos_m.x(), state.pos_m.y(), state.pos_m.z());
+               p_iw_vis.x(), p_iw_vis.y(), p_iw_vis.z(), state.pos_m.x(), state.pos_m.y(), state.pos_m.z());
+        return false;
+    }
+
+    return true;
+}
+
+static bool visualOrientationConsistent(const char* tag, const quat& q_wc, const StateOut& state, double frame_ts_ms, int image_id) {
+    if (!g_vio_cfg.gen.imu_on) return true;
+    if (!q_wc.coeffs().allFinite()) return false;
+    if (!state.quat_rad.coeffs().allFinite()) return true;
+
+    const quat q_wi_vis = normalizeQ(quat(normalizeQ(q_wc).toRotationMatrix() * g_R_ci));
+    const double ori_err = quatDeltaDeg(state.quat_rad, q_wi_vis);
+    const double ori_max = std::max(20.0, g_vio_cfg.vio.fuse_max_ori_corr_deg);
+
+    if (!std::isfinite(ori_err) || ori_err > ori_max) {
+        Logger(WARN, "[VIO_ORI_REJECT] tag=%s img=%d ts=%.3f ori_err=%.3f ori_max=%.3f",
+               tag != nullptr ? tag : "?", image_id, frame_ts_ms, ori_err, ori_max);
         return false;
     }
 
@@ -791,9 +990,12 @@ static bool visualPoseConsistent(const char* tag, const quat& q_wc, const vec3& 
 static bool visualMapDiverged(const StateOut& state, double* err_out) {
     if (!g_vio_cfg.gen.imu_on) return false;
     if (!g_vis_p.allFinite() || !state.pos_m.allFinite()) return false;
-    const double err = (g_vis_p - state.pos_m).norm();
+    quat q_wi_vis = quat::Identity();
+    vec3 p_iw_vis = vec3::Zero();
+    if (!imuPoseFromCameraPose(g_vis_q, g_vis_p, &q_wi_vis, &p_iw_vis)) return false;
+    const double err = (p_iw_vis - state.pos_m).norm();
     if (err_out != nullptr) *err_out = err;
-    const double reset_thr = std::max(30.0, 3.0 * visualPoseMaxResidualM(state));
+    const double reset_thr = std::max(3.0, 3.0 * visualPoseMaxResidualM(state));
     return std::isfinite(err) && err > reset_thr;
 }
 
@@ -820,10 +1022,14 @@ static bool runVisualInertialCorrection(StateOut* state,
         g_vi_fuse.aligned = true;
     }
 
-    const quat q_vis_in_fuse = normalizeQ(g_vis_q);
-    const vec3 p_vis_in_fuse = g_vis_p;
+    const quat q_vis_cam = normalizeQ(g_vis_q);
+    const vec3 p_vis_cam = g_vis_p;
 
-    if (!visualPoseConsistent("FUSE", q_vis_in_fuse, p_vis_in_fuse, *state, state->ts_ms, -1)) return false;
+    quat q_vis_in_fuse = quat::Identity();
+    vec3 p_vis_in_fuse = vec3::Zero();
+    if (!imuPoseFromCameraPose(q_vis_cam, p_vis_cam, &q_vis_in_fuse, &p_vis_in_fuse)) return false;
+
+    if (!visualPoseConsistent("FUSE", q_vis_cam, p_vis_cam, *state, state->ts_ms, -1)) return false;
 
     const vec3 pos_res = p_vis_in_fuse - state->pos_m;
     const vec3 pos_corr = clampVecNorm(
@@ -861,6 +1067,33 @@ static bool runVisualInertialCorrection(StateOut* state,
 
     state->deb.vio_fused = true;
     return true;
+}
+
+static void chooseCurrentKeyframeSeed(bool prefer_visual_metric_pose,
+                                      quat* q_wc,
+                                      vec3* p_w,
+                                      quat* q_wc_imu,
+                                      vec3* p_w_imu) {
+    if (q_wc == nullptr || p_w == nullptr || q_wc_imu == nullptr || p_w_imu == nullptr) return;
+
+    if (prefer_visual_metric_pose && g_vis_q.coeffs().allFinite() && g_vis_p.allFinite()) {
+        *q_wc = normalizeQ(g_vis_q);
+        *p_w = g_vis_p;
+    } else if (g_curr_imu_cam_pose_valid) {
+        *q_wc = normalizeQ(g_curr_imu_cam_q);
+        *p_w = g_curr_imu_cam_p;
+    } else {
+        *q_wc = normalizeQ(g_vis_q);
+        *p_w = g_vis_p;
+    }
+
+    if (g_curr_imu_cam_pose_valid) {
+        *q_wc_imu = normalizeQ(g_curr_imu_cam_q);
+        *p_w_imu = g_curr_imu_cam_p;
+    } else {
+        *q_wc_imu = *q_wc;
+        *p_w_imu = *p_w;
+    }
 }
 
 static bool refinePosePoseOnly(const TrackerOutput& track,
@@ -1715,6 +1948,7 @@ void vioInit(Config * config) {
     if (config == nullptr) return;
 
     g_vio_cfg = *config;
+    loadImuCameraExtrinsics();
     trackerInit(config);
 
     g_vio_ready = true;
@@ -1724,6 +1958,13 @@ void vioInit(Config * config) {
     g_landmarks.clear();
     g_frames_from_kf = 0;
     g_vi_fuse = ViFusionState{};
+    g_inc_vo_ready = false;
+    g_inc_prev_imu_p = vec3::Zero();
+    g_inc_prev_imu_q = quat::Identity();
+    g_inc_prev_ts_ms = 0.0;
+    g_curr_imu_cam_pose_valid = false;
+    g_curr_imu_cam_q = quat::Identity();
+    g_curr_imu_cam_p = vec3::Zero();
 }
 
 void vioUpdate(SourceIn * source, StateOut * state) {
@@ -1743,6 +1984,7 @@ void vioUpdate(SourceIn * source, StateOut * state) {
     const quat imu_pred_q = normalizeQ(state->quat_rad);
     state->deb.imu_xyz = imu_pred_p;
     state->deb.imu_rpy = quatToCameraRpyRad(imu_pred_q);
+    updateCurrentImuCameraPose(*state);
 
     TrackerOutput track;
     if (!trackerTrackFrame(source->frame, &track)) return;
@@ -1755,16 +1997,14 @@ void vioUpdate(SourceIn * source, StateOut * state) {
     double inc_step_m = 0.0;
     const bool inc_vo_ok = updateIncrementalVisualOdometry(track, *state, source->frame_tsms, &n_inc_corr, &n_inc_inliers, &n_inc_pose_inliers, &inc_parallax_deg, &inc_step_m);
     if (inc_vo_ok) {
-        state->deb.vis_xyz = g_vis_p;
-        state->deb.vis_rpy = quatToCameraRpyRad(g_vis_q);
+        setVisualDebugFromCameraPose(g_vis_q, g_vis_p, &state->deb);
     }
 
     double map_err = 0.0;
     if (latestKeyframe() != nullptr && visualMapDiverged(*state, &map_err)) {
-        state->deb.vis_xyz = g_vis_p;
-        state->deb.vis_rpy = quatToCameraRpyRad(g_vis_q);
+        setVisualDebugFromCameraPose(g_vis_q, g_vis_p, &state->deb);
         Logger(WARN, "[VIO_MAP_DIVERGED] img=%d ts=%.3f err=%.3f reset_thr=%.3f vis_p=[%.3f %.3f %.3f] imu_p=[%.3f %.3f %.3f] fused_p=[%.3f %.3f %.3f]",
-               track.image_id, source->frame_tsms, map_err, std::max(30.0, 3.0 * visualPoseMaxResidualM(*state)),
+               track.image_id, source->frame_tsms, map_err, std::max(3.0, 3.0 * visualPoseMaxResidualM(*state)),
                g_vis_p.x(), g_vis_p.y(), g_vis_p.z(), state->deb.imu_xyz.x(), state->deb.imu_xyz.y(), state->deb.imu_xyz.z(), state->pos_m.x(), state->pos_m.y(), state->pos_m.z());
         resetVisualMapToState(track, source->frame_tsms, state, "map_diverged");
         drawVisualOverlay(&source->frame, track, 0, 0, 0, 0, 0, 0.0, 0.0, false);
@@ -1810,20 +2050,26 @@ void vioUpdate(SourceIn * source, StateOut * state) {
     state->deb.scale = 0.0f;
 
     if (latestKeyframe() == nullptr) {
-        if (g_vio_cfg.gen.imu_on && state->pos_m.allFinite() && state->quat_rad.coeffs().allFinite()) {
-            g_vis_q = normalizeQ(state->quat_rad);
-            g_vis_p = state->pos_m;
+        if (g_curr_imu_cam_pose_valid) {
+            g_vis_q = g_curr_imu_cam_q;
+            g_vis_p = g_curr_imu_cam_p;
         } else {
             g_vis_q = quat::Identity();
             g_vis_p = vec3::Zero();
         }
 
-        setKeyframeFromTrack(track, source->frame_tsms, g_vis_q, g_vis_p);
+        setKeyframeFromTrack(
+            track,
+            source->frame_tsms,
+            g_vis_q,
+            g_vis_p,
+            g_curr_imu_cam_pose_valid ? &g_curr_imu_cam_q : nullptr,
+            g_curr_imu_cam_pose_valid ? &g_curr_imu_cam_p : nullptr);
         g_inc_vo_ready = true;
-        g_inc_prev_imu_p = state->deb.imu_xyz.allFinite() ? state->deb.imu_xyz : state->pos_m;
+        g_inc_prev_imu_p = g_curr_imu_cam_pose_valid ? g_curr_imu_cam_p : vec3::Zero();
+        g_inc_prev_imu_q = g_curr_imu_cam_pose_valid ? g_curr_imu_cam_q : quat::Identity();
         g_inc_prev_ts_ms = source->frame_tsms;
-        state->deb.vis_xyz = g_vis_p;
-        state->deb.vis_rpy = quatToCameraRpyRad(g_vis_q);
+        setVisualDebugFromCameraPose(g_vis_q, g_vis_p, &state->deb);
         state->deb.vio_window_kfs = static_cast<int>(g_kf_window.size());
 
         drawVisualOverlay(&source->frame, track, 0, 0, 0, 0, 0, 0.0, 0.0, false);
@@ -1838,16 +2084,15 @@ void vioUpdate(SourceIn * source, StateOut * state) {
     if (!chooseReferenceKeyframe(track, track_len_by_id, &ref_sel)) {
         ++g_frames_from_kf;
         pruneLandmarks(track.image_id);
-        state->deb.vis_xyz = g_vis_p;
-        state->deb.vis_rpy = quatToCameraRpyRad(g_vis_q);
+        setVisualDebugFromCameraPose(g_vis_q, g_vis_p, &state->deb);
         state->deb.vio_rel_valid = inc_vo_ok;
         state->deb.vio_trans_valid = inc_vo_ok && inc_parallax_deg >= g_vio_cfg.vio.min_parallax_deg;
-        state->deb.vio_valid = inc_vo_ok;
         state->deb.vio_matches = n_inc_corr;
         state->deb.vio_inliers = n_inc_inliers;
         state->deb.vio_kf_parallax_deg = inc_parallax_deg;
 
         const bool inc_metric_ok = inc_vo_ok && visualPoseConsistent("INC_NO_REF", g_vis_q, g_vis_p, *state, source->frame_tsms, track.image_id);
+        state->deb.vio_valid = inc_metric_ok;
         if (inc_metric_ok) {
             runVisualInertialCorrection(state, true, n_inc_inliers, 0.0, inc_parallax_deg);
         }
@@ -1855,12 +2100,23 @@ void vioUpdate(SourceIn * source, StateOut * state) {
         bool new_keyframe = false;
         const int n_visible = static_cast<int>(track.tracked_ids.size() + track.new_ids.size());
         if (n_visible >= std::max(5, g_vio_cfg.trk.min_ransac_points)) {
-            setKeyframeFromTrack(track, source->frame_tsms, g_vis_q, g_vis_p);
+            quat kf_seed_q = quat::Identity();
+            vec3 kf_seed_p = vec3::Zero();
+            quat kf_seed_q_imu = quat::Identity();
+            vec3 kf_seed_p_imu = vec3::Zero();
+            chooseCurrentKeyframeSeed(inc_metric_ok, &kf_seed_q, &kf_seed_p, &kf_seed_q_imu, &kf_seed_p_imu);
+            setKeyframeFromTrack(
+                track,
+                source->frame_tsms,
+                kf_seed_q,
+                kf_seed_p,
+                &kf_seed_q_imu,
+                &kf_seed_p_imu);
             new_keyframe = true;
         }
 
         state->deb.vio_window_kfs = static_cast<int>(g_kf_window.size());
-        drawVisualOverlay(&source->frame, track, n_inc_inliers, 0, 0, static_cast<int>(g_landmarks.size()), g_frames_from_kf, inc_parallax_deg, 0.0, inc_vo_ok);
+        drawVisualOverlay(&source->frame, track, n_inc_inliers, 0, 0, static_cast<int>(g_landmarks.size()), g_frames_from_kf, inc_parallax_deg, 0.0, inc_metric_ok);
 
         const double vis_imu_dp = (state->deb.vis_xyz - state->deb.imu_xyz).norm();
         Logger(INFO, "[VIO_NO_REF] img=%d ts=%.3f tracked=%zu new=%zu visible=%d inc_ok=%d inc_corr=%d inc_inl=%d inc_pose=%d inc_para=%.3f inc_step=%.4f new_kf=%d win=%d lm=%d vis_p=[%.3f %.3f %.3f] imu_p=[%.3f %.3f %.3f] vis_imu_dp=%.3f",
@@ -1894,6 +2150,9 @@ void vioUpdate(SourceIn * source, StateOut * state) {
     const bool rel_ok = estimateRelativeVisualPose(
         kf_un, cur_un, &R_kf_curr, &t_kf_curr_dir,
         &n_corr, &n_e_inliers, &n_pose_inliers, &parallax_deg);
+    if (rel_ok && ref_kf.imu_pose_valid && g_curr_imu_cam_pose_valid) {
+        parallax_deg = medianParallaxDeg(kf_un, cur_un, cv::Mat(), &ref_kf.q_wc_imu, &g_curr_imu_cam_q);
+    }
     const bool trans_ok = rel_ok && parallax_deg >= g_vio_cfg.vio.min_parallax_deg;
     state->deb.vio_rel_valid = rel_ok;
     state->deb.vio_trans_valid = trans_ok;
@@ -1909,14 +2168,16 @@ void vioUpdate(SourceIn * source, StateOut * state) {
 
     quat pose_q = g_vis_q;
     vec3 pose_p = g_vis_p;
-    bool pose_from_rel = false;
+    bool pose_has_orientation = false;
+    bool pose_has_metric = false;
     if (rel_ok) {
         pose_q = normalizeQ(ref_kf.q_wc * quat(R_kf_curr));
+        pose_has_orientation = true;
         if (trans_ok) {
             const double step_m = computeStepMetersFromState(ref_kf, *state, source->frame_tsms);
             pose_p = ref_kf.p_w + ref_kf.q_wc.toRotationMatrix() * (step_m * t_kf_curr_dir.normalized());
+            pose_has_metric = true;
         }
-        pose_from_rel = true;
     }
 
     int n_pnp_corr = 0;
@@ -1933,9 +2194,12 @@ void vioUpdate(SourceIn * source, StateOut * state) {
                track.image_id, n_pnp_corr, n_pnp_inliers, pnp_reproj_px,
                pnp_p.x(), pnp_p.y(), pnp_p.z(), state->pos_m.x(), state->pos_m.y(), state->pos_m.z());
     }
-    if (pnp_ok && g_vio_cfg.vio.pnp_use_pose) {
+    const bool use_pnp_pose = pnp_ok && (!pose_has_metric || g_vio_cfg.vio.pnp_use_pose);
+    if (use_pnp_pose) {
         pose_q = pnp_q;
         pose_p = pnp_p;
+        pose_has_orientation = true;
+        pose_has_metric = true;
     }
 
     int n_refine_corr = 0;
@@ -1944,7 +2208,7 @@ void vioUpdate(SourceIn * source, StateOut * state) {
     quat refine_q = pose_q;
     vec3 refine_p = pose_p;
     bool refine_ok =
-        pose_from_rel &&
+        pose_has_metric &&
         refinePosePoseOnly(track, pose_q, pose_p, &refine_q, &refine_p,
                            &n_refine_corr, &n_refine_inliers, &refine_reproj_px);
     if (refine_ok && !visualPoseConsistent("REFINE", refine_q, refine_p, *state, source->frame_tsms, track.image_id)) {
@@ -1965,7 +2229,7 @@ void vioUpdate(SourceIn * source, StateOut * state) {
     quat clone_q = pose_q;
     vec3 clone_p = pose_p;
     bool clone_ok =
-        pose_from_rel &&
+        pose_has_metric &&
         runCloneFactorUpdate(track, pose_q, pose_p, &clone_q, &clone_p,
                              &n_clone_features, &n_clone_obs, &n_clone_inliers, &clone_reproj_px);
     if (clone_ok && !visualPoseConsistent("CLONE", clone_q, clone_p, *state, source->frame_tsms, track.image_id)) {
@@ -1988,7 +2252,7 @@ void vioUpdate(SourceIn * source, StateOut * state) {
     quat ba_q = pose_q;
     vec3 ba_p = pose_p;
     bool ba_ok =
-        pose_from_rel &&
+        pose_has_metric &&
         runLocalWindowBa(track, pose_q, pose_p, &ba_q, &ba_p,
                          &n_ba_landmarks, &n_ba_obs, &n_ba_inliers, &ba_reproj_px);
     if (ba_ok && !visualPoseConsistent("BA", ba_q, ba_p, *state, source->frame_tsms, track.image_id)) {
@@ -2004,12 +2268,16 @@ void vioUpdate(SourceIn * source, StateOut * state) {
     state->deb.vio_ba_inliers = n_ba_inliers;
     state->deb.vio_ba_reproj_px = ba_reproj_px;
 
-    const bool visual_candidate_available = pose_from_rel || (pnp_raw_ok && g_vio_cfg.vio.pnp_use_pose);
+    const bool visual_candidate_available = pose_has_orientation || pnp_ok;
     const quat visual_candidate_q = normalizeQ(pose_q);
     const vec3 visual_candidate_p = pose_p;
 
-    bool pose_valid = pose_from_rel || (pnp_ok && g_vio_cfg.vio.pnp_use_pose);
-    if (pose_valid && !visualPoseConsistent("FINAL", pose_q, pose_p, *state, source->frame_tsms, track.image_id)) {
+    bool pose_valid = pose_has_orientation || pnp_ok;
+    const bool final_pose_consistent =
+        pose_has_metric ?
+        visualPoseConsistent("FINAL", pose_q, pose_p, *state, source->frame_tsms, track.image_id) :
+        visualOrientationConsistent("FINAL_ORI", pose_q, *state, source->frame_tsms, track.image_id);
+    if (pose_valid && !final_pose_consistent) {
         pose_valid = false;
     }
 
@@ -2022,6 +2290,7 @@ void vioUpdate(SourceIn * source, StateOut * state) {
 
     const bool can_triangulate =
         pose_valid &&
+        pose_has_metric &&
         rel_ok &&
         trans_ok &&
         static_cast<int>(init_ids.size()) >= std::max(4, g_vio_cfg.vio.triang_min_points);
@@ -2037,45 +2306,50 @@ void vioUpdate(SourceIn * source, StateOut * state) {
 
     if (pose_valid) {
         g_vis_q = normalizeQ(pose_q);
-        if (trans_ok || (pnp_ok && g_vio_cfg.vio.pnp_use_pose)) {
+        if (pose_has_metric) {
             g_vis_p = pose_p;
         }
-        state->deb.vio_valid = rel_ok || (pnp_ok && g_vio_cfg.vio.pnp_use_pose);
-        state->deb.scale = static_cast<float>((g_vis_p - prev_p).norm());
+        state->deb.vio_valid = rel_ok || pnp_ok;
+        state->deb.scale = pose_has_metric ? static_cast<float>((g_vis_p - prev_p).norm()) : 0.0f;
     }
 
     if (visual_candidate_available) {
-        state->deb.vis_xyz = visual_candidate_p;
-        state->deb.vis_rpy = quatToCameraRpyRad(visual_candidate_q);
+        setVisualDebugFromCameraPose(visual_candidate_q, visual_candidate_p, &state->deb);
     } else {
-        state->deb.vis_xyz = g_vis_p;
-        state->deb.vis_rpy = quatToCameraRpyRad(g_vis_q);
+        setVisualDebugFromCameraPose(g_vis_q, g_vis_p, &state->deb);
     }
     state->deb.vio_pnp_inliers = n_pnp_inliers;
     state->deb.vio_triangulated = tri_good;
     state->deb.vio_landmarks = static_cast<int>(g_landmarks.size());
-    state->deb.vio_reproj_px = (tri_good > 0) ? tri_reproj_px : pnp_reproj_px;
+    state->deb.vio_reproj_px = (tri_good > 0) ? tri_reproj_px : (pnp_ok ? pnp_reproj_px : 0.0);
 
     const int fuse_inliers =
         ba_ok ? n_ba_inliers :
         (clone_ok ? n_clone_inliers :
-        (refine_ok ? n_refine_inliers : n_e_inliers));
+        (refine_ok ? n_refine_inliers :
+        (pnp_ok ? n_pnp_inliers : n_e_inliers)));
     const double fuse_reproj_px =
         ba_ok ? ba_reproj_px :
         (clone_ok ? clone_reproj_px :
         (refine_ok ? refine_reproj_px : state->deb.vio_reproj_px));
-    const bool metric_visual_pose_ok = pose_valid && (trans_ok || (pnp_ok && g_vio_cfg.vio.pnp_use_pose));
+    const bool metric_visual_pose_ok = pose_valid && pose_has_metric;
     runVisualInertialCorrection(state, metric_visual_pose_ok, fuse_inliers, fuse_reproj_px, parallax_deg);
 
     bool new_keyframe = false;
-    if (pose_valid) {
+    if (pose_valid && pose_has_metric) {
         const bool age_trigger = g_frames_from_kf >= std::max(1, g_vio_cfg.vio.keyframe_max_age);
         const bool parallax_trigger = parallax_deg >= g_vio_cfg.vio.keyframe_parallax_deg;
         const bool triang_trigger = tri_good >= std::max(4, g_vio_cfg.vio.triang_min_points / 2);
         const bool enough_init_tracks = static_cast<int>(init_ids.size()) >= std::max(4, g_vio_cfg.vio.triang_min_points / 2);
 
         if (age_trigger || (parallax_trigger && triang_trigger && enough_init_tracks)) {
-            setKeyframeFromTrack(track, source->frame_tsms, g_vis_q, g_vis_p);
+            setKeyframeFromTrack(
+                track,
+                source->frame_tsms,
+                g_vis_q,
+                g_vis_p,
+                g_curr_imu_cam_pose_valid ? &g_curr_imu_cam_q : nullptr,
+                g_curr_imu_cam_pose_valid ? &g_curr_imu_cam_p : nullptr);
             new_keyframe = true;
         } else {
             ++g_frames_from_kf;
@@ -2085,7 +2359,18 @@ void vioUpdate(SourceIn * source, StateOut * state) {
         const bool stale_kf = g_frames_from_kf > 2 * std::max(1, g_vio_cfg.vio.keyframe_max_age);
         const int n_visible = static_cast<int>(track.tracked_ids.size() + track.new_ids.size());
         if (stale_kf && n_visible >= std::max(5, g_vio_cfg.trk.min_ransac_points)) {
-            setKeyframeFromTrack(track, source->frame_tsms, g_vis_q, g_vis_p);
+            quat kf_seed_q = quat::Identity();
+            vec3 kf_seed_p = vec3::Zero();
+            quat kf_seed_q_imu = quat::Identity();
+            vec3 kf_seed_p_imu = vec3::Zero();
+            chooseCurrentKeyframeSeed(false, &kf_seed_q, &kf_seed_p, &kf_seed_q_imu, &kf_seed_p_imu);
+            setKeyframeFromTrack(
+                track,
+                source->frame_tsms,
+                kf_seed_q,
+                kf_seed_p,
+                &kf_seed_q_imu,
+                &kf_seed_p_imu);
             new_keyframe = true;
         }
     }

@@ -58,8 +58,7 @@ void imuPreUpdate(SourceIn * source, StateOut * state) {
         Logger(INFO, "[IMU_INIT_CHECK] initialized=%d imu=%zu acc=[%.6f %.6f %.6f] acc_norm=%.6f gv=[%.6f %.6f %.6f] gmag=%.6f", g_attitude_initialized ? 1 : 0, source->imu.size(), block_acc_mean_cal_before.x(), block_acc_mean_cal_before.y(), block_acc_mean_cal_before.z(), acc_norm, gconf.imu.gv.x(), gconf.imu.gv.y(), gconf.imu.gv.z(), gmag);
 
         if (acc_norm > 1e-6) {
-            state->quat_rad = quat::FromTwoVectors(block_acc_mean_cal_before.normalized(), gconf.imu.gv.normalized());
-            state->quat_rad.normalize();
+            state->quat_rad = quatFromAccel(block_acc_mean_cal_before, gconf.imu.gv);
             state->rpy_rad = quatToCameraRpyRad(state->quat_rad);
             state->gravv = gconf.imu.gv.normalized();
             g_attitude_initialized = true;
@@ -73,7 +72,7 @@ void imuPreUpdate(SourceIn * source, StateOut * state) {
 
     const double acc_norm = block_acc_mean_cal_before.norm();
     const double acc_norm_err = std::abs(acc_norm - gmag);
-    const double gravity_acc_norm_tol = std::max(0.35, gconf.imu.stationary_acc_mean_tol);
+    const double gravity_acc_norm_tol = std::max(0.20, gconf.imu.stationary_acc_mean_tol);
     const bool gravity_obs_ok = acc_norm > 1e-6 && acc_norm_err <= gravity_acc_norm_tol;
 
     mat3 R_pre_tilt = state->quat_rad.toRotationMatrix();
@@ -115,7 +114,14 @@ void imuPreUpdate(SourceIn * source, StateOut * state) {
 
     const int block_samples = static_cast<int>(source->imu.size());
     const int low_dynamic_min_samples = std::max(3, std::min(gconf.imu.stationary_min_samples, 5));
-    const bool low_dynamic_block = gconf.imu.stationary_enable && block_samples >= low_dynamic_min_samples && gravity_obs_ok && lin_acc_world_dbg.norm() <= std::max(0.75, gconf.imu.stationary_acc_mean_tol) && block_gyr_mean_cal_before.norm() <= std::max(0.20, gconf.imu.stationary_gyro_mean_max) && block_gyr_std_raw.maxCoeff() <= std::max(0.10, gconf.imu.stationary_gyro_std_max) && block_acc_std_raw.maxCoeff() <= std::max(0.35, gconf.imu.stationary_acc_std_max);
+    const bool low_dynamic_block =
+        gconf.imu.stationary_enable &&
+        block_samples >= low_dynamic_min_samples &&
+        gravity_obs_ok &&
+        lin_acc_world_dbg.norm() <= std::max(0.15, gconf.imu.stationary_acc_mean_tol) &&
+        block_gyr_mean_cal_before.norm() <= std::max(0.05, gconf.imu.stationary_gyro_mean_max) &&
+        block_gyr_std_raw.maxCoeff() <= std::max(0.02, gconf.imu.stationary_gyro_std_max) &&
+        block_acc_std_raw.maxCoeff() <= std::max(0.15, gconf.imu.stationary_acc_std_max);
 
     if (low_dynamic_block && gconf.imu.bias_refine_enable) {
         const double alpha = std::clamp(gconf.imu.stationary_bias_alpha, 0.0, 1.0);

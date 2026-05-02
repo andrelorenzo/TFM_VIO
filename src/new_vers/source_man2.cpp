@@ -14,11 +14,13 @@
 #include <cmath>
 #include <utility>
 #include <mutex>
+#include <chrono>
 
 #define MAX_HIST 5000
 
 static rs2::pipeline pipe;
 static rs2::frame_queue queue(MAX_HIST * 2);
+static rs2::align* g_align_to_color = nullptr;
 static std::thread poll_thread;
 static HANDLE husb = INVALID_HANDLE_VALUE;
 
@@ -93,10 +95,17 @@ bool initSource2(Config config) {
 
         if (source_config.gen.color_on) {
             bag_config.enable_stream(RS2_STREAM_COLOR);
+            bag_config.enable_stream(RS2_STREAM_DEPTH);
             Logger(INFO, "Color feed enabled");
+            Logger(INFO, "Depth feed enabled and aligned to color");
         }
 
         rs2::pipeline_profile profile = pipe.start(bag_config, [&](const rs2::frame& f) { queue.enqueue(f); });
+
+        if (source_config.gen.color_on) {
+            if (g_align_to_color != nullptr) delete g_align_to_color;
+            g_align_to_color = new rs2::align(RS2_STREAM_COLOR);
+        }
 
         for (const rs2::stream_profile& sp : profile.get_streams()) {
             const rs2_stream st = sp.stream_type();
@@ -114,6 +123,10 @@ bool initSource2(Config config) {
                     if (fmt == RS2_FORMAT_RGB8 || fmt == RS2_FORMAT_RGBA8) source_config.cam.is_rgb = true;
                     else if (fmt == RS2_FORMAT_BGR8 || fmt == RS2_FORMAT_BGRA8) source_config.cam.is_rgb = false;
                 }
+            }
+            else if (st == RS2_STREAM_DEPTH) {
+                rs2::video_stream_profile vsp = sp.as<rs2::video_stream_profile>();
+                if (vsp) Logger(INFO, "Depth profile: %dx%d fps=%d format=%s", vsp.width(), vsp.height(), vsp.fps(), rs2_format_to_string(vsp.format()));
             }
         }
     }
@@ -134,13 +147,14 @@ bool initSource2(Config config) {
     return true;
 }
 
-static void pollRealSense(double * init_ts) {
+static bool pollRealSense(double * init_ts) {
     static std::deque<std::pair<double, vec3>> acc_buf;
     static std::deque<std::pair<double, vec3>> gyr_buf;
     static double last_frame_ts = -1.0;
 
     const size_t MAX_IMU_BUF = 500;
     const double EPS_MS = 1e-6;
+    bool produced_packet = false;
 
     rs2::frame fframe;
 
@@ -173,9 +187,21 @@ static void pollRealSense(double * init_ts) {
             continue;
         }
 
-        rs2::video_frame vf = fs.get_color_frame();
+        rs2::frameset aligned = fs;
+        if (g_align_to_color != nullptr) {
+            try {
+                aligned = g_align_to_color->process(fs);
+            }
+            catch (const rs2::error& e) {
+                Logger(WARN, "RealSense align to color failed: %s", e.what());
+                continue;
+            }
+        }
+
+        rs2::video_frame vf = aligned.get_color_frame();
         if (!vf) continue;
 
+        rs2::depth_frame df = aligned.get_depth_frame();
         double frame_ts = normTs(vf.get_timestamp());
 
         if (last_frame_ts < 0.0) {
@@ -235,12 +261,55 @@ static void pollRealSense(double * init_ts) {
         }
 
         cv::Mat out;
-        cv::Mat img_rgb(cv::Size(vf.get_width(), vf.get_height()), CV_8UC3, (void*)vf.get_data(), cv::Mat::AUTO_STEP);
+        const rs2_format color_fmt = vf.get_profile().format();
 
-        if (source_config.cam.is_rgb) cv::cvtColor(img_rgb, out, cv::COLOR_RGB2BGR);
-        else out = img_rgb;
+        if (color_fmt == RS2_FORMAT_RGB8) {
+            cv::Mat img_rgb(cv::Size(vf.get_width(), vf.get_height()), CV_8UC3, (void*)vf.get_data(), cv::Mat::AUTO_STEP);
+            cv::cvtColor(img_rgb, out, cv::COLOR_RGB2BGR);
+        }
+        else if (color_fmt == RS2_FORMAT_BGR8) {
+            cv::Mat img_bgr(cv::Size(vf.get_width(), vf.get_height()), CV_8UC3, (void*)vf.get_data(), cv::Mat::AUTO_STEP);
+            out = img_bgr;
+        }
+        else if (color_fmt == RS2_FORMAT_RGBA8) {
+            cv::Mat img_rgba(cv::Size(vf.get_width(), vf.get_height()), CV_8UC4, (void*)vf.get_data(), cv::Mat::AUTO_STEP);
+            cv::cvtColor(img_rgba, out, cv::COLOR_RGBA2BGR);
+        }
+        else if (color_fmt == RS2_FORMAT_BGRA8) {
+            cv::Mat img_bgra(cv::Size(vf.get_width(), vf.get_height()), CV_8UC4, (void*)vf.get_data(), cv::Mat::AUTO_STEP);
+            cv::cvtColor(img_bgra, out, cv::COLOR_BGRA2BGR);
+        }
+        else {
+            Logger(WARN, "Unsupported color format: %s", rs2_format_to_string(color_fmt));
+            continue;
+        }
 
         packet.frame = out.clone();
+
+        if (df) {
+            const rs2_format depth_fmt = df.get_profile().format();
+            packet.depth_tsms = normTs(df.get_timestamp());
+
+            if (depth_fmt == RS2_FORMAT_Z16 || depth_fmt == RS2_FORMAT_Y16) {
+                cv::Mat depth_view(cv::Size(df.get_width(), df.get_height()), CV_16UC1, const_cast<void*>(df.get_data()), cv::Mat::AUTO_STEP);
+                cv::Mat depth_m;
+                depth_view.convertTo(depth_m, CV_32F, df.get_units());
+                packet.depth = depth_m.clone();
+            }
+            else if (depth_fmt == RS2_FORMAT_DISPARITY32) {
+                cv::Mat depth_view(cv::Size(df.get_width(), df.get_height()), CV_32FC1, const_cast<void*>(df.get_data()), cv::Mat::AUTO_STEP);
+                packet.depth = depth_view.clone();
+            }
+            else {
+                packet.depth.release();
+                packet.depth_tsms = 0.0;
+                Logger(WARN, "Unsupported aligned depth format: %s", rs2_format_to_string(depth_fmt));
+            }
+        }
+        else {
+            packet.depth.release();
+            packet.depth_tsms = 0.0;
+        }
 
         trimImuBuffer(acc_buf, frame_ts);
         trimImuBuffer(gyr_buf, frame_ts);
@@ -251,20 +320,27 @@ static void pollRealSense(double * init_ts) {
             while (vout.size() > MAX_HIST) vout.pop_front();
         }
 
+        produced_packet = true;
         last_frame_ts = frame_ts;
     }
+
+    (void)init_ts;
+    return produced_packet;
 }
 
 static void updateSource2(Config * config) {
     static double init_ts = 0.0;
 
     while (true) {
-        if (config->gen.type == SOURCE_BAG) pollRealSense(&init_ts);
+        bool did_work = false;
+        if (config->gen.type == SOURCE_BAG) did_work = pollRealSense(&init_ts);
         else if (config->gen.type == SOURCE_PORT) {}
         else {
             Logger(ERROR, "Unreachable: Source not available while polling");
             break;
         }
+
+        if (!did_work) std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 }
 
@@ -273,11 +349,15 @@ int getSource2(SourceIn * out) {
 
     if (source_config.gen.type == SOURCE_BAG) {
         std::lock_guard<std::mutex> lock(dout_mutex);
-        if (vout.empty()) return 0;
+        if (vout.empty()) {
+            *out = SourceIn{};
+            return 0;
+        }
         *out = vout.front();
         vout.pop_front();
         return 1;
     }
 
+    *out = SourceIn{};
     return 0;
 }

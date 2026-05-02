@@ -2,7 +2,7 @@
 #include "plotter.hpp"
 #include "source_man2.hpp"
 #include "csv_logger.hpp"
-// #include "gt_est.hpp"
+#include "gt_est.hpp"
 #include "pre_int.hpp"
 #include "vio_update.hpp"
 // #include "lie_math.hpp"
@@ -53,7 +53,7 @@ int main(int argc, char ** argv){
     // Init Modules
     // initSourceMan(&config);
     initSource2(config);
-    // gtInit(&config);
+    gtInit(&config);
     imuPreInit(&config);
     vioInit(&config);
     // da3Init(&config);
@@ -69,16 +69,27 @@ int main(int argc, char ** argv){
     }
     
     while(1){
-        // std::this_thread::sleep_for(std::chrono::milliseconds(1));
-        // SourceManType ret = getSourceMan(&source);
-        // printf("\x1B[2J\x1B[H");
         int ret = getSource2(&source);
-        // gtUpdate(&source, &state);
+
+        if(source.frame.empty())continue;
+
+        if(source.frame_tsms <= 8000){
+            source.frame.release();
+            source.imu.clear();
+            continue;
+        }
+
+
+
+        if (ret <= 0) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            continue;
+        }
+
+        gtUpdate(&source, &state);
         imuPreUpdate(&source, &state);
         vioUpdate(&source, &state);
 
-
-        
         // // da3Update(source, state);            // pensar si meter en un thread a parte
         // // globalPlanUpdate(state, tray);
         // // localPlanUpdate(state, waypoints, tray);

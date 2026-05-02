@@ -180,7 +180,7 @@ bool trackerTrackFrame(const cv::Mat& frame_bgr, TrackerOutput* out){
         std::vector<int> fb_ids;
         std::vector<cv::Point2f> fb_prev_px;
         std::vector<cv::Point2f> fb_curr_px;
-        const double fb_max_err_px = std::max(2.0, g_tracker_cfg.trk.fb_max_err_px);
+        const double fb_max_err_px = std::max(0.1, g_tracker_cfg.trk.fb_max_err_px);
 
         for (size_t i = 0; i < kept_curr_px.size(); ++i) {
             if (i >= back_px.size() || i >= back_status.size() || !back_status[i]) {

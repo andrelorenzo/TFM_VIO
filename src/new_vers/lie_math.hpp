@@ -11,7 +11,7 @@ quat normalizeQ(const quat& q);                             ///> Normalization f
 quat expQ(const vec3& w, double sa);                        ///> q^e
 vec3 quatToRpyRad(const quat& q);                           ///> q -> rpy
 vec3 quatToCameraRpyRad(const quat& q);                     ///> q -> camera rpy (roll:z, pitch:x, yaw:-y)
-quat quatFromAccel(const vec3& acc_body, const vec3& gv);   ///> (a,g) -> q
+quat quatFromAccel(const vec3& acc_body, const vec3& gv);   ///> (a, gv_rest) -> q
 mat3 computeJ1SO3(vec3 w, double dt, double sa);
 mat3 computeJ2SO3(vec3 w, double dt, double sa);
 // Eigen::MatrixXf pseudoInverse(const Eigen::MatrixXf& Mat, float epsilon=std::numeric_limits<float>::epsilon());

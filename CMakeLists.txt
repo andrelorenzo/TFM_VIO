@@ -66,8 +66,16 @@ endif()
 
 
 
-file(GLOB NEWMAIN_SRC CONFIGURE_DEPENDS
-    "${CMAKE_SOURCE_DIR}/src/new_vers/*.cpp"
+set(NEWMAIN_SRC
+    "${CMAKE_SOURCE_DIR}/src/new_vers/features.cpp"
+    "${CMAKE_SOURCE_DIR}/src/new_vers/gt_est.cpp"
+    "${CMAKE_SOURCE_DIR}/src/new_vers/lie_math.cpp"
+    "${CMAKE_SOURCE_DIR}/src/new_vers/main_old.cpp"
+    "${CMAKE_SOURCE_DIR}/src/new_vers/plotter.cpp"
+    "${CMAKE_SOURCE_DIR}/src/new_vers/pre_int.cpp"
+    "${CMAKE_SOURCE_DIR}/src/new_vers/source_man2.cpp"
+    "${CMAKE_SOURCE_DIR}/src/new_vers/tracker.cpp"
+    "${CMAKE_SOURCE_DIR}/src/new_vers/vio_update.cpp"
 )
 
 add_executable(new_vers 
