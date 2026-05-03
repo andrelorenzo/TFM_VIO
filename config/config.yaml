@@ -1,0 +1,132 @@
+%YAML:1.0
+---
+
+# gen.input: ""
+gen.input: "../../bags/SlowWithEvitation_Full.bag"
+# gen.input: "../../bags/OnlyIMU_Still_11min.bag"
+# gen.input: "../../bags/synz/custom_demo.csv"
+# gen.input: "COM6"
+gen.output: "../../output/traynn.csv"
+
+gen.depth_on: true
+gen.color_on: true
+gen.imu_on: true
+gen.show: true
+gen.debug: true
+
+gen.plot_imu: true
+
+gen.plot_tray: true
+gen.plot_vis_tray: true
+gen.plot_imu_tray: true
+gen.plot_height: true
+
+gen.plot_rpy: true
+gen.plot_vis_rpy: true
+gen.plot_imu_rpy: true
+
+gen.plot_dpos: true
+gen.plot_dvel: true
+
+
+
+
+# Inverse Brown Conrady ("Color" / 1280x720 / {RGB8})
+# set it higher than cameras default fps to autoadjust
+cam.fps: 8
+
+cam.K: !!opencv-matrix
+   rows: 3
+   cols: 3
+   dt: d
+   data: [906.56982421875, 0.0, 655.935668945312,
+         0.0, 906.161865234375, 380.526672363281,
+         0.0, 0.0, 1.0]
+
+cam.D: !!opencv-matrix
+   rows: 1
+   cols: 5
+   dt: d
+   data: [ 0.0, 0.0, 0.0, 0.0, 0.0 ]
+
+# RVIO2 image noise in normalized coordinates
+cam.spx: 2.180293e-03
+cam.spy: 2.186767e-03
+
+
+# Gyro / Accel (MOTION_XYZ32F)  @ 200 / 100 Hz
+imu.g: -9.808
+
+# static bias
+imu.bg: !!opencv-matrix
+   rows: 1
+   cols: 3
+   dt: d
+   data: [ -4.091119565602e-03, -7.001988462187e-03, -1.025929590318e-02 ]
+imu.ba: !!opencv-matrix
+   rows: 1
+   cols: 3
+   dt: d
+   data: [ 8.685984191869e-03, 2.721909010006e-05, 1.801531853081e-02 ]
+
+# allan parameters
+imu.allangN: !!opencv-matrix
+   rows: 1
+   cols: 3
+   dt: d
+   data: [ 1.760746e-04, 2.162940e-04, 1.744383e-04 ]
+
+imu.allangK: !!opencv-matrix
+   rows: 1
+   cols: 3
+   dt: d
+   data: [ 9.688587e-06, 8.238686e-06, 9.037183e-07 ]
+
+imu.allanaN: !!opencv-matrix
+   rows: 1
+   cols: 3
+   dt: d
+   data: [ 7.828322e-04, 1.513294e-03, 1.139234e-03 ]
+
+imu.allanaK: !!opencv-matrix
+   rows: 1
+   cols: 3
+   dt: d
+   data: [ 2.614310e-05, 6.116699e-05, 3.076175e-04 ]
+
+# Tranformation from IMU frame to color frame
+imu.tocolor: !!opencv-matrix
+  rows: 4
+  cols: 4
+  dt: d
+  data: [0.999924, 0.0122098, -0.00183793, 0.0203500390052795,
+         -0.0122028, 0.999918, 0.00377862, -0.00535600678995252,
+         0.00188392, -0.0037559, 0.999991, 0.0114900199696422,
+         0.0, 0.0, 0.0, 1.0 ]
+
+
+# Feature parameters
+feat.mindist: 8
+feat.quat: 1e-2
+feat.bsizex: 150
+feat.bsizey: 120
+feat.max: 1200
+
+# VIO parameters
+vio.rsac_it: 16
+vio.sampson_on: true
+vio.sampson_threserr: 1e-6
+vio.sampson_algerr: 1e-3
+vio.slam_pts: 0
+vio.ang_ths: 0.3
+vio.dis_ths: 0.01
+vio.en_align: false
+vio.good_para: 5
+
+# Tracker parameters
+track.filter_on: true
+track.en_equalizer: true
+track.maxlength: 18
+track.minlength: 6
+track.show: true
+track.shownew: true

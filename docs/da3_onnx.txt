@@ -1,0 +1,5 @@
+# ONNX Runtime library for infering with depth anything v3
+
+MODEL="../../models/depth_anything/DA3METRIC-SMALL.onnx"
+SHOW=false
+CAM=false

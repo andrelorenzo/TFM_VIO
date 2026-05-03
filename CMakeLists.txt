@@ -15,72 +15,18 @@ set(OpenCV_STATIC ON)
 find_package(OpenCV REQUIRED CONFIG)
 find_package(Python3 REQUIRED COMPONENTS Interpreter Development.Embed NumPy)
 
-# file(GLOB RVIO_SOURCES CONFIGURE_DEPENDS
-#     "${CMAKE_SOURCE_DIR}/src/rvio2/*.cc"
-# )
 
-
-file(GLOB RVIO2_CORE_SRC CONFIGURE_DEPENDS
-    "${CMAKE_SOURCE_DIR}/src/rvio2/*.cc"
+file(GLOB VIO_PLOTTER_SRC CONFIGURE_DEPENDS
+    "${CMAKE_SOURCE_DIR}/src/plotter/*.cpp"
+)
+file(GLOB VIO_SRC CONFIGURE_DEPENDS
+    "${CMAKE_SOURCE_DIR}/src/*.cpp"
 )
 
 
-# MAIN PROGRAMM
-add_executable(${CMAKE_PROJECT_NAME}
-    src/main_own.cpp
-    src/imu.cpp
-    src/source_man.cpp
-    src/gt_estimator.cpp
-    src/visual_odometry.cpp
-    src/feature_tracker.cpp
-    # ${RVIO_SOURCES}
-)
-target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE 
-    include
-    "${CMAKE_SOURCE_DIR}/thirds/realsense/include" 
-    ${OpenCV_INCLUDE_DIRS}
-    "${CMAKE_SOURCE_DIR}/thirds/Eigen/eigen-3.4.0/"
-    "${CMAKE_SOURCE_DIR}/src/rvio2"
-    "${CMAKE_SOURCE_DIR}/src/rvio2/util/"
-)
-target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE 
-    opencv_world 
-    "${CMAKE_SOURCE_DIR}/thirds/realsense/lib/x64/realsense2.lib"
-    "${CMAKE_SOURCE_DIR}/thirds/seconds/Project_commons.lib"
-)
-if(MSVC)
-    target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE /bigobj)
-endif()
-
-
-# NEW MAIN PROGRAMM
-add_library(matplotlib_cpp INTERFACE)
-target_compile_features(matplotlib_cpp INTERFACE cxx_std_11)
-target_link_libraries(matplotlib_cpp INTERFACE Python3::Python)
-if(Python3_NumPy_FOUND)
-    target_link_libraries(matplotlib_cpp INTERFACE Python3::NumPy)
-else()
-    target_compile_definitions(matplotlib_cpp INTERFACE WITHOUT_NUMPY)
-endif()
-
-
-
-
-set(NEWMAIN_SRC
-    "${CMAKE_SOURCE_DIR}/src/new_vers/features.cpp"
-    "${CMAKE_SOURCE_DIR}/src/new_vers/gt_est.cpp"
-    "${CMAKE_SOURCE_DIR}/src/new_vers/lie_math.cpp"
-    "${CMAKE_SOURCE_DIR}/src/new_vers/main_old.cpp"
-    "${CMAKE_SOURCE_DIR}/src/new_vers/plotter.cpp"
-    "${CMAKE_SOURCE_DIR}/src/new_vers/pre_int.cpp"
-    "${CMAKE_SOURCE_DIR}/src/new_vers/source_man2.cpp"
-    "${CMAKE_SOURCE_DIR}/src/new_vers/tracker.cpp"
-    "${CMAKE_SOURCE_DIR}/src/new_vers/vio_update.cpp"
-)
-
-add_executable(new_vers 
-    ${NEWMAIN_SRC}
-    ${RVIO2_CORE_SRC}
+add_executable(vio 
+    ${VIO_PLOTTER_SRC}
+    ${VIO_SRC}
     thirds/imgui/imgui.cpp
     thirds/imgui/imgui_draw.cpp
     thirds/imgui/imgui_tables.cpp
@@ -92,20 +38,18 @@ add_executable(new_vers
     thirds/implot/implot_items.cpp
     thirds/implot/implot_demo.cpp
 )
-target_include_directories(new_vers PRIVATE 
+target_include_directories(vio PRIVATE 
     include
+    "${CMAKE_SOURCE_DIR}/src/plotter"
     "${CMAKE_SOURCE_DIR}/thirds/realsense/include" 
     ${OpenCV_INCLUDE_DIRS}
     "${CMAKE_SOURCE_DIR}/thirds/Eigen/eigen-3.4.0/"
-    "${CMAKE_SOURCE_DIR}/src/rvio2"
-    "${CMAKE_SOURCE_DIR}/src/rvio2/util"
     thirds/imgui
     thirds/imgui/backends
     thirds/implot
 )
-target_link_libraries(new_vers PRIVATE 
+target_link_libraries(vio PRIVATE 
     opencv_world 
-    matplotlib_cpp
     "${CMAKE_SOURCE_DIR}/thirds/realsense/lib/x64/realsense2.lib"
     "${CMAKE_SOURCE_DIR}/thirds/seconds/Project_commons.lib"
     d3d11
@@ -113,5 +57,5 @@ target_link_libraries(new_vers PRIVATE
     d3dcompiler
 )
 if(MSVC)
-    target_compile_options(new_vers PRIVATE /bigobj)
+    target_compile_options(vio PRIVATE /bigobj)
 endif()

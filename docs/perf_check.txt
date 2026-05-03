@@ -1,0 +1,26 @@
+LIB="ort"  #opencv, torch, ort
+MODEL="../../models/depth_anything/DA3METRIC-SMALL.onnx"
+WIDTH=256
+HEIGHT=256
+GPU=true
+SHOW=false
+PROFI=false
+
+# midas/model-small.onnx" [1,3,256,256]
+# midas/model-hybrid-quaintized.onnx [batch_size,num_channels,384,384] => demasiado lento
+# midas/model-hybrid-fp16.onnx [batch_size,num_channels,384,384]
+# midas/model-f6b98070.onnx [1,3,384,384]
+# midas/model-hybrid.onnx
+
+# depth_anything/DA3METRIC-SMALL.onnx
+# depth_anything/DA3METRIC-LARGE.onnx [1,3,280,504]
+# depth_anything/model_fp16.onnx
+# depth_anything/depth_anything_v2_vits.onnx [1,3,518,518]
+# depth_anything/depth_anything_vits14.quant.onnx  => muy lento
+# depth_anything/Depth-Anything-V2.onnx [1,3,518,518]
+# depth_anything/depthv2_quantI8.onnx
+# depth_anything/depth_anything_v2_vits_traced.pt
+
+# float32[1,3,height,width]
+# float32[batch_size,num_images,3,height,width]
+# float32[batch_size,num_channels,height,width]

@@ -1,0 +1,158 @@
+%YAML:1.0
+---
+
+#--------------------------------------------------------------------------------------------
+# IMU Parameters
+#--------------------------------------------------------------------------------------------
+
+# IMU data rate
+IMU.dps: 200
+
+# IMU sensor noise
+IMU.sigma_g: 1.88935633333333e-04
+IMU.sigma_wg: 6.27699710000000e-06
+IMU.sigma_a: 1.14512006666667e-03
+IMU.sigma_wa: 1.31642530000000e-04
+
+# Gravity
+IMU.nG: 9.808
+
+# Threshold of small angle [rad]
+IMU.nSmallAngle: 1.7e-05
+
+#--------------------------------------------------------------------------------------------
+# Camera Parameters
+#--------------------------------------------------------------------------------------------
+
+# Camera frame rate
+Camera.fps: 8
+
+# Camera image resolution
+Camera.width: 1280
+Camera.height: 720
+
+# Is RGB or not
+Camera.RGB: 0
+
+# Is fisheye or not
+Camera.Fisheye: 0
+
+# Camera intrinsics
+Camera.fx: 906.56982421875
+Camera.fy: 906.161865234375
+Camera.cx: 655.935668945312
+Camera.cy: 380.526672363281
+
+Camera.k1: 0.0
+Camera.k2: 0.0
+Camera.p1: 0.0
+Camera.p2: 0.0
+Camera.k3: 0.0
+
+# Camera image noise (1/f)
+Camera.sigma_px: 0.002180293
+Camera.sigma_py: 0.002186767
+
+# Camera extrinsics [B:IMU,C0:cam0]
+Camera.T_BC0_GT: !!opencv-matrix
+    rows: 4
+    cols: 4
+    dt: d
+    data: [1.0, 0.0, 0.0, 0.0,
+           0.0, 1.0, 0.0, 0.0,
+           0.0, 0.0, 1.0, 0.0,
+           0.0, 0.0, 0.0,  1.0 ]
+
+Camera.T_BC0: !!opencv-matrix
+    rows: 4
+    cols: 4
+    dt: d
+    data: [ 0.999924, -0.0122028, 0.00188392, -0.02039220440355,
+        0.0122098, 0.999918, -0.0037559, 0.005063942325145,
+       -0.00183793, 0.00377862, 0.999991, 0.011547556821028,
+        0.0, 0.0, 0.0, 1.0 ]
+
+# Time shift from camera to IMU [s] (t_imu=t_cam+offset)
+Camera.nTimeOffset_GT: 0
+Camera.nTimeOffset: 0
+
+#--------------------------------------------------------------------------------------------
+# Initialization Parameters
+#--------------------------------------------------------------------------------------------
+
+# Skip the "wiggling" phase [s]
+INI.nTimeskip: 0
+
+# Record the result or not
+INI.RecordOutputs: 0
+
+# Use gravity alignment or not
+INI.EnableAlignment: 1
+
+# Use ground truth for calibration or not
+INI.UseGroundTruthCalib: 1
+
+# Thresholds for moving detection [deg,m]
+INI.nAngleThrd: 0.3
+INI.nLengthThrd: 0.01
+
+#--------------------------------------------------------------------------------------------
+# Tracker Parameters
+#--------------------------------------------------------------------------------------------
+
+# Number of features per image
+Tracker.nFeatures: 1200
+
+# Min. tracking length
+Tracker.nMinTrackingLength: 6
+
+# Max. tracking length
+Tracker.nMaxTrackingLength: 18
+
+# Quality level of features
+Tracker.nQualLvl: 1e-2
+
+# Min. distance between two features
+Tracker.nMinDist: 8
+
+# Max. number of SLAM features (VIO:0, SLAM:50)
+Tracker.nMaxSlamPoints: 0
+
+# Parallax of good feature [deg] (only for SLAM)
+Tracker.nGoodParallax: 5
+
+# Block size of image grid
+Tracker.nBlockSizeX: 150
+Tracker.nBlockSizeY: 120
+
+# Use image filter or not
+Tracker.EnableFilter: 0
+
+# Use histogram equalizer or not
+Tracker.EnableEqualizer: 1
+
+# Number of iterations (RANSAC)
+Tracker.nRansacIter: 16
+
+# Use Sampson error or not (RANSAC)
+Tracker.UseSampson: 1
+
+# Error thresholds for inlier (RANSAC)
+Tracker.nSampsonErrThrd: 1e-6
+Tracker.nAlgebraicErrThrd: 1e-3
+
+#--------------------------------------------------------------------------------------------
+# Displayer Parameters
+#--------------------------------------------------------------------------------------------
+
+# Display feature tracking
+Displayer.ShowTrack: 0
+
+# Display feature redetection
+Displayer.ShowNewer: 0
+
+# Size of point
+Displayer.nLandmarkScale: 0.03
+
+# Publishing rate
+Displayer.nLandmarkPubRate: 5
