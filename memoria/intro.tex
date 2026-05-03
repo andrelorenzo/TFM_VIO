@@ -1,0 +1,159 @@
+% !TeX root = ../memoria.tex
+%----------
+%	PORTADA
+%----------	
+\begin{titlepage}
+	\begin{sffamily}
+	\color{azulUC3M}
+	\begin{center}
+		\begin{figure}[H] %incluimos el logotipo de la Universidad
+			\makebox[\textwidth][c]{\includegraphics[width=16cm]{images/logo_UC3M.png}}
+		\end{figure}
+		\vspace{2.5cm}
+		\begin{Large}
+			Máster Universitario en robótica y automatización\\			
+			 2024-2025\\ %Indica el curso académico
+			\vspace{2cm}		
+			\textsl{Trabajo Fin de Máster}
+			\bigskip
+			
+		\end{Large}
+		 	{\Huge ``Navegación autonoma de un UAV en interiores mediante técnicas de visión monocular''}\\
+		 	\vspace*{0.5cm}
+	 		\rule{10.5cm}{0.1mm}\\
+			\vspace*{0.9cm}
+			{\LARGE André José Lorenzo Torres}\\ 
+			\vspace*{1cm}
+		\begin{Large}
+			Tutor/es\\
+			David Martin Gómez\\
+			Universidad Carlos III de Madrid: Campus de Leganés. x de y de 2025\\
+		\end{Large}
+	\end{center}
+	\vfill
+	\color{black}
+	\fbox{
+	\centering
+	\begin{minipage}{0.97\linewidth}
+		\textbf{DETECCIÓN DEL PLAGIO}\\
+		\footnotesize{La Universidad utiliza el programa \textbf{Turnitin Feedback Studio} 
+		para comparar la originalidad del trabajo entregado por cada estudiante con millones de 
+		recursos electrónicos y detecta aquellas partes del texto copiadas y pegadas. 
+		Copiar o plagiar en un TFM es considerado una \textbf{\underline{Falta Grave}}, y 
+		puede conllevar la expulsión definitiva de la Universidad.}
+	\end{minipage}}
+	
+	% SI NUESTRO TRABAJO SE VA A PUBLICAR CON UNA LICENCIA CREATIVE COMMONS, INCLUIR ESTAS LÍNEAS. ES LA OPCIÓN RECOMENDADA.
+	\noindent\includegraphics[width=4.2cm]{images/creativecommons.png}\\ %incluimos el logotipo de Creative Commons
+	\footnotesize{Esta obra se encuentra sujeta a la licencia Creative Commons \textbf{Reconocimiento - No Comercial - Sin Obra Derivada}}
+	
+	\end{sffamily}
+\end{titlepage}
+
+\newpage %página en blanco o de cortesía
+\thispagestyle{empty}
+\mbox{}
+
+%----------
+%	RESUMEN Y PALABRAS CLAVE
+%----------	
+\renewcommand\abstractname{\large\bfseries\filcenter\uppercase{Resumen}}
+\begin{abstract}
+\thispagestyle{plain}
+\setcounter{page}{3}
+	
+	% ESCRIBIR EL RESUMEN AQUÍ
+	La navegación autónoma de robots ha cobrado gran relevancia en los últimos años y promete tener un impacto significativo en el futuro de 
+	diversas industrias, como la logística, la agricultura o la exploración espacial. Dada su complejidad computacional y su elevada 
+	dependencia de la sensórica, nace este proyecto, que pretende reducir tanto la carga de cómputo como los requisitos de sensores en la 
+	navegación autónoma y la evitación de obstáculos, limitando la captación de datos a un sensor monocular y una unidad de medida inercial 
+	(IMU).
+
+	El enfoque se plantea en el contexto de vehículos aéreos no tripulados (UAV), donde el espacio, el peso y el consumo energético están 
+	extremadamente restringidos. Para ello, se propone una arquitectura distribuida en la que un miniordenador embarcado se encarga de la 
+	adquisición y preprocesado del vídeo, así como de su reenvío mediante una comunicación inalámbrica hacia un ordenador central. 
+	En este nodo central se realiza la inferencia de un estimador de profundidad y la fusión con la información inercial, con el objetivo 
+	de obtener una estimación robusta del estado del dron y del entorno. Finalmente, la posición se calcula mediante un enfoque estadístico 
+	basado en una versión simplificada y optimizada del algoritmo VI-SLAM (Visual-Inertial Simultaneous Localization and Mapping), 
+	orientada a maximizar la eficiencia computacional sin comprometer la utilidad para tareas de navegación y evitación de obstáculos.
+	
+
+	\noindent\rule{\linewidth}{0.4pt}
+
+	\textbf{Abstract:} Autonomous robot navigation has gained significant relevance in recent years and is expected to have a major impact on the future of 
+	various industries, such as logistics, agriculture, and space exploration. Given its computational complexity and strong dependence on 
+	sensing, this project aims to reduce both the computational load and the sensor requirements for autonomous navigation and obstacle 
+	avoidance by limiting data acquisition to a monocular camera and an inertial measurement unit (IMU).
+
+	The approach is designed in the context of unmanned aerial vehicles (UAVs), where space, weight, and power consumption are extremely 
+	constrained. To this end, a distributed architecture is proposed in which an onboard embedded computer handles video acquisition and 
+	preprocessing, and transmits the data wirelessly to a central computing unit. At this central node, a depth estimation model is 
+	executed and fused with inertial information to obtain a robust estimate of both the drone state and its surrounding environment. 
+	Finally, the vehicle pose is computed through a statistical approach based on a simplified and optimized version of VI-SLAM 
+	(Visual-Inertial Simultaneous Localization and Mapping), tailored to maximize computational efficiency without compromising its 
+	usefulness for navigation and obstacle avoidance tasks.
+
+	\textbf{KeyWords:}
+	% Escribir las palabras clave aquí
+	Monocular vision, OpenCV, onnx, Depth Anything v3, orangeCube, cuda, autonomous navigation, obstacle avoidance, VI-SLAM, IMU
+	
+	\vfill
+\end{abstract}
+
+	\newpage % página en blanco o de cortesía
+	\thispagestyle{empty}
+	\mbox{}
+
+
+%----------
+%	DEDICATORIA
+%----------	
+\chapter*{Dedicatoria} % \chapter* evita que aparezca en el índice
+
+\setcounter{page}{5}
+	
+	% ESCRIBIR LA DEDICATORIA AQUÍ	
+	% Este proyecto conlleva el final de una etapa, mi paso por la universidad donde tanto he aprendido y crecido, es aquí en este proyecto 
+	% donde peudo decir que se resumen tantos mis capacidades como aprendizaje y se expresan mis conocimientos y determinación en la creación 
+	% de nuevas técnologías. Quiero agradecer en especial a mi madre 
+		
+	\vfill
+	
+	\newpage % página en blanco o de cortesía
+	\thispagestyle{empty}
+	\mbox{}
+	
+
+%----------
+%	ÍNDICES
+%----------	
+
+%--
+% Índice general
+%-
+\tableofcontents
+\thispagestyle{fancy}
+
+\newpage % página en blanco o de cortesía
+\thispagestyle{empty}
+\mbox{}
+
+%--
+% Índice de figuras. Si no se incluyen, comenta las líneas siguientes
+%-
+\listoffigures
+\thispagestyle{fancy}
+
+\newpage % página en blanco o de cortesía
+\thispagestyle{empty}
+\mbox{}
+
+%--
+% Índice de tablas. Si no se incluyen, comenta las líneas siguientes
+%-
+\listoftables
+\thispagestyle{fancy}
+
+\newpage % página en blanco o de cortesía
+\thispagestyle{empty}
+\mbox{}

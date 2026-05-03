@@ -31,6 +31,16 @@ typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> S
 #endif
 const double null = std::numeric_limits<double>::quiet_NaN();
 
+
+#define UDP_SEND_PORT 5001
+#define UDP_RECV_PORT 5002
+#define UDP_IP L"192.168.1.145"
+#define RTSP_PORT 8554
+#define RTSP_IP "192.168.1.145"
+#define RTSP_MOUNT "realsense"
+#define MODEL_WIDTH 504
+#define MODEL_HEIGHT 280
+
 enum SourceType{
     SOURCE_RSCAM = 0,
     SOURCE_BAG,

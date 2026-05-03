@@ -1,0 +1,86 @@
+% !TeX root = ../memoria.tex
+\chapter{Introducción}
+
+    Se disposne del código fuente, ejemplos y procedimientos de instalación en un 
+    \href{https://github.com/andrelorenzo/TFM_2dvision}{repositiorio} público de GitHub.
+\section{Motivación}
+    Uno de los principales retos de la navegación autónoma en UAV es la selección y el uso de sensores para la evitación de obstáculos. 
+    Debido a las restricciones de peso y volumen, en la mayoría de los casos resulta inviable emplear LiDAR 3D o cámaras RGB-D. Además, 
+    existe una limitación adicional de carácter fundamental: este tipo de sensores genera datos tridimensionales cuyo procesamiento 
+    requiere una capacidad de cómputo elevada, así como unas prestaciones que, por lo general, no están disponibles en drones de pequeño 
+    tamaño.
+
+    Durante la realización del trabajo tutelado de investigación se llevó a cabo un estudio en profundidad sobre los métodos empleados 
+    para lograr una navegación segura y una evitación de obstáculos eficaz~\cite{estudio-nav2D}. Asimismo, se analizaron múltiples modelos 
+    de estimación de profundidad, comparándolos en términos de requisitos computacionales, velocidad de inferencia, estabilidad en la 
+    detección y precisión de la medida. Los buenos resultados obtenidos en el citado trabajo de investigación han sido una gran fuente 
+    de motivación para la realización de este trabajo.
+
+    A diferencia de otros vehículos autónomos, en los que se dispone de sensórica y de unidades de procesamiento capaces de estimar la 
+    posición con alta precisión, en este entorno la limitada disponibilidad de datos obliga a desarrollar soluciones optimizadas para la 
+    navegación autónoma. Este condicionante requiere priorizar arquitecturas ligeras y robustas, capaces de operar en tiempo real con 
+    recursos computacionales restringidos, sin comprometer los márgenes de seguridad durante el vuelo.
+
+    En consecuencia, el planteamiento adoptado en este trabajo se orienta hacia el uso de sensores y métodos de percepción que mantengan 
+    un equilibrio adecuado entre coste computacional, fiabilidad y precisión. En particular, se propone explotar información visual 
+    procedente de cámaras monoculares, complementada con modelos de estimación de profundidad eficientes, con el objetivo de generar 
+    una representación útil del entorno para la detección de obstáculos y la planificación de trayectorias.
+
+\section{Objetivos del estudio}
+    El objetivo principal de este trabajo es dotar a un UAV de pequeño tamaño, con prestaciones limitadas, de la capacidad de navegar de 
+    forma autónoma en entornos interiores. Para ello, el vehículo deberá ser capaz de desplazarse siguiendo una trayectoria previamente 
+    definida por el usuario, a la vez que evita los obstáculos presentes en su recorrido. A continuación, se enumeran los requisitos 
+    fundamentales cuya consecución permitirá considerar satisfactoria la finalización del trabajo.
+
+    \begin{itemize}
+        \item \textbf{Sistema de sensorización:} El conjunto de sensores queda estipulado y limitado, de antemano, a una cámara monocular 
+        y una unidad de medida inercial (IMU).
+        \item \textbf{Tiempo real:} El conjunto de algoritmos deberá ejecutarse dentro de un límite temporal de 100~ms, equivalente a una 
+        frecuencia de 10~Hz, con el fin de considerar el sistema utilizable en aplicaciones en tiempo real.
+        \item \textbf{Ordenador central:} El ordenador central realizará la mayor parte del cómputo, excluyendo la captura de imágenes y un 
+        preprocesamiento básico destinado a mejorar la calidad o reducir el tamaño de las imágenes obtenidas.
+        \item \textbf{Ground truth:} Los resultados se validarán mediante información tridimensional capturada por la cámara de abordo. Sin 
+        embargo, dicha información no podrá emplearse en el algoritmo de navegación, utilizándose exclusivamente como \textit{ground truth}. 
+        Esta información se almacenará en la memoria a bordo y no se transmitirá al sistema de cómputo central.
+        \item \textbf{Precisión:} La precisión del sistema se medirá como la diferencia entre la trayectoria estipulada por el usuario y la 
+        trayectoria real del vehículo. En ningún tramo del recorrido dicha diferencia deberá superar los 0.5~m.
+        \item \textbf{Seguridad:} El UAV deberá ser capaz de esquivar obstáculos estáticos y dinámicos manteniendo una distancia de 
+        seguridad equivalente al doble de su \textit{bounding box}.
+        \item \textbf{Rango de operabilidad:} Dado que el objetivo principal del trabajo es el estudio de la navegación y no de las 
+        comunicaciones, el alcance máximo de operación del algoritmo estará limitado por la tecnología inalámbrica empleada. Este alcance 
+        se definirá como un radio centrado en la posición del ordenador central.
+        \item \textbf{Comunicación:} La comunicación con el vehículo no constituye un objeto de estudio en sí mismo, al considerarse 
+        independiente del algoritmo propuesto. En este trabajo se emplearán comunicaciones UDP y RTSP para el envío y la recepción de datos.
+        \item \textbf{Optimizaciones:} Dada la relevancia de la capacidad de cómputo en el sistema, las optimizaciones se circunscribirán 
+        al hardware específico empleado. No obstante, se aportará información suficiente para permitir la replicación de los resultados en 
+        otros dispositivos. El ordenador de a bordo será una Jetson Nano (reComputer J1010) y el ordenador central un portátil HP ProBook 
+        con procesador Intel Core Ultra 7 y GPU NVIDIA GeForce RTX 2050. La cámara será una Realsense 530.
+    \end{itemize}
+\clearpage
+\section{Estructura del trabajo}
+    Este trabajo se estructura en nueve capítulos:
+
+    En el primer capítulo, correspondiente a la presente introducción, se exponen las motivaciones, los requisitos y los objetivos del 
+    proyecto, así como la definición de la estructura general del documento.
+    
+    El segundo capítulo presenta el estado del arte en navegación basada en visión monocular y en navegación monocular combinada con 
+    información inercial, incluyendo las técnicas más empleadas y representativas en el momento de realización del proyecto.
+    
+    En el tercer capítulo se define la arquitectura técnica del sistema, incorporando las principales decisiones de diseño, el esquema de 
+    comunicaciones y las distintas etapas de procesado, tanto a nivel de sistema como en el procesamiento de imágenes.
+    
+    El cuarto capítulo se centra en el estudio de viabilidad del uso de modelos de estimación de profundidad~\cite{estudio-nav2D}, 
+    describiendo los modelos seleccionados, su arquitectura, las optimizaciones aplicadas y las métricas empleadas para su evaluación.
+    
+    El quinto capítulo aborda la implementación del controlador de navegación basado en el estimador de profundidad.
+    
+    El sexto capítulo describe el desarrollo e integración de una solución VI-SLAM optimizada para el contexto del proyecto, detallando 
+    su utilización como planificador global y/o local.
+    
+    El séptimo capítulo recoge las principales dificultades encontradas durante el desarrollo, así como las decisiones de diseño revisadas 
+    para alcanzar una solución viable.
+    
+    El octavo capítulo presenta los ensayos y pruebas realizados para validar la solución propuesta.
+    
+    Finalmente, el noveno capítulo expone las conclusiones obtenidas y las líneas de trabajo futuro.
+

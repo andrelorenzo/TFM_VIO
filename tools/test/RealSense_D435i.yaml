@@ -1,0 +1,99 @@
+%YAML:1.0
+
+#--------------------------------------------------------------------------------------------
+# General Parameters
+#--------------------------------------------------------------------------------------------
+File.version: "1.0"
+
+#--------------------------------------------------------------------------------------------
+# Camera Parameters
+#--------------------------------------------------------------------------------------------
+Camera.type: "PinHole"
+
+# Intrinsics from COLOR stream profile detected from your bag
+Camera.fx: 906.569824219
+Camera.fy: 906.161865234
+Camera.cx: 655.935668945
+Camera.cy: 380.526672363
+
+# Distortion parameters
+Camera.k1: 0.0
+Camera.k2: 0.0
+Camera.p1: 0.0
+Camera.p2: 0.0
+
+# Image resolution
+Camera.width: 1280
+Camera.height: 720
+
+# Camera frames per second
+Camera.fps: 30.0
+
+# Color order of the images
+# 0: BGR
+# 1: RGB
+Camera.RGB: 1
+
+# Optional stereo/depth params kept for compatibility in some forks
+ThDepth: 40.0
+DepthMapFactor: 1.0
+
+#--------------------------------------------------------------------------------------------
+# IMU Parameters
+#--------------------------------------------------------------------------------------------
+
+# Transformation from body-frame (IMU) to camera-frame
+# This is the matrix printed by your executable from the bag/color profile
+Tbc: !!opencv-matrix
+   rows: 4
+   cols: 4
+   dt: f
+   data: [0.999923766, 0.012209763, -0.001837931, 0.020350039,
+         -0.012202752, 0.999918401, 0.003778617, -0.005356007,
+          0.001883917, -0.003755901, 0.999991179, -0.011490020,
+          0.0, 0.0, 0.0, 1.0]
+
+# Some ORB-SLAM3 forks expect this key too
+IMU.T_b_c1: !!opencv-matrix
+   rows: 4
+   cols: 4
+   dt: f
+   data: [0.999923766, 0.012209763, -0.001837931, 0.020350039,
+         -0.012202752, 0.999918401, 0.003778617, -0.005356007,
+          0.001883917, -0.003755901, 0.999991179, -0.011490020,
+          0.0, 0.0, 0.0, 1.0]
+
+# Do not insert KFs when recently lost
+IMU.InsertKFsWhenLost: 0
+
+# IMU frequency
+IMU.Frequency: 200.0
+
+# IMU noise parameters
+IMU.NoiseGyro: 1e-3
+IMU.NoiseAcc: 1e-2
+IMU.GyroWalk: 1e-6
+IMU.AccWalk: 1e-4
+
+#--------------------------------------------------------------------------------------------
+# ORB Parameters
+#--------------------------------------------------------------------------------------------
+ORBextractor.nFeatures: 10000 #1250
+ORBextractor.scaleFactor: 1.2
+ORBextractor.nLevels: 8
+ORBextractor.iniThFAST: 5 #20
+ORBextractor.minThFAST: 3 #7
+
+#--------------------------------------------------------------------------------------------
+# Viewer Parameters
+#--------------------------------------------------------------------------------------------
+Viewer.KeyFrameSize: 0.05
+Viewer.KeyFrameLineWidth: 1.0
+Viewer.GraphLineWidth: 0.9
+Viewer.PointSize: 2.0
+Viewer.CameraSize: 0.08
+Viewer.CameraLineWidth: 3.0
+Viewer.ViewpointX: 0.0
+Viewer.ViewpointY: -0.7
+Viewer.ViewpointZ: -3.5
+Viewer.ViewpointF: 500.0

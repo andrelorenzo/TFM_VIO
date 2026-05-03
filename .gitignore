@@ -5,3 +5,5 @@
 /thirds/
 scripts/new_vers
 scripts/rvio2
+model/DA3METRIC-SMALL.onnx
+memoria/build
