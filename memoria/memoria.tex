@@ -18,7 +18,7 @@ hmargin=3cm
 \definecolor{gray97}{gray}{.97}
 \definecolor{gray75}{gray}{.75}
 \definecolor{gray45}{gray}{.45}
-
+\usepackage{enumitem}
 % Soporte para GENERAR PDF/A --es importante de cara a su inclusión en e-Archivo porque es el formato óptimo de preservación y a la generación de metadatos, tal y como se describe en http://uc3m.libguides.com/ld.php?content_id=31389625. 
 
 % En la plantilla incluimos el archivo OUTPUT.XMPDATA. Puedes descargar este archivo e incluir los metadatos que se incorporarán al archivo PDF cuando compiles el archivo memoria.tex. Después vuelve a subirlo a tu proyecto. 
@@ -42,6 +42,7 @@ hmargin=3cm
 \usepackage[spanish, es-tabla]{babel} 
 \usepackage[babel, spanish=spanish]{csquotes}
 \AtBeginEnvironment{quote}{\small}
+
 
 % diseño de PIE DE PÁGINA
 \usepackage{fancyhdr}
@@ -187,6 +188,7 @@ hmargin=3cm
 	page = {p.\adddot}
 }
 
+
 \addbibresource{referencias.bib}
 
 \begin{document}
@@ -202,8 +204,8 @@ hmargin=3cm
 \input{chapters/01_introduction}
 \input{chapters/02_estado_del_arte}
 \input{chapters/03_arquitectura}
-\input{chapters/04_estimador_prof}
-\input{chapters/05_controlador_local}
+\input{chapters/04_comunicacion}
+\input{chapters/05_odometria_visual_inercial}
 \input{chapters/06_vislam_planificador}
 \input{chapters/07_dificultades}
 \input{chapters/08_ensayos_pruebas}

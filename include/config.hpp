@@ -460,6 +460,24 @@ struct SourceIn {
 
         std::cout << "imu(" << imu.size() << ")" << " t0=" << (imu.empty() ? 0.0 : imu.front().ts) << " t1=" << (imu.empty() ? 0.0 : imu.back().ts) << " dt_sum=" << dt_sum << " gyr_mean=" << VecToStr(gyr_mean) << " acc_mean=" << VecToStr(acc_mean) << "\n";
     }
+    void printVerbose() const {
+        print();
+
+        std::cout << std::fixed << std::setprecision(6);
+
+        std::cout << "imu verbose samples:\n";
+
+        for (size_t i = 0; i < imu.size(); ++i) {
+            const ImuSample& s = imu[i];
+
+            std::cout << "  [" << i << "] "
+                    << "ts=" << s.ts
+                    << " dt=" << s.dt
+                    << " gyro=" << VecToStr(s.vgyr)
+                    << " accel=" << VecToStr(s.vacc)
+                    << "\n";
+        }
+    }
 };
 
 struct Pose {

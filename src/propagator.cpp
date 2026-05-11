@@ -164,11 +164,18 @@ void Propagator::CreateNewFactor(SourceIn * source, StateOut * state){
     Hf.applyOnTheLeft(Low.adjoint());
     state->H = Hf;
 
-    state->x << RotToQuat(Rk),
-                pk,
-                vk,
-                bg,
-                ba;
+    vec4 dq = RotToQuat(Rk);
+
+    state->deb.preimu.setZero();
+    state->deb.preimu.segment<3>(0) = dp;
+    state->deb.preimu.segment<3>(3) = dv;
+    state->deb.preimu.segment<4>(6) = dq;
+
+    state->deb.imu.rot = RotToQuat(Rk);
+    state->deb.imu.pos = pk;
+
+    state->x << RotToQuat(Rk),pk,vk,bg,ba;
+
 }
 
 
