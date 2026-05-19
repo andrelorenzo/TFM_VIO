@@ -14,6 +14,18 @@ public:
 
     int FindNewer(const std::vector<cv::Point2f>& vCorners, const std::vector<cv::Point2f>& vRefCorners, std::vector<cv::Point2f>& vNewCorners);
 
+void DebugDrawGrid(const cv::Mat& image, cv::Mat& imOut) const;
+
+void DebugDrawShiTomasi(const cv::Mat& image, cv::Mat& imOut) const;
+
+void DebugDrawSubPix(const cv::Mat& image, const int nCorners, const int s, cv::Mat& imOut) const;
+
+void DebugDrawCandidates(const cv::Mat& image, const std::vector<cv::Point2f>& vCandidates, const std::vector<cv::Point2f>& vRefCorners, const std::vector<cv::Point2f>& vNewCorners, cv::Mat& imOut) const;
+
+void DebugDrawSelection(const cv::Mat& image, const std::vector<cv::Point2f>& vCandidates, const std::vector<cv::Point2f>& vRefCorners, const std::vector<cv::Point2f>& vNewCorners, cv::Mat& imOut) const;
+
+void DebugDrawCellOccupancy(const cv::Mat& image, const std::vector<cv::Point2f>& vRefCorners, const std::vector<cv::Point2f>& vNewCorners, cv::Mat& imOut) const;
+
 private:
 
     void ChessGrid(const std::vector<cv::Point2f>& vCorners);

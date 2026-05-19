@@ -201,6 +201,15 @@ Finalmente, cada muestra inercial generada para el paquete de navegación queda 
         \boldsymbol{\omega}_k
     \right\}.
 \end{equation}
+Un ejemplo de sincronización se muestra en la Figura~\ref{fig:sinc_source_man}.
+
+\begin{figure}[H]
+    \ffigbox[\FBwidth] {
+        \caption[Ejemplo de sincronización de datos.]{Ejemplo de sincronización de datos.}
+        \label{fig:sinc_source_man}
+    }
+    {\includegraphics[scale=0.3]{images/source_manager_sync.png}}
+\end{figure}
 
 \section{Envío de comandos de velocidad}
 
@@ -286,12 +295,4 @@ Por tanto, el comando finalmente enviado al UAV queda definido como
 \end{equation}
 
 De esta forma, el sistema garantiza que las consignas enviadas al UAV se mantienen dentro de los límites dinámicos 
-definidos para la plataforma. Un ejemplo se muestra en la Figura~\ref{fig:sinc_source_man}.
-
-\begin{figure}[H]
-    \ffigbox[\FBwidth] {
-        \caption[Ejemplo de sincronización de datos.]{Ejemplo de sincronización de datos.}
-        \label{fig:sinc_source_man}
-    }
-    {\includegraphics[scale=0.35]{images/source_manager_sync.png}}
-\end{figure}
+definidos para la plataforma. 

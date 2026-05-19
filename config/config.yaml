@@ -129,4 +129,4 @@ track.en_equalizer: true
 track.maxlength: 18
 track.minlength: 6
 track.show: true
-track.shownew: true
+track.shownew: false

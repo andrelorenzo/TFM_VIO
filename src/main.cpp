@@ -92,7 +92,7 @@ int main(int argc, char ** argv){
 
         // // commanderSend(cmd);              // Send command to drone
 
-        if(config.gen.show && !source.frame.empty())cv::imshow("vio", source.frame);
+        if(config.gen.show && !source.frame.empty())cv::imshow("vio", getDebugImage());
         const int key = cv::waitKey(1);
         if (key == 27 || key == 'q' || key == 'Q') break;
 

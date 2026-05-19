@@ -73,6 +73,13 @@ private:
         double theta = fabs(acos(ek.dot(mRx*e0)));
         return 40*sin(theta)>1 ? theta*180/M_PI : 0;
     }
+void DisplayKltTracks(const int nImageId, const cv::Mat& image, const std::vector<cv::Point2f>& vPrevFeatUVs, const std::vector<cv::Point2f>& vCurrFeatUVs, const std::vector<unsigned char>& vTrackFlags, cv::Mat& imOut);
+
+void DisplayRansacTracks(const int nImageId, const cv::Mat& image, const std::vector<cv::Point2f>& vPrevFeatUVs, const std::vector<cv::Point2f>& vCurrFeatUVs, const std::vector<unsigned char>& vInlierFlags, cv::Mat& imOut);
+
+void DisplayTrackErrors(const int nImageId, const cv::Mat& image, const std::vector<cv::Point2f>& vPrevFeatUVs, const std::vector<cv::Point2f>& vCurrFeatUVs, const std::vector<unsigned char>& vInlierFlags, const std::vector<float>& vErrors, cv::Mat& imOut);
+
+void DisplayTrackSummary(const int nImageId, const cv::Mat& image, const std::vector<cv::Point2f>& vPrevFeatUVs, const std::vector<cv::Point2f>& vCurrFeatUVs, const std::vector<unsigned char>& vInlierFlags, cv::Mat& imOut);
 
 public:
 
@@ -85,6 +92,8 @@ public:
     std::vector<std::pair<int,cv::Point2f> > mvFeatMeasForExploration;
 
 private:
+
+    std::vector<cv::Point2f> mvFeatCandidatesRaw;
 
     bool mbIsRGB;
 

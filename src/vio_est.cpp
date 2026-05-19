@@ -356,3 +356,8 @@ bool vioUpdate(SourceIn * source, StateOut * state) {
     return true;
 
 }
+
+
+cv::Mat getDebugImage(){
+    return imOutDebug.clone();
+}
