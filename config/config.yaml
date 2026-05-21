@@ -8,11 +8,46 @@ gen.input: "../../bags/SlowWithEvitation_Full.bag"
 # gen.input: "COM6"
 gen.output: "../../output/traynn.csv"
 
-gen.depth_on: true
+gen.depth_on: false
 gen.color_on: true
 gen.imu_on: true
 gen.show: true
 gen.debug: true
+
+da3.enabled: true
+da3.show_window: false
+da3.model: "small"
+da3.model_path: "../../model/DA3METRIC-SMALL.onnx"
+da3.input_width: 504
+da3.input_height: 280
+da3.min_valid_depth: 0.05
+da3.max_valid_depth: 20.0
+da3.evade_distance: 0.0
+da3.direction_deadband: 1.0e-5
+da3.smooth_alpha: 0.70
+da3.debug_arrow_gain: 10000.0
+da3.sector_count: 9
+da3.morph_kernel_size: 5
+da3.frontal_roi_width_ratio: 0.40
+da3.frontal_roi_height_ratio: 0.45
+da3.guidance_roi_width_ratio: 0.90
+da3.guidance_roi_height_ratio: 0.55
+da3.close_mask_threshold: 0.9
+da3.activate_score_threshold: 0.5
+da3.clear_score_threshold: 0.5
+da3.min_close_area_ratio: 0.2
+da3.min_blob_area_ratio: 0.2
+da3.emergency_close_area_ratio: 0.8
+da3.emergency_blob_area_ratio: 0.8
+da3.score_weight_mean: 0.35
+da3.score_weight_area: 0.25
+da3.score_weight_blob: 0.25
+da3.score_weight_p20: 0.15
+da3.score_weight_peak: 0.20
+da3.frontal_peak_percentile: 0.05
+da3.peak_score_threshold: 0.92
+da3.sector_close_penalty: 0.75
+da3.free_space_power: 2.0
 
 gen.plot_imu: true
 
@@ -27,6 +62,7 @@ gen.plot_imu_rpy: true
 
 gen.plot_dpos: true
 gen.plot_dvel: true
+gen.plot_da3: true
 
 
 
@@ -128,5 +164,5 @@ track.filter_on: true
 track.en_equalizer: true
 track.maxlength: 18
 track.minlength: 6
-track.show: true
+track.show: false
 track.shownew: false

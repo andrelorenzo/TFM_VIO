@@ -1,7 +1,301 @@
 \chapter{Evitación de obstáculos}
+
 \section{Arquitectura}
 \section{Estimador de profundidad}
 \subsection{Modelos}
 \subsection{Estudio de eficiencia}
 \subsection{Filtrado y postprocesado}
 \section{Cálculo de dirección}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+\subsection{Detección de obstáculos y cálculo de la dirección de evitación}
+
+El módulo de evitación se basa en la salida de un estimador monocular de profundidad relativa DA3. A partir de cada imagen RGB se obtiene un mapa de profundidad denso, sobre el que se calcula, por un lado, una señal de \textbf{activación de la evitación} y, por otro, una \textbf{dirección angular de escape}. El sistema devuelve en todo instante tres magnitudes principales: un vector unitario de evitación \(\mathbf{v}\), un escalar de magnitud \(m\) y una bandera binaria \(f\) que indica si la maniobra evasiva debe activarse.
+
+\subsubsection{1. Estimación de profundidad relativa}
+
+Sea \(I_t\) la imagen RGB en el instante \(t\). Esta imagen se redimensiona al tamaño de entrada de la red y se normaliza antes de ser inferida mediante el modelo DA3. La salida es un mapa de profundidad relativa
+
+\[
+D_t(x,y),
+\]
+
+donde valores mayores representan regiones relativamente más lejanas y valores menores regiones relativamente más cercanas. Dado que la profundidad es relativa y no absoluta, no se emplea directamente el valor bruto de \(D_t\), sino una normalización robusta basada en percentiles.
+
+\subsubsection{2. Normalización robusta de la profundidad}
+
+Primero se consideran únicamente los píxeles válidos dentro de un rango configurable \([d_{\min}, d_{\max}]\). Sobre esos valores se calculan los percentiles globales \(p_{10}\) y \(p_{90}\). Con ellos se define una profundidad normalizada:
+
+\[
+D_n(x,y) = \mathrm{clip}\!\left(\frac{D_t(x,y) - p_{10}}{p_{90} - p_{10}},\, 0,\, 1\right).
+\]
+
+A continuación se define un mapa de cercanía:
+
+\[
+C(x,y) = 1 - D_n(x,y).
+\]
+
+De este modo, \(C(x,y)\approx 1\) indica una región relativamente cercana, mientras que \(C(x,y)\approx 0\) indica una región relativamente lejana. Esta formulación permite trabajar de forma estable aunque la escala del mapa de profundidad cambie entre escenas.
+
+\subsubsection{3. Regiones de interés}
+
+Se definen dos regiones rectangulares centradas en la imagen:
+
+\begin{itemize}
+\item una \textbf{ROI frontal}, usada para decidir si existe un obstáculo peligroso delante del vehículo;
+\item una \textbf{ROI de guiado}, usada para calcular hacia dónde conviene desplazarse.
+\end{itemize}
+
+La ROI frontal concentra la detección en la zona relevante para la colisión, mientras que la ROI de guiado analiza un área más ancha para buscar espacio libre lateral.
+
+\subsubsection{4. Máscara de ocupación frontal}
+
+Dentro de la ROI frontal se umbraliza el mapa de cercanía para obtener una máscara binaria de obstáculo:
+
+\[
+M_f(x,y)=
+\begin{cases}
+1, & \text{si } C(x,y) > T_c,\\
+0, & \text{en otro caso,}
+\end{cases}
+\]
+
+donde \(T_c\) es el umbral de cercanía. Posteriormente, esta máscara se filtra con operaciones morfológicas de apertura y cierre para eliminar ruido aislado y consolidar regiones coherentes.
+
+A partir de esta máscara y de la profundidad frontal se calculan las siguientes métricas:
+
+\begin{itemize}
+\item \textbf{cercanía media frontal}
+\[
+\bar{C}_f = \frac{1}{N_f}\sum_{(x,y)\in \Omega_f} C(x,y),
+\]
+donde \(\Omega_f\) es la ROI frontal y \(N_f\) su número de píxeles;
+
+\item \textbf{área ocupada}
+\[
+A_f = \frac{1}{N_f}\sum_{(x,y)\in \Omega_f} M_f(x,y);
+\]
+
+\item \textbf{mayor componente conexa}
+\[
+B_f = \frac{\text{área del mayor blob en } M_f}{N_f};
+\]
+
+\item \textbf{profundidad frontal percentil 20}
+\[
+d_{20} = P_{20}(D_t \text{ en } \Omega_f),
+\]
+
+\item \textbf{profundidad frontal pico}
+\[
+d_{p} = P_{q}(D_t \text{ en } \Omega_f),
+\]
+donde \(q\) es un percentil pequeño, típicamente \(q=0.05\), para detectar obstáculos pequeños pero muy cercanos.
+\end{itemize}
+
+Estas dos últimas profundidades se convierten también a cercanía normalizada:
+
+\[
+c_{20} = \mathrm{clip}\!\left(1-\frac{d_{20}-p_{10}}{p_{90}-p_{10}},\,0,\,1\right),
+\qquad
+c_{p} = \mathrm{clip}\!\left(1-\frac{d_{p}-p_{10}}{p_{90}-p_{10}},\,0,\,1\right).
+\]
+
+\subsubsection{5. Puntuación de obstáculo y magnitud}
+
+Con las métricas anteriores se construye una puntuación escalar de obstáculo:
+
+\[
+s_t^{\text{raw}} =
+w_1 \bar{C}_f +
+w_2 A_f +
+w_3 B_f +
+w_4 c_{20} +
+w_5 c_p.
+\]
+
+Esta puntuación se filtra temporalmente mediante un suavizado exponencial:
+
+\[
+s_t =
+\begin{cases}
+s_t^{\text{raw}}, & \text{si es la primera medida},\\[4pt]
+\alpha s_{t-1} + (1-\alpha)s_t^{\text{raw}}, & \text{en otro caso},
+\end{cases}
+\]
+
+donde \(\alpha \in [0,1]\) es el factor de suavizado.
+
+En la implementación actual, la \textbf{magnitud de evitación} se define como:
+
+\[
+m_t = s_t.
+\]
+
+Por tanto, la magnitud no representa la norma geométrica del vector de dirección, sino la \textbf{intensidad o confianza de que existe un obstáculo frontal relevante}.
+
+\subsubsection{6. Activación del flag de evitación}
+
+La bandera binaria \(f_t\) se obtiene mediante una combinación de umbrales geométricos, umbrales de profundidad y una histéresis temporal.
+
+Se definen primero varias condiciones de activación:
+
+\begin{itemize}
+\item activación por profundidad frontal:
+\[
+d_{20} \le d_{\text{evade}};
+\]
+
+\item activación de emergencia por pico de profundidad:
+\[
+d_{p} \le 0.7\, d_{\text{evade}};
+\]
+
+\item activación por cercanía pico:
+\[
+c_p \ge T_p;
+\]
+
+\item activación por ocupación:
+\[
+A_f \ge A_{\min} \quad \text{o} \quad B_f \ge B_{\min};
+\]
+
+\item activación por puntuación:
+\[
+s_t \ge T_{\text{on}}.
+\]
+\end{itemize}
+
+Con ello se construyen dos señales:
+
+\[
+\text{threshold\_hit} =
+(d_{20} \le d_{\text{evade}})
+\vee
+(c_p \ge T_p)
+\vee
+(A_f \ge A_{\min})
+\vee
+(B_f \ge B_{\min})
+\vee
+(s_t \ge T_{\text{on}}),
+\]
+
+\[
+\text{emergency\_hit} =
+(d_p \le 0.7\, d_{\text{evade}})
+\vee
+(A_f \ge A_{\text{emg}})
+\vee
+(B_f \ge B_{\text{emg}}).
+\]
+
+Finalmente, el flag de evitación se actualiza con histéresis:
+
+\[
+f_t =
+\begin{cases}
+1, & \text{si } f_{t-1}=0 \text{ y } (\text{threshold\_hit} \vee \text{emergency\_hit}),\\
+1, & \text{si } f_{t-1}=1 \text{ y } (\text{emergency\_hit} \vee s_t \ge T_{\text{off}}),\\
+0, & \text{en otro caso.}
+\end{cases}
+\]
+
+De este modo, la activación es más sensible que la desactivación, evitando conmutaciones rápidas del flag cuando la escena está cerca del umbral.
+
+\subsubsection{7. Cálculo de la dirección de evitación}
+
+La dirección no se obtiene del obstáculo, sino del \textbf{espacio libre}. Para ello, la ROI de guiado se divide en \(N\) sectores verticales. En cada sector \(i\) se calculan:
+
+\[
+\mu_i = \text{media de } D_n \text{ en el sector } i,
+\]
+
+\[
+\rho_i = \text{fracción de píxeles con } C(x,y) > T_c \text{ en el sector } i.
+\]
+
+Con estas magnitudes se define una puntuación de espacio libre:
+
+\[
+g_i = \mu_i - \lambda \rho_i,
+\]
+
+donde \(\lambda\) penaliza sectores que, aun siendo relativamente profundos, contienen demasiada ocupación cercana. Se selecciona el mejor sector como
+
+\[
+i^\star = \arg\max_i g_i.
+\]
+
+Una vez elegido ese sector, se calcula dentro de él un centroide ponderado hacia las zonas más lejanas:
+
+\[
+w(x,y)=D_n(x,y)^\gamma,
+\]
+
+\[
+\mathbf{p}^\star =
+\frac{\sum w(x,y)\,[x\;\;y]^T}{\sum w(x,y)}.
+\]
+
+Si no existe peso suficiente, se toma como objetivo el centro geométrico del sector. Después se construye el vector bruto desde el centro de la imagen \(\mathbf{p}_c\) hacia ese objetivo:
+
+\[
+\mathbf{u}^{\text{raw}} = \mathbf{p}^\star - \mathbf{p}_c.
+\]
+
+Tras normalizarlo se obtiene una dirección unitaria instantánea. Esta dirección también se suaviza temporalmente:
+
+\[
+\tilde{\mathbf{u}}_t =
+\alpha \tilde{\mathbf{u}}_{t-1} + (1-\alpha)\mathbf{u}^{\text{raw}}_t.
+\]
+
+Finalmente, si \(\|\tilde{\mathbf{u}}_t\|\) supera un pequeño umbral de banda muerta, se normaliza y se obtiene el vector de evitación final:
+
+\[
+\mathbf{v}_t = \frac{\tilde{\mathbf{u}}_t}{\|\tilde{\mathbf{u}}_t\|}.
+\]
+
+\subsubsection{8. Obtención del ángulo de evitación}
+
+El ángulo de evitación en el plano imagen se calcula como:
+
+\[
+\theta_t = \mathrm{atan2}(v_y, v_x).
+\]
+
+Por tanto, el módulo devuelve finalmente:
+
+\begin{itemize}
+\item \(\mathbf{v}_t\): vector unitario que apunta hacia la mejor dirección de escape;
+\item \(m_t\): magnitud escalar de obstáculo, usada como intensidad de evitación;
+\item \(f_t\): bandera binaria que indica si debe activarse la maniobra evasiva.
+\end{itemize}
+
+\subsubsection{9. Interpretación}
+
+La filosofía del algoritmo es desacoplar dos problemas distintos:
+
+\begin{itemize}
+\item \textbf{detección}: decidir si existe un obstáculo frontal suficientemente relevante como para activar evasión;
+\item \textbf{guiado}: decidir hacia qué dirección conviene desplazarse una vez detectado el obstáculo.
+\end{itemize}
+
+La detección se apoya en indicadores de ocupación y cercanía frontal, mientras que la dirección se basa en la búsqueda del sector con mayor espacio libre. Esta separación hace al sistema más robusto que una aproximación basada únicamente en el gradiente medio del mapa de profundidad.
+
+Si quieres, te lo puedo convertir ahora mismo a un estilo más formal de memoria TFG/TFM, o a una versión más corta de 1 página para que encaje mejor en tu capítulo.

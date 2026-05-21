@@ -51,7 +51,8 @@ bool wantAnyPlots(const Config* cfg) {
            cfg->gen.plot_vis_rpy ||
            cfg->gen.plot_imu_rpy ||
            cfg->gen.plot_dpos ||
-           cfg->gen.plot_dvel;
+           cfg->gen.plot_dvel ||
+           cfg->gen.plot_da3;
 }
 
 bool CreateDeviceD3D(HWND hWnd) {

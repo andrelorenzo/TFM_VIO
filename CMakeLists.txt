@@ -78,17 +78,38 @@ endif()
 target_compile_definitions(vio PRIVATE USE_CUDA)
 
 
-# copy cuda
+# Runtime DLLs needed by ONNX Runtime CUDA provider
 if(WIN32)
-  add_custom_command(TARGET vio POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-      "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.9/bin/cublas64_12.dll"
-      "$<TARGET_FILE_DIR:vio>"
-    )
-  add_custom_command(TARGET vio POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-      "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.9/bin/cudart64_12.dll"
-      "$<TARGET_FILE_DIR:vio>"
-    )
+  set(ORT_RUNTIME_DLLS
+    "${CMAKE_SOURCE_DIR}/thirds/onnxruntime/lib/onnxruntime.dll"
+    "${CMAKE_SOURCE_DIR}/thirds/onnxruntime/lib/onnxruntime_providers_shared.dll"
+    "${CMAKE_SOURCE_DIR}/thirds/onnxruntime/lib/onnxruntime_providers_cuda.dll"
+  )
+
+  set(CUDA_RUNTIME_DLLS
+    "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.9/bin/cublas64_12.dll"
+    "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.9/bin/cublasLt64_12.dll"
+    "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.9/bin/cudart64_12.dll"
+    "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.9/bin/cufft64_11.dll"
+    "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.9/bin/curand64_10.dll"
+    "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.9/bin/cusolver64_11.dll"
+    "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.9/bin/cusparse64_12.dll"
+    "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.9/bin/nvrtc64_120_0.dll"
+    "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.9/bin/nvrtc-builtins64_129.dll"
+  )
+
+  file(GLOB CUDNN_RUNTIME_DLLS
+    "C:/Program Files/NVIDIA/CUDNN/v9.19/bin/12.9/x64/*.dll"
+  )
+
+  foreach(RUNTIME_DLL IN LISTS ORT_RUNTIME_DLLS CUDA_RUNTIME_DLLS CUDNN_RUNTIME_DLLS)
+    if(EXISTS "${RUNTIME_DLL}")
+      add_custom_command(TARGET vio POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+          "${RUNTIME_DLL}"
+          "$<TARGET_FILE_DIR:vio>"
+      )
+    endif()
+  endforeach()
 endif()
 
