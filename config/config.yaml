@@ -64,7 +64,61 @@ gen.plot_dpos: true
 gen.plot_dvel: true
 gen.plot_da3: true
 
+gplan.waypoints_file: "../../config/waypoints.txt"
+gplan.resolution: 0.25
 
+ctrl.enabled: true
+ctrl.default_dt: 0.01
+
+ctrl.vx.kp: 1.0
+ctrl.vx.ki: 0.2
+ctrl.vx.kd: 0.02
+ctrl.vx.Tf: 0.08
+ctrl.vx.Tt: 0.20
+ctrl.vx.minlim: -0.75
+ctrl.vx.maxlim: 0.75
+ctrl.vx.dumin: -4.0
+ctrl.vx.dumax: 4.0
+
+ctrl.vy.kp: 1.0
+ctrl.vy.ki: 0.2
+ctrl.vy.kd: 0.02
+ctrl.vy.Tf: 0.08
+ctrl.vy.Tt: 0.20
+ctrl.vy.minlim: -0.75
+ctrl.vy.maxlim: 0.75
+ctrl.vy.dumin: -4.0
+ctrl.vy.dumax: 4.0
+
+ctrl.vz.kp: 1.2
+ctrl.vz.ki: 0.25
+ctrl.vz.kd: 0.02
+ctrl.vz.Tf: 0.08
+ctrl.vz.Tt: 0.20
+ctrl.vz.minlim: -0.45
+ctrl.vz.maxlim: 0.45
+ctrl.vz.dumin: -3.0
+ctrl.vz.dumax: 3.0
+
+ctrl.wz.kp: 1.0
+ctrl.wz.ki: 0.10
+ctrl.wz.kd: 0.01
+ctrl.wz.Tf: 0.05
+ctrl.wz.Tt: 0.15
+ctrl.wz.minlim: -1.0
+ctrl.wz.maxlim: 1.0
+ctrl.wz.dumin: -6.0
+ctrl.wz.dumax: 6.0
+
+ppr3d.la_m: 0.75
+ppr3d.searc_win: 50 
+ppr3d.v_max_xy: 0.75
+ppr3d.v_max_z: 0.45
+ppr3d.w_max_z: 1.0
+ppr3d.k_xy: 1.0
+ppr3d.k_z: 1.0
+ppr3d.k_yaw: 2.0
+ppr3d.goal_tol_m: 0.12
 
 
 # Inverse Brown Conrady ("Color" / 1280x720 / {RGB8})

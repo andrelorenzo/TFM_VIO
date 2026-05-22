@@ -5,7 +5,9 @@
 #include "da3.h"
 #include "gt_est.hpp"
 #include "vio_est.hpp"
-
+#include "controller.hpp"
+#include "global_planner.hpp"
+#include "local_planner.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -21,7 +23,8 @@ __declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
 static Config config;
 static SourceIn source;
 static StateOut state;
-
+static Command cmd;
+static Waypoints path;
 
 void projectInit(int argc, char ** argv){
     LoggerSetVerbsity(DEBUG);
@@ -61,9 +64,9 @@ int main(int argc, char ** argv){
     gtInit(&config);
     vioInit(config);
     da3Init(&config);
-    // globalPlanInit(&config);
-    // localPlanInit(&config);
-    // controllerInit(&config);
+    globalPlanInit(&config);
+    localPlannerInit(&config);
+    controllerInit(&config);
     // commanderInit(&config);
     initPlotters(&config);
 
@@ -92,12 +95,12 @@ int main(int argc, char ** argv){
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
             continue;
         }
-        state.da3 = da3Get();
-        // // globalPlanUpdate(state, tray);
-        // // localPlanUpdate(state, waypoints, tray);
-        // // controllerUpdate(state, tray, cmd);
 
-        // // commanderSend(cmd);              // Send command to drone
+        state.da3 = da3Get();
+        globalPlanUpdate(state, path);
+        localPlannerUpdate(state.da3, state, path, &cmd);
+        controllerUpdate(state, &cmd);
+        // commanderSend(cmd);              // Send command to drone
 
         if(config.gen.show){
             cv::Mat vio_debug = source.frame.clone();

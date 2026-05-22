@@ -179,12 +179,54 @@ struct Da3Config {
     double sector_close_penalty = 0.75;
     double free_space_power = 2.0;
 };
+struct PPR3DConfig{
+    float la_m;
+    size_t searc_win;
+    float v_max_xy;
+    float v_max_z;
+    float w_max_z;
+    float k_xy;
+    float k_z;
+    float k_yaw;
+    float goal_tol_m;
+};
+struct GlobalPlannerConfig{
+    std::string waypoints_file = "../../config/waypoints.txt";
+    double resolution = 0.25;
+};
+struct PIDAxisConfig{
+    double kp = 0.0;
+    double ki = 0.0;
+    double kd = 0.0;
+    double b = 1.0;
+    double c = 1.0;
+    double u0 = 0.0;
+    double Dt = 0.01;
+    double Tf = 0.0;
+    double Tt = 0.1;
+    double minlim = -std::numeric_limits<double>::infinity();
+    double maxlim = std::numeric_limits<double>::infinity();
+    double dumin = -std::numeric_limits<double>::infinity();
+    double dumax = std::numeric_limits<double>::infinity();
+};
+struct ControllerConfig{
+    bool enabled = true;
+    double default_dt = 0.01;
+    PIDAxisConfig vx;
+    PIDAxisConfig vy;
+    PIDAxisConfig vz;
+    PIDAxisConfig wz;
+};
+
 struct Config{
     General gen;
     Camera cam;
     imuCal imu;
     Vio vio;
     Da3Config da3;
+    GlobalPlannerConfig gplan;
+    PPR3DConfig ppr3d;
+    ControllerConfig ctrl;
 
 public:
 
@@ -257,6 +299,18 @@ public:
         os << "  Sector pen.   : " << this->da3.sector_close_penalty << "\n";
         os << "  Free pow.     : " << this->da3.free_space_power << "\n";
 
+        os << "\n[GLOBAL PLANNER]\n";
+        os << "  Waypoints file: " << this->gplan.waypoints_file << "\n";
+        os << "  Resolution    : " << this->gplan.resolution << "\n";
+
+        os << "\n[CONTROLLER]\n";
+        os << "  Enabled       : " << std::string(this->ctrl.enabled ? "ON" : "OFF") << "\n";
+        os << "  Default dt    : " << this->ctrl.default_dt << "\n";
+        os << "  VX gains      : " << this->ctrl.vx.kp << ", " << this->ctrl.vx.ki << ", " << this->ctrl.vx.kd << "\n";
+        os << "  VY gains      : " << this->ctrl.vy.kp << ", " << this->ctrl.vy.ki << ", " << this->ctrl.vy.kd << "\n";
+        os << "  VZ gains      : " << this->ctrl.vz.kp << ", " << this->ctrl.vz.ki << ", " << this->ctrl.vz.kd << "\n";
+        os << "  WZ gains      : " << this->ctrl.wz.kp << ", " << this->ctrl.wz.ki << ", " << this->ctrl.wz.kd << "\n";
+
         os << "\n[PLOTTERS]\n";
         os << "IMU         :" << std::string(this->gen.plot_imu      ? "ON" : "OFF") << "\n"; 
         os << "TRAY        :" << std::string(this->gen.plot_tray     ? "ON" : "OFF") << "\n"; 
@@ -269,6 +323,18 @@ public:
         os << "DPOS        :" << std::string(this->gen.plot_dpos     ? "ON" : "OFF") << "\n"; 
         os << "DVEL        :" << std::string(this->gen.plot_dvel     ? "ON" : "OFF") << "\n"; 
         os << "DA3         :" << std::string(this->gen.plot_da3      ? "ON" : "OFF") << "\n"; 
+
+        os << "\n[PURE PURSUIT 3D]\n";
+        os << "LOOK AHEAD     :" << this->ppr3d.la_m << "\n";
+        os << "WINDOWS SEARCH :" << this->ppr3d.searc_win << "\n";
+        os << "VXY MAX        :" << this->ppr3d.v_max_xy << "\n";
+        os << "VZ MAX         :" << this->ppr3d.v_max_z << "\n";
+        os << "WZ MAX         :" << this->ppr3d.w_max_z << "\n";
+        os << "KP XY          :" << this->ppr3d.k_xy << "\n";
+        os << "KP Z           :" << this->ppr3d.k_z << "\n";
+        os << "KP W           :" << this->ppr3d.k_yaw << "\n";
+        os << "GOAL THRES     :" << this->ppr3d.goal_tol_m << "\n";
+
 
         os << "========================================\n";
     }
@@ -397,6 +463,28 @@ public:
         this->da3.sector_close_penalty      = this->yamlReadDouble(fs, "da3.sector_close_penalty", this->da3.sector_close_penalty);
         this->da3.free_space_power          = this->yamlReadDouble(fs, "da3.free_space_power", this->da3.free_space_power);
 
+        this->gplan.waypoints_file = this->yamlReadString(fs, "gplan.waypoints_file", this->gplan.waypoints_file);
+        this->gplan.resolution     = this->yamlReadDouble(fs, "gplan.resolution", this->gplan.resolution);
+
+        this->ctrl.enabled    = this->yamlReadBool(fs, "ctrl.enabled", this->ctrl.enabled);
+        this->ctrl.default_dt = this->yamlReadDouble(fs, "ctrl.default_dt", this->ctrl.default_dt);
+        this->readPIDAxisConfig(fs, "ctrl.vx", &this->ctrl.vx);
+        this->readPIDAxisConfig(fs, "ctrl.vy", &this->ctrl.vy);
+        this->readPIDAxisConfig(fs, "ctrl.vz", &this->ctrl.vz);
+        this->readPIDAxisConfig(fs, "ctrl.wz", &this->ctrl.wz);
+
+
+
+        this->ppr3d.la_m       = this->yamlReadDouble(fs, "ppr3d.la_m", this->ppr3d.la_m);
+        this->ppr3d.searc_win  = this->yamlReadDouble(fs, "ppr3d.searc_win", this->ppr3d.searc_win);
+        this->ppr3d.v_max_xy   = this->yamlReadDouble(fs, "ppr3d.v_max_xy", this->ppr3d.v_max_xy);
+        this->ppr3d.v_max_z    = this->yamlReadDouble(fs, "ppr3d.v_max_z", this->ppr3d.v_max_z);
+        this->ppr3d.w_max_z    = this->yamlReadDouble(fs, "ppr3d.w_max_z", this->ppr3d.w_max_z);
+        this->ppr3d.k_xy       = this->yamlReadDouble(fs, "ppr3d.k_xy", this->ppr3d.k_xy);
+        this->ppr3d.k_z        = this->yamlReadDouble(fs, "ppr3d.k_z", this->ppr3d.k_z);
+        this->ppr3d.k_yaw      = this->yamlReadDouble(fs, "ppr3d.k_yaw", this->ppr3d.k_yaw);
+        this->ppr3d.goal_tol_m = this->yamlReadDouble(fs, "ppr3d.goal_tol_m", this->ppr3d.goal_tol_m);
+
         if (!fs["imu.tocolor"].empty()) {
             fs["imu.tocolor"] >> this->imu.T_ci;
             this->imu.T_ci.convertTo(this->imu.T_ci, CV_64F);
@@ -504,6 +592,25 @@ private:
         }
 
         return vec3(temp64.at<double>(0,0), temp64.at<double>(0,1), temp64.at<double>(0,2));
+    }
+    void readPIDAxisConfig(const cv::FileStorage& fs, const std::string& prefix, PIDAxisConfig * cfg){
+        if(cfg == nullptr){
+            return;
+        }
+
+        cfg->kp     = this->yamlReadDouble(fs, (prefix + ".kp").c_str(), cfg->kp);
+        cfg->ki     = this->yamlReadDouble(fs, (prefix + ".ki").c_str(), cfg->ki);
+        cfg->kd     = this->yamlReadDouble(fs, (prefix + ".kd").c_str(), cfg->kd);
+        cfg->b      = this->yamlReadDouble(fs, (prefix + ".b").c_str(), cfg->b);
+        cfg->c      = this->yamlReadDouble(fs, (prefix + ".c").c_str(), cfg->c);
+        cfg->u0     = this->yamlReadDouble(fs, (prefix + ".u0").c_str(), cfg->u0);
+        cfg->Dt     = this->yamlReadDouble(fs, (prefix + ".Dt").c_str(), cfg->Dt);
+        cfg->Tf     = this->yamlReadDouble(fs, (prefix + ".Tf").c_str(), cfg->Tf);
+        cfg->Tt     = this->yamlReadDouble(fs, (prefix + ".Tt").c_str(), cfg->Tt);
+        cfg->minlim = this->yamlReadDouble(fs, (prefix + ".minlim").c_str(), cfg->minlim);
+        cfg->maxlim = this->yamlReadDouble(fs, (prefix + ".maxlim").c_str(), cfg->maxlim);
+        cfg->dumin  = this->yamlReadDouble(fs, (prefix + ".dumin").c_str(), cfg->dumin);
+        cfg->dumax  = this->yamlReadDouble(fs, (prefix + ".dumax").c_str(), cfg->dumax);
     }
     static const char* sourceTypeToString(SourceType t){
         switch(t){
@@ -676,10 +783,13 @@ struct DebugState {
 };
 
 struct EvitationDir {
+    // Vars
     vec3 norm_vec = vec3::Zero();
-    float magnitude = 0.0f;
-    bool must_evade = false;
     float obstacle_score = 0.0f;
+    bool must_evade = false;
+    
+    // Debug
+    float magnitude = 0.0f;
     float mean_closeness = 0.0f;
     float close_area_ratio = 0.0f;
     float largest_blob_ratio = 0.0f;

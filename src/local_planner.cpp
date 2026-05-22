@@ -9,16 +9,14 @@ struct PPConfig{
     size_t searc_win;
     size_t last_idx;
     bool finished;
-
     float v_max_xy;
     float v_max_z;
     float w_max_z;
-
     float k_xy;
     float k_z;
     float k_yaw;
-
     float goal_tol_m;
+    float evade_pp_blend;
 };
 
 PPConfig ppconfig;
@@ -53,25 +51,62 @@ static float yawFromQuat(quat q){
     return atan2f(siny_cosp, cosy_cosp);
 }
 
-void localPlannerInit(Config * config){
-    (void)config; // Evita warning de compilación porque el parámetro config todavía no se usa.
+static vec3 clampVelocity(vec3 vel){
+    const float xy_norm = static_cast<float>(std::hypot(vel.x(), vel.y()));
+    if(xy_norm > ppconfig.v_max_xy && xy_norm > 1e-6f){
+        const float scale = ppconfig.v_max_xy / xy_norm;
+        vel.x() *= scale;
+        vel.y() *= scale;
+    }
 
-    ppconfig.la_m = 0.75f;        // Distancia lookahead en metros. El dron no persigue el punto más cercano, sino un punto situado 0.75 m por delante en la trayectoria.
-    ppconfig.searc_win = 50;      // Ventana de búsqueda. Número máximo de puntos del path que se analizan hacia delante desde last_idx.
-    ppconfig.last_idx = 0;        // Último índice conocido del path donde estaba el dron. Se usa para no buscar desde el principio en cada iteración.
-    ppconfig.finished = false;    // Indica si el planificador local ya ha terminado de seguir el path actual.
-
-    ppconfig.v_max_xy = 0.75f;    // Velocidad lineal máxima en el plano XY, en m/s. Limita sqrt(vx^2 + vy^2).
-    ppconfig.v_max_z = 0.45f;     // Velocidad lineal máxima vertical, en m/s. Limita la velocidad de subida y bajada.
-    ppconfig.w_max_z = 1.0f;      // Velocidad angular máxima en yaw, en rad/s. Limita la rotación alrededor del eje Z.
-
-    ppconfig.k_xy = 1.0f;         // Ganancia proporcional para convertir el error horizontal en velocidad XY.
-    ppconfig.k_z = 1.0f;          // Ganancia proporcional para convertir el error vertical en velocidad Z.
-    ppconfig.k_yaw = 2.0f;        // Ganancia proporcional para convertir el error de yaw en velocidad angular wz.
-
-    ppconfig.goal_tol_m = 0.12f;  // Tolerancia de llegada al objetivo final, en metros. Si el dron está a menos de 0.12 m del final, se considera terminado.
+    vel.z() = clampf(static_cast<float>(vel.z()), -ppconfig.v_max_z, ppconfig.v_max_z);
+    return vel;
 }
-float vec3Dist(vec3 a, vec3 b){ return sqrt( powf(a.x()-b.x(), 2) + powf(a.y()-b.y(), 2) + powf(a.z()-b.z(), 2));}
+
+static bool buildEvadeVelocity(const EvitationDir& dir, float yaw, vec3 * evade_vel){
+    if(evade_vel == nullptr){
+        return false;
+    }
+
+    const vec3 raw_dir = dir.norm_vec;
+    const float lateral = static_cast<float>(raw_dir.x());
+    const float vertical = static_cast<float>(-raw_dir.y());
+    const float planar_norm = std::sqrt(lateral*lateral + vertical*vertical);
+    if(planar_norm <= 1e-6f){
+        return false;
+    }
+
+    const vec3 right_w(-std::sin(yaw), std::cos(yaw), 0.0);
+    const vec3 up_w(0.0, 0.0, 1.0);
+
+    vec3 evade_dir = lateral*right_w + vertical*up_w;
+    const double evade_dir_norm = evade_dir.norm();
+    if(evade_dir_norm <= 1e-6){
+        return false;
+    }
+
+    evade_dir /= evade_dir_norm;
+
+    const float evade_gain = clampf(std::max(0.5f, dir.magnitude), 0.0f, 1.0f);
+    const float evade_speed = evade_gain*ppconfig.v_max_xy;
+    *evade_vel = clampVelocity(evade_speed*evade_dir);
+    return true;
+}
+
+void localPlannerInit(Config * config){
+    ppconfig.la_m       = config->ppr3d.la_m;
+    ppconfig.searc_win  = config->ppr3d.searc_win;
+    ppconfig.last_idx   = 0;
+    ppconfig.finished   = false;
+    ppconfig.v_max_xy   = config->ppr3d.v_max_xy;
+    ppconfig.v_max_z    = config->ppr3d.v_max_z;
+    ppconfig.w_max_z    = config->ppr3d.w_max_z;
+    ppconfig.k_xy       = config->ppr3d.k_xy;
+    ppconfig.k_z        = config->ppr3d.k_z;
+    ppconfig.k_yaw      = config->ppr3d.k_yaw;
+    ppconfig.goal_tol_m = config->ppr3d.goal_tol_m;
+    ppconfig.evade_pp_blend = 0.1f;
+}
 
 static bool getPurePursuitTarget3D(vec3 pos, Waypoints path, vec3 *p_ref, bool *target_is_end){
     size_t n = path.p.size();
@@ -130,7 +165,7 @@ static bool getPurePursuitTarget3D(vec3 pos, Waypoints path, vec3 *p_ref, bool *
     *target_is_end = true;
     return true;
 }
-void localPlannerUpdate(StateOut state, Waypoints path, Command * cmd){
+void localPlannerUpdate(EvitationDir dir, StateOut state, Waypoints path, Command * cmd){
     vec3 pos = state.state.pose.pos;
     quat ori = state.state.pose.rot;
     double dt = state.dt;
@@ -197,6 +232,16 @@ void localPlannerUpdate(StateOut state, Waypoints path, Command * cmd){
         wz = clampf(wz, -ppconfig.w_max_z, ppconfig.w_max_z);
     }
 
-    cmd->lenvel_ms = vec3(vx, vy, vz);
-    cmd->angvel_rads = vec3(0.0f, 0.0f, wz);
+    vec3 pp_vel(vx, vy, vz);
+    vec3 cmd_vel = pp_vel;
+    float cmd_wz = wz;
+
+    vec3 evade_vel = vec3::Zero();
+    if(dir.must_evade && buildEvadeVelocity(dir, yaw, &evade_vel)){
+        cmd_vel = clampVelocity(evade_vel + ppconfig.evade_pp_blend*pp_vel);
+        cmd_wz = ppconfig.evade_pp_blend*wz;
+    }
+
+    cmd->lenvel_ms = cmd_vel;
+    cmd->angvel_rads = vec3(0.0f, 0.0f, cmd_wz);
 }
