@@ -165,16 +165,7 @@ void PreprocessToGpu(const cv::cuda::GpuMat& frame_gpu, float* d_output, const D
     cv::cuda::cvtColor(resized, rgb, cv::COLOR_BGR2RGB, 0, stream);
 
     const cudaStream_t cuda_stream = cv::cuda::StreamAccessor::getStream(stream);
-    LaunchRgb8ToChwF32Norm(
-        rgb.ptr<unsigned char>(),
-        rgb.step,
-        config.input_height,
-        config.input_width,
-        d_output,
-        kMean,
-        kStd,
-        cuda_stream
-    );
+    LaunchRgb8ToChwF32Norm(rgb.ptr<unsigned char>(),rgb.step,config.input_height,config.input_width,d_output,kMean,kStd,cuda_stream);
 }
 
 cv::Mat ColorizeDepth(const cv::Mat& depth32f)
@@ -469,12 +460,15 @@ void StoreDebugImage(const cv::Mat& depth32f, const EvitationDir& result, const 
         return;
     }
 
+    // Mask
     if (!dbg.frontal_mask_full.empty()) {
         cv::Mat mask_color(debug.size(), CV_8UC3, cv::Scalar(0, 0, 0));
-        mask_color.setTo(cv::Scalar(0, 0, 255), dbg.frontal_mask_full > 0);
+        mask_color.setTo(cv::Scalar(0, 255, 0), dbg.frontal_mask_full > 0);
         cv::addWeighted(debug, 1.0, mask_color, 0.25, 0.0, debug);
     }
 
+
+    // ROI F, G and S*
     cv::rectangle(debug, dbg.guidance_roi, cv::Scalar(255, 255, 0), 1, cv::LINE_AA);
     cv::rectangle(debug, dbg.frontal_roi, cv::Scalar(0, 255, 255), 2, cv::LINE_AA);
     cv::rectangle(debug, dbg.best_sector_roi, cv::Scalar(255, 0, 0), 2, cv::LINE_AA);
@@ -496,34 +490,41 @@ void StoreDebugImage(const cv::Mat& depth32f, const EvitationDir& result, const 
         cv::arrowedLine(debug, center, tip, arrow_color, 2, cv::LINE_AA, 0, 0.2);
     }
 
-    std::ostringstream line1;
-    line1 << std::fixed << std::setprecision(3)
-          << "score: " << result.obstacle_score
-          << " area: " << result.close_area_ratio
-          << " blob: " << result.largest_blob_ratio;
-    cv::putText(debug, line1.str(), cv::Point(12, 24), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 1, cv::LINE_AA);
+    const Da3Config& cfg = g_da3.config.da3;
 
-    std::ostringstream line2;
-    line2 << std::fixed << std::setprecision(3)
-          << "mean: " << result.mean_closeness
-          << " p20c: " << result.p20_closeness
-          << " peakc: " << result.peak_closeness
-          << " free: " << result.free_space_score;
-    cv::putText(debug, line2.str(), cv::Point(12, 46), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 1, cv::LINE_AA);
+    const double font_scale = 0.35;
+    const int font_thickness = 1;
+    const int line_height = 13;
+    const int text_x = 5;
+    int text_y = 14;
 
-    std::ostringstream line3;
-    line3 << std::fixed << std::setprecision(3)
-          << "ang(rad): " << result.angleRad()
-          << " ang(deg): " << (result.angleRad() * 180.0 / M_PI)
-          << " sector: " << result.best_sector;
-    cv::putText(debug, line3.str(), cv::Point(12, 68), cv::FONT_HERSHEY_SIMPLEX, 0.5, arrow_color, 1, cv::LINE_AA);
+    auto drawConditionLine = [&](const std::string& text, bool condition_ok) {
+        const cv::Scalar color = condition_ok ? cv::Scalar(0, 255, 0) : cv::Scalar(0, 0, 255);
+        cv::putText(debug, text, cv::Point(text_x, text_y), cv::FONT_HERSHEY_SIMPLEX, font_scale, cv::Scalar(0, 0, 0), 2, cv::LINE_AA);
+        cv::putText(debug, text, cv::Point(text_x, text_y), cv::FONT_HERSHEY_SIMPLEX, font_scale, color, font_thickness, cv::LINE_AA);
+        text_y += line_height;
+    };
 
-    std::ostringstream line4;
-    line4 << "evade: " << (result.must_evade ? "true" : "false")
-          << " p05/p20: " << std::fixed << std::setprecision(2) << result.frontal_peak_depth << " / " << result.frontal_p20_depth
-          << " p10/p90: " << result.depth_p10 << " / " << result.depth_p90;
-    cv::putText(debug, line4.str(), cv::Point(12, 90), cv::FONT_HERSHEY_SIMPLEX, 0.5, arrow_color, 1, cv::LINE_AA);
+    auto makeConditionText = [&](const std::string& name, float value, const std::string& op, float threshold) {
+        std::ostringstream ss;
+        ss << std::fixed << std::setprecision(3) << name << ": " << value << " " << op << " " << threshold;
+        return ss.str();
+    };
 
+    // const bool cond_depth = result.frontal_p20_depth > 0.0f && result.frontal_p20_depth <= static_cast<float>(cfg.evade_distance);
+    // const bool cond_peak = result.peak_closeness >= static_cast<float>(cfg.peak_score_threshold);
+    // const bool cond_area = result.close_area_ratio >= static_cast<float>(cfg.min_close_area_ratio);
+    // const bool cond_blob = result.largest_blob_ratio >= static_cast<float>(cfg.min_blob_area_ratio);
+    // const bool cond_score_on = result.obstacle_score >= static_cast<float>(cfg.activate_score_threshold);
+    // const bool cond_score_off = result.obstacle_score >= static_cast<float>(cfg.clear_score_threshold);
+
+    drawConditionLine("must_evade: " + std::string(result.must_evade ? "TRUE" : "FALSE"), result.must_evade);
+    // drawConditionLine(makeConditionText("d20", result.frontal_p20_depth, "<=", static_cast<float>(cfg.evade_distance)), cond_depth);
+    // drawConditionLine(makeConditionText("Cp", result.peak_closeness, ">=", static_cast<float>(cfg.peak_score_threshold)), cond_peak);
+    // drawConditionLine(makeConditionText("Af", result.close_area_ratio, ">=", static_cast<float>(cfg.min_close_area_ratio)), cond_area);
+    // drawConditionLine(makeConditionText("Bf", result.largest_blob_ratio, ">=", static_cast<float>(cfg.min_blob_area_ratio)), cond_blob);
+    // drawConditionLine(makeConditionText("S on", result.obstacle_score, ">=", static_cast<float>(cfg.activate_score_threshold)), cond_score_on);
+    // drawConditionLine(makeConditionText("S off", result.obstacle_score, ">=", static_cast<float>(cfg.clear_score_threshold)), cond_score_off);
     std::lock_guard<std::mutex> lock(g_da3.result_mutex);
     g_da3.latest_debug_image = debug;
 }

@@ -785,3 +785,14 @@ struct StateOut{
         return out;
     }
 };
+
+
+struct Command{
+    double ts_ms;
+    vec3 lenvel_ms;
+    vec3 angvel_rads;
+};
+
+struct Waypoints{
+    std::vector<vec3> p;
+};

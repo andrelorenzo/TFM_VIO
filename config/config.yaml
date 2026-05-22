@@ -15,13 +15,13 @@ gen.show: true
 gen.debug: true
 
 da3.enabled: true
-da3.show_window: false
+da3.show_window: true
 da3.model: "small"
 da3.model_path: "../../model/DA3METRIC-SMALL.onnx"
 da3.input_width: 504
 da3.input_height: 280
 da3.min_valid_depth: 0.05
-da3.max_valid_depth: 20.0
+da3.max_valid_depth: 1000.0
 da3.evade_distance: 0.0
 da3.direction_deadband: 1.0e-5
 da3.smooth_alpha: 0.70

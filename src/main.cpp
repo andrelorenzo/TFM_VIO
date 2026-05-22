@@ -93,7 +93,6 @@ int main(int argc, char ** argv){
             continue;
         }
         state.da3 = da3Get();
-        // da3Update(source, state);            // pensar si meter en un thread a parte
         // // globalPlanUpdate(state, tray);
         // // localPlanUpdate(state, waypoints, tray);
         // // controllerUpdate(state, tray, cmd);
