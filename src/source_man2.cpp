@@ -270,6 +270,8 @@ static bool pollRealSense(double * init_ts) {
             vec3 acc_i;
             vec3 gyr_i;
 
+
+
             bool ok_acc = interpolateImu(acc_buf, t, acc_i);
             bool ok_gyr = interpolateImu(gyr_buf, t, gyr_i);
 
@@ -283,6 +285,8 @@ static bool pollRealSense(double * init_ts) {
             s.vacc = acc_i;
 
             packet.imu.emplace_back(s);
+
+
             prev_t = t;
         }
 
@@ -350,7 +354,7 @@ static bool pollRealSense(double * init_ts) {
             std::lock_guard<std::mutex> lock(dout_mutex);
             vout.emplace_back(packet);
             while (vout.size() > MAX_HIST) vout.pop_front();
-        }
+        }            
 
         produced_packet = true;
         last_frame_ts = frame_ts;

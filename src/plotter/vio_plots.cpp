@@ -11,7 +11,7 @@ namespace vioplot {
 namespace {
 
 bool wantAnyPlots(const Config& cfg) {
-    return cfg.gen.plot_imu || cfg.gen.plot_tray || cfg.gen.plot_vis_tray || cfg.gen.plot_imu_tray || cfg.gen.plot_height || cfg.gen.plot_rpy || cfg.gen.plot_vis_rpy || cfg.gen.plot_imu_rpy || cfg.gen.plot_dpos || cfg.gen.plot_dvel;
+    return cfg.gen.plot_imu || cfg.gen.plot_tray || cfg.gen.plot_vis_tray || cfg.gen.plot_imu_tray || cfg.gen.plot_height || cfg.gen.plot_rpy || cfg.gen.plot_vis_rpy || cfg.gen.plot_imu_rpy || cfg.gen.plot_dpos || cfg.gen.plot_dvel || cfg.gen.plot_da3;
 }
 
 } // namespace
@@ -105,6 +105,70 @@ void VioPlotter::configure(const Config& config, VioPlotterOptions options) {
 
         auto vel = addTimePlot("state_velocity", "State velocity", "m/s");
         bindVec3Time(vel, "vel", [](const StateOut& s) { return s.state.vel; });
+    }
+
+    if (config.gen.plot_da3) {
+        auto angle = addTimePlot("da3_angle", "DA3 Avoidance Angle", "rad");
+        bind(angle, "angle", [](const StateOut& s) {
+            return plotlib::Point{timeSeconds(s), s.da3.angleRad()};
+        });
+
+        auto magnitude = addTimePlot("da3_magnitude", "DA3 Avoidance Magnitude", "a.u.");
+        bind(magnitude, "magnitude", [](const StateOut& s) {
+            return plotlib::Point{timeSeconds(s), s.da3.magnitude};
+        });
+
+        auto flag = addTimePlot("da3_evade_flag", "DA3 Must Evade", "bool");
+        bind(flag, "must evade", [](const StateOut& s) {
+            return plotlib::Point{timeSeconds(s), s.da3.must_evade ? 1.0 : 0.0};
+        });
+
+        auto activation = addTimePlot("da3_activation_metrics", "DA3 Activation Metrics", "a.u.");
+        bind(activation, "score", [](const StateOut& s) {
+            return plotlib::Point{timeSeconds(s), s.da3.obstacle_score};
+        });
+        bind(activation, "mean close", [](const StateOut& s) {
+            return plotlib::Point{timeSeconds(s), s.da3.mean_closeness};
+        });
+        bind(activation, "p20 close", [](const StateOut& s) {
+            return plotlib::Point{timeSeconds(s), s.da3.p20_closeness};
+        });
+        bind(activation, "peak close", [](const StateOut& s) {
+            return plotlib::Point{timeSeconds(s), s.da3.peak_closeness};
+        });
+
+        auto occupancy = addTimePlot("da3_occupancy_metrics", "DA3 Occupancy Metrics", "ratio");
+        bind(occupancy, "close area", [](const StateOut& s) {
+            return plotlib::Point{timeSeconds(s), s.da3.close_area_ratio};
+        });
+        bind(occupancy, "largest blob", [](const StateOut& s) {
+            return plotlib::Point{timeSeconds(s), s.da3.largest_blob_ratio};
+        });
+        bind(occupancy, "valid ratio", [](const StateOut& s) {
+            return plotlib::Point{timeSeconds(s), s.da3.valid_ratio};
+        });
+
+        auto depth = addTimePlot("da3_depth_metrics", "DA3 Depth Metrics", "depth");
+        bind(depth, "global p10", [](const StateOut& s) {
+            return plotlib::Point{timeSeconds(s), s.da3.depth_p10};
+        });
+        bind(depth, "global p90", [](const StateOut& s) {
+            return plotlib::Point{timeSeconds(s), s.da3.depth_p90};
+        });
+        bind(depth, "front p20", [](const StateOut& s) {
+            return plotlib::Point{timeSeconds(s), s.da3.frontal_p20_depth};
+        });
+        bind(depth, "front peak", [](const StateOut& s) {
+            return plotlib::Point{timeSeconds(s), s.da3.frontal_peak_depth};
+        });
+
+        auto guidance = addTimePlot("da3_guidance_metrics", "DA3 Guidance Metrics", "a.u.");
+        bind(guidance, "free space", [](const StateOut& s) {
+            return plotlib::Point{timeSeconds(s), s.da3.free_space_score};
+        });
+        bind(guidance, "best sector", [](const StateOut& s) {
+            return plotlib::Point{timeSeconds(s), static_cast<double>(s.da3.best_sector)};
+        });
     }
 }
 

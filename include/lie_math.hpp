@@ -26,6 +26,7 @@ vec4 QuatInv(const vec4& q);
 vec4 QuatMul(const vec4& q1, const vec4& q2);
 cv::Mat InvertRigidTransform(const cv::Mat& input);
 cv::Mat NormalizeTransform4x4(const cv::Mat& input);
+quat vec4ToQuat(vec4& vec);
 
 // Lookup table of chi2(0.95,DOF)
 const double CHI2_THRESHOLD[500] = {

@@ -8,11 +8,15 @@
 
 
 inline constexpr const char * DEBUG_HEADER[] = {
-    "ts", "dt"
+    "ts", "dt",
     "visx", "visy", "visz", "visroll", "vispitch", "visyaw", "imux", "imuy", "imuz", "imuroll", "imupitch", "imuyaw",   // Visual pose | inertial part
     "gtx", "gty", "gtz", "gtroll", "gtpitch", "gtyaw", "x", "y", "z", "roll", "pitch", "yaw",                           // GT pose  | Solved pose
     "accx", "accy", "accz", "gyrx", "gyry", "gyrz",                                          // Raw data
     "vio_in", "imu_stat", "vio_valid",                                                                                  // Flags
+    "da3_dir_x", "da3_dir_y", "da3_dir_z", "da3_angle_rad", "da3_magnitude", "da3_must_evade",
+    "da3_obstacle_score", "da3_mean_closeness", "da3_close_area_ratio", "da3_largest_blob_ratio", "da3_p20_closeness",
+    "da3_peak_closeness", "da3_valid_ratio", "da3_depth_p10", "da3_depth_p90", "da3_frontal_p20_depth", "da3_frontal_peak_depth",
+    "da3_free_space_score", "da3_best_sector",
 
     "dpx", "dpy", "dpz", "dvx", "dvy", "dvz", "dqw", "dqx", "dqy", "dqz",                                              // Pre integration dvalues
 };

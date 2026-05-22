@@ -308,3 +308,8 @@ cv::Mat InvertRigidTransform(const cv::Mat& input)
     t_inv.copyTo(output(cv::Range(0, 3), cv::Range(3, 4)));
     return output;
 }
+
+
+quat vec4ToQuat(vec4& vec){
+     return normalizeQ(quat(vec(3), vec(0), vec(1), vec(2)));
+}

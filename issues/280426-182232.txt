@@ -1,4 +1,4 @@
 TITLE: Keep trying my implemetnation, probably im accumulating position on imu part
-PRIORITY: 80
+PRIORITY: 0
 TYPE: TODO
-STATE: OPEN
+STATE: CLOSED

@@ -346,6 +346,8 @@ bool vioUpdate(SourceIn * source, StateOut * state) {
     state->state.dpose.vacc = a_body;
     state->state.vel = v_world;
 
+    state->dt = source->frame_dtms;
+
     state->deb.rawimu = imu_last;
     state->deb.corimu.ts = imu_last.ts;
     state->deb.corimu.dt = imu_last.dt;
@@ -355,4 +357,9 @@ bool vioUpdate(SourceIn * source, StateOut * state) {
 
     return true;
 
+}
+
+
+cv::Mat getDebugImage(){
+    return imOutDebug.clone();
 }

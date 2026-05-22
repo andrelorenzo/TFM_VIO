@@ -360,8 +360,14 @@ void Tracker::VisualTracking(const int nImageId, const cv::Mat& image, int nMapP
 
             if (mbShowNewer)
             {
-                // Show the result in rviz
+                
                 DisplayNewer(nImageId, image, mvFeatPtsToTrack, vNewFeatPts, imOut);
+                // mpFeatureDetector->DebugDrawGrid(image, imOut);
+                // mpFeatureDetector->DebugDrawShiTomasi(image, imOut);
+                // mpFeatureDetector->DebugDrawSubPix(image, 1.5*mnMaxFeatsPerImage, 1, imOut);
+                // mpFeatureDetector->DebugDrawCandidates(image, mvFeatCandidates, mvFeatPtsToTrack, vNewFeatPts, imOut);
+                // mpFeatureDetector->DebugDrawSelection(image, mvFeatCandidates, mvFeatPtsToTrack, vNewFeatPts, imOut);
+                // mpFeatureDetector->DebugDrawCellOccupancy(image, mvFeatPtsToTrack, vNewFeatPts, imOut);
             }
 
             if (mbRefreshVT)
@@ -551,4 +557,128 @@ void Tracker::track(const int nImageId, const cv::Mat& image, const mat3& RcG, c
 
         VisualTracking(nImageId, workingImage, nMapPtsNeeded, mFeatures, imOut);
     }
+}
+
+
+static void MakeTrackDebugBgr(const cv::Mat& image, cv::Mat& imOut)
+{
+    if (image.empty()) {
+        imOut = cv::Mat::zeros(480, 640, CV_8UC3);
+        cv::putText(imOut, "empty image", cv::Point(20,40), cv::FONT_HERSHEY_PLAIN, 2.0, cv::Scalar(0,0,255), 2, cv::LINE_AA);
+        return;
+    }
+
+    if (image.channels()==1) cv::cvtColor(image, imOut, cv::COLOR_GRAY2BGR);
+    else if (image.channels()==3) image.copyTo(imOut);
+    else if (image.channels()==4) cv::cvtColor(image, imOut, cv::COLOR_BGRA2BGR);
+    else imOut = cv::Mat::zeros(image.rows, image.cols, CV_8UC3);
+}
+void Tracker::DisplayKltTracks(const int nImageId, const cv::Mat& image, const std::vector<cv::Point2f>& vPrevFeatUVs, const std::vector<cv::Point2f>& vCurrFeatUVs, const std::vector<unsigned char>& vTrackFlags, cv::Mat& imOut)
+{
+    MakeTrackDebugBgr(image, imOut);
+
+    int nOk = 0;
+    int nLost = 0;
+
+    int N = std::min((int)vPrevFeatUVs.size(), (int)vCurrFeatUVs.size());
+
+    for (int i=0; i<N; ++i) {
+        bool ok = i<(int)vTrackFlags.size() && vTrackFlags.at(i);
+        if (ok) {
+            cv::circle(imOut, vPrevFeatUVs.at(i), 3, cv::Scalar(255,64,64), -1, cv::LINE_AA);
+            cv::circle(imOut, vCurrFeatUVs.at(i), 3, cv::Scalar(64,255,64), -1, cv::LINE_AA);
+            cv::line(imOut, vPrevFeatUVs.at(i), vCurrFeatUVs.at(i), cv::Scalar(255,64,64), 1, cv::LINE_AA);
+            nOk++;
+        } else {
+            cv::drawMarker(imOut, vPrevFeatUVs.at(i), cv::Scalar(64,64,255), cv::MARKER_TILTED_CROSS, 10, 2, cv::LINE_AA);
+            nLost++;
+        }
+    }
+
+    cv::rectangle(imOut, cv::Point(8,8), cv::Point(520,72), cv::Scalar(0,0,0), -1);
+    cv::putText(imOut, "KLT: seguimiento por flujo optico", cv::Point(18,30), cv::FONT_HERSHEY_PLAIN, 1.2, cv::Scalar(64,255,64), 2, cv::LINE_AA);
+    cv::putText(imOut, "azul: posicion previa | verde: posicion actual | rojo: perdido", cv::Point(18,50), cv::FONT_HERSHEY_PLAIN, 0.9, cv::Scalar(255,255,255), 1, cv::LINE_AA);
+    cv::putText(imOut, "frame=" + std::to_string(nImageId) + " ok=" + std::to_string(nOk) + " lost=" + std::to_string(nLost), cv::Point(18,68), cv::FONT_HERSHEY_PLAIN, 0.9, cv::Scalar(255,255,255), 1, cv::LINE_AA);
+}
+void Tracker::DisplayRansacTracks(const int nImageId, const cv::Mat& image, const std::vector<cv::Point2f>& vPrevFeatUVs, const std::vector<cv::Point2f>& vCurrFeatUVs, const std::vector<unsigned char>& vInlierFlags, cv::Mat& imOut)
+{
+    MakeTrackDebugBgr(image, imOut);
+
+    int nInliers = 0;
+    int nOutliers = 0;
+
+    int N = std::min((int)vPrevFeatUVs.size(), (int)vCurrFeatUVs.size());
+
+    for (int i=0; i<N; ++i) {
+        bool inlier = i<(int)vInlierFlags.size() && vInlierFlags.at(i);
+        if (inlier) {
+            cv::circle(imOut, vPrevFeatUVs.at(i), 3, cv::Scalar(255,64,64), -1, cv::LINE_AA);
+            cv::circle(imOut, vCurrFeatUVs.at(i), 3, cv::Scalar(64,255,64), -1, cv::LINE_AA);
+            cv::line(imOut, vPrevFeatUVs.at(i), vCurrFeatUVs.at(i), cv::Scalar(255,64,64), 1, cv::LINE_AA);
+            nInliers++;
+        } else {
+            cv::circle(imOut, vPrevFeatUVs.at(i), 4, cv::Scalar(64,64,255), 2, cv::LINE_AA);
+            if (i<(int)vCurrFeatUVs.size()) cv::line(imOut, vPrevFeatUVs.at(i), vCurrFeatUVs.at(i), cv::Scalar(64,64,255), 1, cv::LINE_AA);
+            nOutliers++;
+        }
+    }
+
+    cv::rectangle(imOut, cv::Point(8,8), cv::Point(560,72), cv::Scalar(0,0,0), -1);
+    cv::putText(imOut, "RANSAC: rechazo geometrico de correspondencias", cv::Point(18,30), cv::FONT_HERSHEY_PLAIN, 1.1, cv::Scalar(64,255,64), 2, cv::LINE_AA);
+    cv::putText(imOut, "azul/verde: inlier | rojo: outlier", cv::Point(18,50), cv::FONT_HERSHEY_PLAIN, 0.9, cv::Scalar(255,255,255), 1, cv::LINE_AA);
+    cv::putText(imOut, "frame=" + std::to_string(nImageId) + " inliers=" + std::to_string(nInliers) + " outliers=" + std::to_string(nOutliers), cv::Point(18,68), cv::FONT_HERSHEY_PLAIN, 0.9, cv::Scalar(255,255,255), 1, cv::LINE_AA);
+}
+void Tracker::DisplayTrackErrors(const int nImageId, const cv::Mat& image, const std::vector<cv::Point2f>& vPrevFeatUVs, const std::vector<cv::Point2f>& vCurrFeatUVs, const std::vector<unsigned char>& vInlierFlags, const std::vector<float>& vErrors, cv::Mat& imOut)
+{
+    MakeTrackDebugBgr(image, imOut);
+
+    int N = std::min((int)vPrevFeatUVs.size(), (int)vCurrFeatUVs.size());
+
+    for (int i=0; i<N; ++i) {
+        bool inlier = i<(int)vInlierFlags.size() && vInlierFlags.at(i);
+        float err = i<(int)vErrors.size() ? vErrors.at(i) : 0.0f;
+
+        if (inlier) {
+            cv::line(imOut, vPrevFeatUVs.at(i), vCurrFeatUVs.at(i), cv::Scalar(255,64,64), 1, cv::LINE_AA);
+            cv::circle(imOut, vCurrFeatUVs.at(i), 3, cv::Scalar(64,255,64), -1, cv::LINE_AA);
+        } else {
+            cv::drawMarker(imOut, vPrevFeatUVs.at(i), cv::Scalar(64,64,255), cv::MARKER_TILTED_CROSS, 10, 2, cv::LINE_AA);
+        }
+
+        if (i%8==0) cv::putText(imOut, cv::format("%.2f", err), vCurrFeatUVs.at(i)+cv::Point2f(4,-4), cv::FONT_HERSHEY_PLAIN, 0.7, cv::Scalar(255,255,255), 1, cv::LINE_AA);
+    }
+
+    cv::rectangle(imOut, cv::Point(8,8), cv::Point(580,52), cv::Scalar(0,0,0), -1);
+    cv::putText(imOut, "Error KLT asociado a cada correspondencia", cv::Point(18,30), cv::FONT_HERSHEY_PLAIN, 1.2, cv::Scalar(64,255,64), 2, cv::LINE_AA);
+    cv::putText(imOut, "frame=" + std::to_string(nImageId), cv::Point(18,50), cv::FONT_HERSHEY_PLAIN, 0.9, cv::Scalar(255,255,255), 1, cv::LINE_AA);
+}
+void Tracker::DisplayTrackSummary(const int nImageId, const cv::Mat& image, const std::vector<cv::Point2f>& vPrevFeatUVs, const std::vector<cv::Point2f>& vCurrFeatUVs, const std::vector<unsigned char>& vInlierFlags, cv::Mat& imOut)
+{
+    MakeTrackDebugBgr(image, imOut);
+
+    int nInliers = 0;
+    int nOutliers = 0;
+
+    int N = std::min((int)vPrevFeatUVs.size(), (int)vCurrFeatUVs.size());
+
+    for (int i=0; i<N; ++i) {
+        bool inlier = i<(int)vInlierFlags.size() && vInlierFlags.at(i);
+        if (inlier) nInliers++;
+        else nOutliers++;
+    }
+
+    double ratio = N>0 ? 100.0*(double)nInliers/(double)N : 0.0;
+
+    for (int i=0; i<N; ++i) {
+        bool inlier = i<(int)vInlierFlags.size() && vInlierFlags.at(i);
+        cv::Scalar color = inlier ? cv::Scalar(64,255,64) : cv::Scalar(64,64,255);
+        cv::circle(imOut, vCurrFeatUVs.at(i), 3, color, -1, cv::LINE_AA);
+    }
+
+    cv::rectangle(imOut, cv::Point(8,8), cv::Point(460,120), cv::Scalar(0,0,0), -1);
+    cv::putText(imOut, "Resumen seguimiento visual", cv::Point(18,32), cv::FONT_HERSHEY_PLAIN, 1.3, cv::Scalar(64,255,64), 2, cv::LINE_AA);
+    cv::putText(imOut, "frame: " + std::to_string(nImageId), cv::Point(18,56), cv::FONT_HERSHEY_PLAIN, 1.0, cv::Scalar(255,255,255), 1, cv::LINE_AA);
+    cv::putText(imOut, "tracks: " + std::to_string(N), cv::Point(18,76), cv::FONT_HERSHEY_PLAIN, 1.0, cv::Scalar(255,255,255), 1, cv::LINE_AA);
+    cv::putText(imOut, "inliers: " + std::to_string(nInliers) + " | outliers: " + std::to_string(nOutliers), cv::Point(18,96), cv::FONT_HERSHEY_PLAIN, 1.0, cv::Scalar(255,255,255), 1, cv::LINE_AA);
+    cv::putText(imOut, "ratio inliers: " + cv::format("%.1f", ratio) + "%", cv::Point(18,116), cv::FONT_HERSHEY_PLAIN, 1.0, cv::Scalar(255,255,255), 1, cv::LINE_AA);
 }

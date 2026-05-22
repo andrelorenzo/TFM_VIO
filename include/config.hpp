@@ -52,6 +52,13 @@ enum SourceType{
     SOURCE_COUNT
 };
 
+enum Da3Model {
+    DA3_MODEL_SMALL = 0,
+    DA3_MODEL_BASE,
+
+    DA3_MODEL_COUNT
+};
+
 struct imuCal{
 
     double fps = 200.0;
@@ -93,6 +100,7 @@ struct General{
 
     bool plot_dpos;             // Plot pre-int pos solution
     bool plot_dvel;             // plot pre-int vel solution
+    bool plot_da3;              // Plot DA3 avoidance angle and magnitude
 };
 struct Camera {
     int width = 0;
@@ -135,11 +143,90 @@ struct Vio {
     double dis_ths = 0.01;
     bool en_align = false;
 };
+struct Da3Config {
+    bool enabled = false;
+    bool show_window = false;
+    Da3Model model = DA3_MODEL_SMALL;
+    std::string model_path = "../../model/DA3METRIC-SMALL.onnx";
+    int input_width = 504;
+    int input_height = 280;
+    double min_valid_depth = 0.05;
+    double max_valid_depth = 20.0;
+    double evade_distance = 1.5;
+    double direction_deadband = 1e-5;
+    double smooth_alpha = 0.7;
+    double debug_arrow_gain = 10000.0;
+    int sector_count = 9;
+    int morph_kernel_size = 5;
+    double frontal_roi_width_ratio = 0.40;
+    double frontal_roi_height_ratio = 0.45;
+    double guidance_roi_width_ratio = 0.90;
+    double guidance_roi_height_ratio = 0.55;
+    double close_mask_threshold = 0.60;
+    double activate_score_threshold = 0.28;
+    double clear_score_threshold = 0.18;
+    double min_close_area_ratio = 0.03;
+    double min_blob_area_ratio = 0.015;
+    double emergency_close_area_ratio = 0.08;
+    double emergency_blob_area_ratio = 0.05;
+    double score_weight_mean = 0.35;
+    double score_weight_area = 0.25;
+    double score_weight_blob = 0.25;
+    double score_weight_p20 = 0.15;
+    double score_weight_peak = 0.20;
+    double frontal_peak_percentile = 0.05;
+    double peak_score_threshold = 0.92;
+    double sector_close_penalty = 0.75;
+    double free_space_power = 2.0;
+};
+struct PPR3DConfig{
+    float la_m;
+    size_t searc_win;
+    float v_max_xy;
+    float v_max_z;
+    float w_max_z;
+    float k_xy;
+    float k_z;
+    float k_yaw;
+    float goal_tol_m;
+};
+struct GlobalPlannerConfig{
+    std::string waypoints_file = "../../config/waypoints.txt";
+    double resolution = 0.25;
+};
+struct PIDAxisConfig{
+    double kp = 0.0;
+    double ki = 0.0;
+    double kd = 0.0;
+    double b = 1.0;
+    double c = 1.0;
+    double u0 = 0.0;
+    double Dt = 0.01;
+    double Tf = 0.0;
+    double Tt = 0.1;
+    double minlim = -std::numeric_limits<double>::infinity();
+    double maxlim = std::numeric_limits<double>::infinity();
+    double dumin = -std::numeric_limits<double>::infinity();
+    double dumax = std::numeric_limits<double>::infinity();
+};
+struct ControllerConfig{
+    bool enabled = true;
+    double default_dt = 0.01;
+    PIDAxisConfig vx;
+    PIDAxisConfig vy;
+    PIDAxisConfig vz;
+    PIDAxisConfig wz;
+};
+
 struct Config{
     General gen;
     Camera cam;
     imuCal imu;
     Vio vio;
+    Da3Config da3;
+    GlobalPlannerConfig gplan;
+    PPR3DConfig ppr3d;
+    ControllerConfig ctrl;
 
 public:
 
@@ -187,6 +274,43 @@ public:
         os << "SAMPSON ON                :" << std::string(this->vio.sampson_on ? "ON" : "OFF") << "\n";
         os << "ALIGN ENABLE              :" << std::string(this->vio.en_align ? "ON" : "OFF") << "\n";
 
+        os << "\n[DA3]\n";
+        os << "  Enabled       : " << std::string(this->da3.enabled ? "ON" : "OFF") << "\n";
+        os << "  Show window   : " << std::string(this->da3.show_window ? "ON" : "OFF") << "\n";
+        os << "  Model         : " << da3ModelToString(this->da3.model) << "\n";
+        os << "  Model path    : " << this->da3.model_path << "\n";
+        os << "  Input size    : " << this->da3.input_width << "x" << this->da3.input_height << "\n";
+        os << "  Min depth     : " << this->da3.min_valid_depth << "\n";
+        os << "  Max depth     : " << this->da3.max_valid_depth << "\n";
+        os << "  Evade dist.   : " << this->da3.evade_distance << "\n";
+        os << "  Deadband      : " << this->da3.direction_deadband << "\n";
+        os << "  Smooth alpha  : " << this->da3.smooth_alpha << "\n";
+        os << "  Arrow gain    : " << this->da3.debug_arrow_gain << "\n";
+        os << "  Sector count  : " << this->da3.sector_count << "\n";
+        os << "  Morph kernel  : " << this->da3.morph_kernel_size << "\n";
+        os << "  Frontal ROI   : " << this->da3.frontal_roi_width_ratio << "x" << this->da3.frontal_roi_height_ratio << "\n";
+        os << "  Guidance ROI  : " << this->da3.guidance_roi_width_ratio << "x" << this->da3.guidance_roi_height_ratio << "\n";
+        os << "  Close thr.    : " << this->da3.close_mask_threshold << "\n";
+        os << "  Score in/out  : " << this->da3.activate_score_threshold << " / " << this->da3.clear_score_threshold << "\n";
+        os << "  Area thr.     : " << this->da3.min_close_area_ratio << " / " << this->da3.emergency_close_area_ratio << "\n";
+        os << "  Blob thr.     : " << this->da3.min_blob_area_ratio << " / " << this->da3.emergency_blob_area_ratio << "\n";
+        os << "  Peak cfg.     : " << this->da3.frontal_peak_percentile << " / " << this->da3.peak_score_threshold << "\n";
+        os << "  Score wts.    : " << this->da3.score_weight_mean << ", " << this->da3.score_weight_area << ", " << this->da3.score_weight_blob << ", " << this->da3.score_weight_p20 << ", " << this->da3.score_weight_peak << "\n";
+        os << "  Sector pen.   : " << this->da3.sector_close_penalty << "\n";
+        os << "  Free pow.     : " << this->da3.free_space_power << "\n";
+
+        os << "\n[GLOBAL PLANNER]\n";
+        os << "  Waypoints file: " << this->gplan.waypoints_file << "\n";
+        os << "  Resolution    : " << this->gplan.resolution << "\n";
+
+        os << "\n[CONTROLLER]\n";
+        os << "  Enabled       : " << std::string(this->ctrl.enabled ? "ON" : "OFF") << "\n";
+        os << "  Default dt    : " << this->ctrl.default_dt << "\n";
+        os << "  VX gains      : " << this->ctrl.vx.kp << ", " << this->ctrl.vx.ki << ", " << this->ctrl.vx.kd << "\n";
+        os << "  VY gains      : " << this->ctrl.vy.kp << ", " << this->ctrl.vy.ki << ", " << this->ctrl.vy.kd << "\n";
+        os << "  VZ gains      : " << this->ctrl.vz.kp << ", " << this->ctrl.vz.ki << ", " << this->ctrl.vz.kd << "\n";
+        os << "  WZ gains      : " << this->ctrl.wz.kp << ", " << this->ctrl.wz.ki << ", " << this->ctrl.wz.kd << "\n";
+
         os << "\n[PLOTTERS]\n";
         os << "IMU         :" << std::string(this->gen.plot_imu      ? "ON" : "OFF") << "\n"; 
         os << "TRAY        :" << std::string(this->gen.plot_tray     ? "ON" : "OFF") << "\n"; 
@@ -198,6 +322,19 @@ public:
         os << "IMU_RPY     :" << std::string(this->gen.plot_imu_rpy  ? "ON" : "OFF") << "\n"; 
         os << "DPOS        :" << std::string(this->gen.plot_dpos     ? "ON" : "OFF") << "\n"; 
         os << "DVEL        :" << std::string(this->gen.plot_dvel     ? "ON" : "OFF") << "\n"; 
+        os << "DA3         :" << std::string(this->gen.plot_da3      ? "ON" : "OFF") << "\n"; 
+
+        os << "\n[PURE PURSUIT 3D]\n";
+        os << "LOOK AHEAD     :" << this->ppr3d.la_m << "\n";
+        os << "WINDOWS SEARCH :" << this->ppr3d.searc_win << "\n";
+        os << "VXY MAX        :" << this->ppr3d.v_max_xy << "\n";
+        os << "VZ MAX         :" << this->ppr3d.v_max_z << "\n";
+        os << "WZ MAX         :" << this->ppr3d.w_max_z << "\n";
+        os << "KP XY          :" << this->ppr3d.k_xy << "\n";
+        os << "KP Z           :" << this->ppr3d.k_z << "\n";
+        os << "KP W           :" << this->ppr3d.k_yaw << "\n";
+        os << "GOAL THRES     :" << this->ppr3d.goal_tol_m << "\n";
+
 
         os << "========================================\n";
     }
@@ -231,6 +368,7 @@ public:
         this->gen.plot_imu_rpy      = this->yamlReadBool(fs, "gen.plot_imu_rpy", false);
         this->gen.plot_dpos         = this->yamlReadBool(fs, "gen.plot_dpos", false);
         this->gen.plot_dvel         = this->yamlReadBool(fs, "gen.plot_dvel", false);
+        this->gen.plot_da3          = this->yamlReadBool(fs, "gen.plot_da3", false);
 
         if(this->toLower(this->gen.input).find(".bag") != std::string::npos){
             this->gen.type = SourceType::SOURCE_BAG;
@@ -289,6 +427,63 @@ public:
         this->vio.track_shownew      = this->yamlReadBool(fs, "track.shownew", false);
         this->vio.sampson_on         = this->yamlReadBool(fs, "vio.sampson_on", true);
         this->vio.en_align           = this->yamlReadBool(fs, "vio.en_align", false);
+
+        this->da3.enabled             = this->yamlReadBool(fs, "da3.enabled", this->da3.enabled);
+        this->da3.show_window         = this->yamlReadBool(fs, "da3.show_window", this->da3.show_window);
+        this->da3.model               = this->yamlReadDa3Model(fs, "da3.model", this->da3.model);
+        this->da3.model_path          = this->yamlReadString(fs, "da3.model_path", defaultDa3ModelPath(this->da3.model));
+        this->da3.input_width         = this->yamlReadInt(fs, "da3.input_width", this->da3.input_width);
+        this->da3.input_height        = this->yamlReadInt(fs, "da3.input_height", this->da3.input_height);
+        this->da3.min_valid_depth     = this->yamlReadDouble(fs, "da3.min_valid_depth", this->da3.min_valid_depth);
+        this->da3.max_valid_depth     = this->yamlReadDouble(fs, "da3.max_valid_depth", this->da3.max_valid_depth);
+        this->da3.evade_distance      = this->yamlReadDouble(fs, "da3.evade_distance", this->da3.evade_distance);
+        this->da3.direction_deadband  = this->yamlReadDouble(fs, "da3.direction_deadband", this->da3.direction_deadband);
+        this->da3.smooth_alpha        = this->yamlReadDouble(fs, "da3.smooth_alpha", this->da3.smooth_alpha);
+        this->da3.debug_arrow_gain    = this->yamlReadDouble(fs, "da3.debug_arrow_gain", this->da3.debug_arrow_gain);
+        this->da3.sector_count        = this->yamlReadInt(fs, "da3.sector_count", this->da3.sector_count);
+        this->da3.morph_kernel_size   = this->yamlReadInt(fs, "da3.morph_kernel_size", this->da3.morph_kernel_size);
+        this->da3.frontal_roi_width_ratio  = this->yamlReadDouble(fs, "da3.frontal_roi_width_ratio", this->da3.frontal_roi_width_ratio);
+        this->da3.frontal_roi_height_ratio = this->yamlReadDouble(fs, "da3.frontal_roi_height_ratio", this->da3.frontal_roi_height_ratio);
+        this->da3.guidance_roi_width_ratio  = this->yamlReadDouble(fs, "da3.guidance_roi_width_ratio", this->da3.guidance_roi_width_ratio);
+        this->da3.guidance_roi_height_ratio = this->yamlReadDouble(fs, "da3.guidance_roi_height_ratio", this->da3.guidance_roi_height_ratio);
+        this->da3.close_mask_threshold      = this->yamlReadDouble(fs, "da3.close_mask_threshold", this->da3.close_mask_threshold);
+        this->da3.activate_score_threshold  = this->yamlReadDouble(fs, "da3.activate_score_threshold", this->da3.activate_score_threshold);
+        this->da3.clear_score_threshold     = this->yamlReadDouble(fs, "da3.clear_score_threshold", this->da3.clear_score_threshold);
+        this->da3.min_close_area_ratio      = this->yamlReadDouble(fs, "da3.min_close_area_ratio", this->da3.min_close_area_ratio);
+        this->da3.min_blob_area_ratio       = this->yamlReadDouble(fs, "da3.min_blob_area_ratio", this->da3.min_blob_area_ratio);
+        this->da3.emergency_close_area_ratio = this->yamlReadDouble(fs, "da3.emergency_close_area_ratio", this->da3.emergency_close_area_ratio);
+        this->da3.emergency_blob_area_ratio  = this->yamlReadDouble(fs, "da3.emergency_blob_area_ratio", this->da3.emergency_blob_area_ratio);
+        this->da3.score_weight_mean         = this->yamlReadDouble(fs, "da3.score_weight_mean", this->da3.score_weight_mean);
+        this->da3.score_weight_area         = this->yamlReadDouble(fs, "da3.score_weight_area", this->da3.score_weight_area);
+        this->da3.score_weight_blob         = this->yamlReadDouble(fs, "da3.score_weight_blob", this->da3.score_weight_blob);
+        this->da3.score_weight_p20          = this->yamlReadDouble(fs, "da3.score_weight_p20", this->da3.score_weight_p20);
+        this->da3.score_weight_peak         = this->yamlReadDouble(fs, "da3.score_weight_peak", this->da3.score_weight_peak);
+        this->da3.frontal_peak_percentile   = this->yamlReadDouble(fs, "da3.frontal_peak_percentile", this->da3.frontal_peak_percentile);
+        this->da3.peak_score_threshold      = this->yamlReadDouble(fs, "da3.peak_score_threshold", this->da3.peak_score_threshold);
+        this->da3.sector_close_penalty      = this->yamlReadDouble(fs, "da3.sector_close_penalty", this->da3.sector_close_penalty);
+        this->da3.free_space_power          = this->yamlReadDouble(fs, "da3.free_space_power", this->da3.free_space_power);
+
+        this->gplan.waypoints_file = this->yamlReadString(fs, "gplan.waypoints_file", this->gplan.waypoints_file);
+        this->gplan.resolution     = this->yamlReadDouble(fs, "gplan.resolution", this->gplan.resolution);
+
+        this->ctrl.enabled    = this->yamlReadBool(fs, "ctrl.enabled", this->ctrl.enabled);
+        this->ctrl.default_dt = this->yamlReadDouble(fs, "ctrl.default_dt", this->ctrl.default_dt);
+        this->readPIDAxisConfig(fs, "ctrl.vx", &this->ctrl.vx);
+        this->readPIDAxisConfig(fs, "ctrl.vy", &this->ctrl.vy);
+        this->readPIDAxisConfig(fs, "ctrl.vz", &this->ctrl.vz);
+        this->readPIDAxisConfig(fs, "ctrl.wz", &this->ctrl.wz);
+
+
+
+        this->ppr3d.la_m       = this->yamlReadDouble(fs, "ppr3d.la_m", this->ppr3d.la_m);
+        this->ppr3d.searc_win  = this->yamlReadDouble(fs, "ppr3d.searc_win", this->ppr3d.searc_win);
+        this->ppr3d.v_max_xy   = this->yamlReadDouble(fs, "ppr3d.v_max_xy", this->ppr3d.v_max_xy);
+        this->ppr3d.v_max_z    = this->yamlReadDouble(fs, "ppr3d.v_max_z", this->ppr3d.v_max_z);
+        this->ppr3d.w_max_z    = this->yamlReadDouble(fs, "ppr3d.w_max_z", this->ppr3d.w_max_z);
+        this->ppr3d.k_xy       = this->yamlReadDouble(fs, "ppr3d.k_xy", this->ppr3d.k_xy);
+        this->ppr3d.k_z        = this->yamlReadDouble(fs, "ppr3d.k_z", this->ppr3d.k_z);
+        this->ppr3d.k_yaw      = this->yamlReadDouble(fs, "ppr3d.k_yaw", this->ppr3d.k_yaw);
+        this->ppr3d.goal_tol_m = this->yamlReadDouble(fs, "ppr3d.goal_tol_m", this->ppr3d.goal_tol_m);
 
         if (!fs["imu.tocolor"].empty()) {
             fs["imu.tocolor"] >> this->imu.T_ci;
@@ -350,6 +545,33 @@ private:
     int yamlReadInt(const cv::FileStorage& fs, const char * key, int fallback){
         return static_cast<int>(std::lround(yamlReadDouble(fs, key, static_cast<double>(fallback))));
     }
+    std::string yamlReadString(const cv::FileStorage& fs, const char * key, const std::string& fallback){
+        cv::FileNode node = fs[key];
+        if (node.empty()) {
+            return fallback;
+        }
+
+        if (node.isString()) {
+            std::string temp;
+            node >> temp;
+            return temp.empty() ? fallback : temp;
+        }
+
+        return fallback;
+    }
+    Da3Model yamlReadDa3Model(const cv::FileStorage& fs, const char * key, Da3Model fallback){
+        const std::string model = toLower(yamlReadString(fs, key, ""));
+        if (model.empty()) {
+            return fallback;
+        }
+        if (model == "small" || model == "da3_small") {
+            return DA3_MODEL_SMALL;
+        }
+        if (model == "base" || model == "da3_base") {
+            return DA3_MODEL_BASE;
+        }
+        return fallback;
+    }
     vec3 yamlReadVec3(const cv::FileStorage& fs, const char * key, const vec3& fallback = vec3::Zero()){
         cv::FileNode node = fs[key];
         if (node.empty()) {
@@ -371,6 +593,25 @@ private:
 
         return vec3(temp64.at<double>(0,0), temp64.at<double>(0,1), temp64.at<double>(0,2));
     }
+    void readPIDAxisConfig(const cv::FileStorage& fs, const std::string& prefix, PIDAxisConfig * cfg){
+        if(cfg == nullptr){
+            return;
+        }
+
+        cfg->kp     = this->yamlReadDouble(fs, (prefix + ".kp").c_str(), cfg->kp);
+        cfg->ki     = this->yamlReadDouble(fs, (prefix + ".ki").c_str(), cfg->ki);
+        cfg->kd     = this->yamlReadDouble(fs, (prefix + ".kd").c_str(), cfg->kd);
+        cfg->b      = this->yamlReadDouble(fs, (prefix + ".b").c_str(), cfg->b);
+        cfg->c      = this->yamlReadDouble(fs, (prefix + ".c").c_str(), cfg->c);
+        cfg->u0     = this->yamlReadDouble(fs, (prefix + ".u0").c_str(), cfg->u0);
+        cfg->Dt     = this->yamlReadDouble(fs, (prefix + ".Dt").c_str(), cfg->Dt);
+        cfg->Tf     = this->yamlReadDouble(fs, (prefix + ".Tf").c_str(), cfg->Tf);
+        cfg->Tt     = this->yamlReadDouble(fs, (prefix + ".Tt").c_str(), cfg->Tt);
+        cfg->minlim = this->yamlReadDouble(fs, (prefix + ".minlim").c_str(), cfg->minlim);
+        cfg->maxlim = this->yamlReadDouble(fs, (prefix + ".maxlim").c_str(), cfg->maxlim);
+        cfg->dumin  = this->yamlReadDouble(fs, (prefix + ".dumin").c_str(), cfg->dumin);
+        cfg->dumax  = this->yamlReadDouble(fs, (prefix + ".dumax").c_str(), cfg->dumax);
+    }
     static const char* sourceTypeToString(SourceType t){
         switch(t){
             case SOURCE_RSCAM: return "SOURCE_RSCAM";
@@ -380,6 +621,22 @@ private:
             case SOURCE_CSV:   return "SOURCE_CSV";
             case SOURCE_PORT:  return "SOURCE_PORT";
             default:           return "SOURCE_UNKNOWN";
+        }
+    }
+    static const char* da3ModelToString(Da3Model model){
+        switch(model){
+            case DA3_MODEL_SMALL: return "DA3_MODEL_SMALL";
+            case DA3_MODEL_BASE:  return "DA3_MODEL_BASE";
+            default:              return "DA3_MODEL_UNKNOWN";
+        }
+    }
+    static std::string defaultDa3ModelPath(Da3Model model){
+        switch(model){
+            case DA3_MODEL_BASE:
+                return "../../model/DA3METRIC-BASE.onnx";
+            case DA3_MODEL_SMALL:
+            default:
+                return "../../model/DA3METRIC-SMALL.onnx";
         }
     }
     static std::string matToString(const cv::Mat& m, int precision = 6){
@@ -460,6 +717,24 @@ struct SourceIn {
 
         std::cout << "imu(" << imu.size() << ")" << " t0=" << (imu.empty() ? 0.0 : imu.front().ts) << " t1=" << (imu.empty() ? 0.0 : imu.back().ts) << " dt_sum=" << dt_sum << " gyr_mean=" << VecToStr(gyr_mean) << " acc_mean=" << VecToStr(acc_mean) << "\n";
     }
+    void printVerbose() const {
+        print();
+
+        std::cout << std::fixed << std::setprecision(6);
+
+        std::cout << "imu verbose samples:\n";
+
+        for (size_t i = 0; i < imu.size(); ++i) {
+            const ImuSample& s = imu[i];
+
+            std::cout << "  [" << i << "] "
+                    << "ts=" << s.ts
+                    << " dt=" << s.dt
+                    << " gyro=" << VecToStr(s.vgyr)
+                    << " accel=" << VecToStr(s.vacc)
+                    << "\n";
+        }
+    }
 };
 
 struct Pose {
@@ -507,6 +782,32 @@ struct DebugState {
     bool vio_valid;
 };
 
+struct EvitationDir {
+    // Vars
+    vec3 norm_vec = vec3::Zero();
+    float obstacle_score = 0.0f;
+    bool must_evade = false;
+    
+    // Debug
+    float magnitude = 0.0f;
+    float mean_closeness = 0.0f;
+    float close_area_ratio = 0.0f;
+    float largest_blob_ratio = 0.0f;
+    float p20_closeness = 0.0f;
+    float peak_closeness = 0.0f;
+    float valid_ratio = 0.0f;
+    float depth_p10 = 0.0f;
+    float depth_p90 = 0.0f;
+    float frontal_p20_depth = 0.0f;
+    float frontal_peak_depth = 0.0f;
+    float free_space_score = 0.0f;
+    int best_sector = -1;
+
+    double angleRad() const {
+        return std::atan2(norm_vec.y(), norm_vec.x());
+    }
+};
+
 struct StateOut{
     double ts_ms = 0.0;         // Time
     double dt = 0.0;
@@ -521,6 +822,7 @@ struct StateOut{
     Eigen::VectorXd Localx; // []
     // Information factor
     Eigen::MatrixXd LocalFactor;
+    EvitationDir da3;
     
 
     std::vector<double> toVector(bool include_debug = false){
@@ -567,6 +869,25 @@ struct StateOut{
         out.push_back(static_cast<double>(this->deb.vio_inl));
         out.push_back(static_cast<double>(this->deb.imu_stat));
         out.push_back(static_cast<double>(this->deb.vio_valid));
+        out.push_back(this->da3.norm_vec.x());
+        out.push_back(this->da3.norm_vec.y());
+        out.push_back(this->da3.norm_vec.z());
+        out.push_back(this->da3.angleRad());
+        out.push_back(static_cast<double>(this->da3.magnitude));
+        out.push_back(static_cast<double>(this->da3.must_evade));
+        out.push_back(static_cast<double>(this->da3.obstacle_score));
+        out.push_back(static_cast<double>(this->da3.mean_closeness));
+        out.push_back(static_cast<double>(this->da3.close_area_ratio));
+        out.push_back(static_cast<double>(this->da3.largest_blob_ratio));
+        out.push_back(static_cast<double>(this->da3.p20_closeness));
+        out.push_back(static_cast<double>(this->da3.peak_closeness));
+        out.push_back(static_cast<double>(this->da3.valid_ratio));
+        out.push_back(static_cast<double>(this->da3.depth_p10));
+        out.push_back(static_cast<double>(this->da3.depth_p90));
+        out.push_back(static_cast<double>(this->da3.frontal_p20_depth));
+        out.push_back(static_cast<double>(this->da3.frontal_peak_depth));
+        out.push_back(static_cast<double>(this->da3.free_space_score));
+        out.push_back(static_cast<double>(this->da3.best_sector));
 
         for(int i = 0; i < this->deb.preimu.size(); ++i){
             out.push_back(*(this->deb.preimu.data() + i));
@@ -575,3 +896,13 @@ struct StateOut{
     }
 };
 
+
+struct Command{
+    double ts_ms;
+    vec3 lenvel_ms;
+    vec3 angvel_rads;
+};
+
+struct Waypoints{
+    std::vector<vec3> p;
+};

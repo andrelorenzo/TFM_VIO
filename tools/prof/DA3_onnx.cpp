@@ -46,8 +46,8 @@ typedef enum{
     MODEL__COUNT
 }models_e;
 const char * modelsf[MODEL__COUNT] = {
-    "../../models/depth_anything/DA3METRIC-SMALL.onnx",
-    "../../models/depth_anything/DA3METRIC-BASE.onnx"
+    "../../model/DA3METRIC-SMALL.onnx",
+    "../../model/DA3METRIC-BASE.onnx"
 };
 static bool show_video = false; 
 
