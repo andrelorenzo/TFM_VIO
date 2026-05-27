@@ -1,8 +1,8 @@
 % !TeX root = ../memoria.tex
 \chapter{Introducción}
 
-    Se disposne del código fuente, ejemplos y procedimientos de instalación en un 
-    \href{https://github.com/andrelorenzo/TFM_2dvision}{repositiorio} público de GitHub.
+    Se dispone del código fuente, ejemplos y procedimientos de instalación en un 
+    \href{https://github.com/andrelorenzo/TFM_2dvision}{repositorio} público de GitHub.
 \section{Motivación}
     Uno de los principales retos de la navegación autónoma en UAV es la selección y el uso de sensores para la evitación de obstáculos. 
     Debido a las restricciones de peso y volumen, en la mayoría de los casos resulta inviable emplear LiDAR 3D o cámaras RGB-D. Además, 
@@ -39,7 +39,7 @@
         frecuencia de 10~Hz, con el fin de considerar el sistema utilizable en aplicaciones en tiempo real.
         \item \textbf{Ordenador central:} El ordenador central realizará la mayor parte del cómputo, excluyendo la captura de imágenes y un 
         preprocesamiento básico destinado a mejorar la calidad o reducir el tamaño de las imágenes obtenidas.
-        \item \textbf{Ground truth:} Los resultados se validarán mediante información tridimensional capturada por la cámara de abordo. Sin 
+        \item \textbf{Ground truth:} Los resultados se validarán mediante información tridimensional capturada por la cámara de a bordo. Sin 
         embargo, dicha información no podrá emplearse en el algoritmo de navegación, utilizándose exclusivamente como \textit{ground truth}. 
         Esta información se almacenará en la memoria a bordo y no se transmitirá al sistema de cómputo central.
         \item \textbf{Precisión:} La precisión del sistema se medirá como la diferencia entre la trayectoria estipulada por el usuario y la 
@@ -54,7 +54,7 @@
         \item \textbf{Optimizaciones:} Dada la relevancia de la capacidad de cómputo en el sistema, las optimizaciones se circunscribirán 
         al hardware específico empleado. No obstante, se aportará información suficiente para permitir la replicación de los resultados en 
         otros dispositivos. El ordenador de a bordo será una Jetson Nano (reComputer J1010) y el ordenador central un portátil HP ProBook 
-        con procesador Intel Core Ultra 7 y GPU NVIDIA GeForce RTX 2050. La cámara será una Realsense 530.
+        con procesador Intel Core Ultra 7 y GPU NVIDIA GeForce RTX 2050. La cámara será una Intel RealSense D435i.
     \end{itemize}
 \clearpage
 \section{Estructura del trabajo}
@@ -74,7 +74,7 @@
     
     El quinto capítulo aborda la implementación del controlador de navegación basado en el estimador de profundidad.
     
-    El sexto capítulo describe el desarrollo e integración de una solución VI-SLAM optimizada para el contexto del proyecto, detallando 
+    El sexto capítulo describe el desarrollo e integración de una solución VIO optimizada para el contexto del proyecto, detallando 
     su utilización como planificador global y/o local.
     
     El séptimo capítulo recoge las principales dificultades encontradas durante el desarrollo, así como las decisiones de diseño revisadas 

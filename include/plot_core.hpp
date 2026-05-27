@@ -54,6 +54,7 @@ struct SeriesConfig {
     std::string label;
     float line_weight = 1.0f;
     bool enabled = true;
+    bool scatter = false;
 };
 
 struct SeriesData {
@@ -74,6 +75,7 @@ public:
 
     void push(SeriesHandle series, double x, double y);
     void push(SeriesHandle series, Point p);
+    void setSeries(SeriesHandle series, const std::vector<Point>& points);
 
     void clearSamples();
     void reset();

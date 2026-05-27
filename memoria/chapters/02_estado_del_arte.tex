@@ -49,7 +49,7 @@ localización.
     en técnicas clásicas de estimación del estado a partir de sensórica embarcada, destacando el uso de unidades de medida inercial (IMU) para 
     la estimación de actitud y estabilidad, así como el empleo de GNSS/GPS para la obtención de posición global cuando la señal se encuentra 
     disponible. Sin embargo, en entornos interiores o en escenarios con degradación de la señal GNSS, resulta necesario recurrir a estrategias 
-    alternativas basadas en percepción, donde adquieren especial relevancia los sensores visuales y los sensores inverciales , así como la 
+    alternativas basadas en percepción, donde adquieren especial relevancia los sensores visuales y los sensores inerciales , así como la 
     fusión multisensor como enfoque predominante para incrementar la robustez y la precisión del sistema.
 
     En particular, la odometría visual-inercial (VIO) y otros esquemas de fusión permiten mitigar la deriva inherente de la estimación 
@@ -57,7 +57,7 @@ localización.
     y ambigüedad de escala, además de los requisitos computacionales necesarios para ejecutar métodos de filtrado u optimización en tiempo real. 
     Finalmente, el uso de técnicas de inteligencia artificial ha adquirido una relevancia creciente en este ámbito, al permitir mejorar la 
     percepción y la estimación de la odometría incluso con configuraciones sensoriales limitadas; no obstante, su aplicabilidad práctica en UAV 
-    de pequeño tamaño continúa condicionada por las restricciones de cómputo embarcado y la disponibilidad de datos adecuados.~\cite{advancedments-uavs}.
+    de pequeño tamaño continúa condicionada por las restricciones de cómputo embarcado y la disponibilidad de datos adecuados~\cite{advancedments-uavs}.
 
 
 \section{Arquitecturas de control}
@@ -140,7 +140,7 @@ localización.
             \hline
             D* & Replanificación eficiente. & Mayor complejidad. \\
             \hline
-            RRT & Óptimo en alta dimensionalidad. & Trayectoria subóptima. \\
+            RRT & Eficiente en espacios de alta dimensionalidad. & Trayectoria subóptima. \\
             \hline
             RRT* & Converge asintóticamente. & Mayor tiempo de cómputo. \\
             \hline
@@ -161,7 +161,7 @@ localización.
     \subsubsection*{Controladores}
     El controlador transforma la referencia (trayectoria, posición o velocidad deseada) en comandos para el sistema de propulsión y los
     actuadores. En robótica móvil se emplean controladores clásicos como PID o LQR, así como métodos específicos para el seguimiento de
-    trayectorias y la evitación local, tales como \textit{Pure Pursuit}~\ref{fig:purepursuit} o los \textit{campos potenciales}. Asimismo, el control predictivo
+    trayectorias y la evitación local, tales como \textit{Pure Pursuit},Figura~\ref{fig:purepursuit}, o los \textit{campos potenciales}. Asimismo, el control predictivo
     basado en modelo (MPC) permite incorporar restricciones explícitas y anticipar la evolución del sistema, a costa de un mayor coste de
     cómputo. De forma general, se emplean lazos internos a alta frecuencia para estabilizar la actitud y la dinámica rápida, y lazos externos a
     menor frecuencia para regular la posición y ejecutar la navegación.
@@ -197,13 +197,13 @@ localización.
 
     \begin{figure}[H]
     	\ffigbox[\FBwidth] {
-            \caption[Ejemplo de control por pure pursuit]{Ejemplo de control mediante pure pursuit.}
+            \caption[Ejemplo de control por Pure Pursuit]{Ejemplo de control mediante Pure Pursuit.}
             \label{fig:purepursuit}
     	}
     	{\includegraphics[scale=0.18]{images/pute_purpursuit.png}}
     \end{figure}
 
-    \subsection{Control por medios inercial-visual (VI)}
+    \subsection{Control mediante fusión visual-inercial(VI)}
     En el control aplicado a la navegación es habitual distinguir dos fuentes de estimación del estado con características complementarias. En
     primer lugar, se dispone de una fuente \textit{global} que proporciona una localización absoluta con alta precisión y sin deriva temporal,
     aunque normalmente a baja frecuencia (típicamente entre 1 y 10~Hz). En segundo lugar, se emplea una fuente \textit{local} u odométrica que,
@@ -219,7 +219,7 @@ localización.
     RGB-D junto con técnicas SLAM en entornos interiores. Como fuente odométrica se emplean sensores como la IMU, encoders rotacionales o
     sensores de posición, que se combinan con un estimador estadístico del estado, como un filtro de Kalman, para obtener una estimación
     consistente. En el caso de interés de este trabajo, el localizador global suele basarse en información visual, mediante la extracción de
-    características en imagen 2D y su integración en un esquema de VIO/VI-SLAM, capaz de corregir la deriva a una frecuencia inferior. Por otro
+    características en imagen 2D y su integración en un esquema de VIO, capaz de corregir la deriva a una frecuencia inferior. Por otro
     lado, la IMU aporta la información inercial necesaria a alta frecuencia para mantener una estimación continua del estado.
     \begin{figure}[H]
         \ffigbox[\FBwidth]{
@@ -251,26 +251,26 @@ localización.
     sistemas VI robustos priorizan una cadena de adquisición bien caracterizada y procedimientos de calibración reproducibles.
 
 
-    \subsection{Mención honorífica, ROS}
-    ROS (\textit{Robot Operating System}) ha desempeñado un papel fundamental en la consolidación de arquitecturas modulares en robótica,
-    facilitando la reutilización de algoritmos y acelerando la integración de sistemas complejos. Su modelo basado en \textit{nodos} que
-    intercambian información mediante \textit{tópicos}, \textit{servicios} y \textit{acciones} permite desacoplar componentes de percepción,
-    localización, planificación y control. Esta separación favorece la mantenibilidad y permite sustituir módulos sin modificar el resto del
-    sistema, siempre que se conserven las interfaces, lo cual resulta especialmente valioso en proyectos de investigación y desarrollo donde
-    la iteración es constante.
+    % \subsection{Mención honorífica, ROS}
+    % ROS (\textit{Robot Operating System}) ha desempeñado un papel fundamental en la consolidación de arquitecturas modulares en robótica,
+    % facilitando la reutilización de algoritmos y acelerando la integración de sistemas complejos. Su modelo basado en \textit{nodos} que
+    % intercambian información mediante \textit{tópicos}, \textit{servicios} y \textit{acciones} permite desacoplar componentes de percepción,
+    % localización, planificación y control. Esta separación favorece la mantenibilidad y permite sustituir módulos sin modificar el resto del
+    % sistema, siempre que se conserven las interfaces, lo cual resulta especialmente valioso en proyectos de investigación y desarrollo donde
+    % la iteración es constante.
 
-    Dentro de este ecosistema, Nav2 (Navigation2) representa una arquitectura versátil para navegación en ROS~2, diseñada para integrarse de
-    manera flexible con diferentes sensores, fuentes de localización y estrategias de planificación y control. Su estructura se apoya en un
-    conjunto de servidores especializados (\textit{planner server}, \textit{controller server}, \textit{behavior server}, entre otros),
-    conectados mediante \textit{actions} y gobernados por \textit{behavior trees}, lo que permite definir comportamientos complejos de forma
-    declarativa. Esta arquitectura facilita sustituir planificadores y controladores mediante plugins, ajustar parámetros sin alterar código y
-    adaptar el sistema a distintos requisitos de hardware o de entorno.
+    % Dentro de este ecosistema, Nav2 (Navigation2) representa una arquitectura versátil para navegación en ROS~2, diseñada para integrarse de
+    % manera flexible con diferentes sensores, fuentes de localización y estrategias de planificación y control. Su estructura se apoya en un
+    % conjunto de servidores especializados (\textit{planner server}, \textit{controller server}, \textit{behavior server}, entre otros),
+    % conectados mediante \textit{actions} y gobernados por \textit{behavior trees}, lo que permite definir comportamientos complejos de forma
+    % declarativa. Esta arquitectura facilita sustituir planificadores y controladores mediante plugins, ajustar parámetros sin alterar código y
+    % adaptar el sistema a distintos requisitos de hardware o de entorno.
 
-    En consecuencia, ROS y, en particular, Nav2, han contribuido de forma notable a que la implementación de arquitecturas de navegación sea
-    más accesible y reproducible. La modularidad inherente reduce el esfuerzo de integración y permite centrar el desarrollo en componentes
-    específicos (por ejemplo, percepción o estimación de profundidad), manteniendo una infraestructura estable para la coordinación del sistema.
+    % En consecuencia, ROS y, en particular, Nav2, han contribuido de forma notable a que la implementación de arquitecturas de navegación sea
+    % más accesible y reproducible. La modularidad inherente reduce el esfuerzo de integración y permite centrar el desarrollo en componentes
+    % específicos (por ejemplo, percepción o estimación de profundidad), manteniendo una infraestructura estable para la coordinación del sistema.
 
-\section{Localización y mapeado simultaneo (SLAM)}
+\section{Localización (VIO)}
     La localización y mapeado simultáneo (\textit{SLAM}) constituye una de las técnicas más consolidadas
     en robótica móvil para dotar a un sistema de la capacidad de estimar su \textit{pose} y, simultáneamente, construir una representación del
     entorno sin depender de infraestructura externa. Su adopción se debe, principalmente, a su precisión y versatilidad, así como a su
@@ -291,33 +291,33 @@ localización.
     cómputo embarcado, la sensibilidad a condiciones visuales adversas y la necesidad de operar a frecuencias compatibles con el control de
     vuelo. Por ello, es habitual recurrir a variantes optimizadas y a esquemas de fusión multisensor, donde la información inercial se utiliza
     para estabilizar la estimación y reducir la dependencia de las condiciones visuales.
-    \subsection{VI-SLAM}
+    \subsection{VIO}
     El término VI-SLAM (\textit{Visual-Inertial SLAM}) hace referencia a los sistemas SLAM que combinan información visual, procedente de una o
     varias cámaras, con medidas inerciales obtenidas de una IMU. Esta combinación permite explotar la complementariedad entre ambas fuentes: la
     IMU aporta medidas a alta frecuencia que describen la dinámica rápida del vehículo, mientras que la cámara proporciona observaciones del
     entorno que permiten corregir la deriva acumulada por la integración inercial. En consecuencia, VI-SLAM se ha consolidado como una solución
     de referencia para navegación en interiores y escenarios con GNSS degradado, especialmente en plataformas donde el peso y el consumo
-    restringen el uso de sensores activos. \cite{overview-vslam}
+    restringen el uso de sensores activos \cite{overview-vslam}.
 
     A nivel estructural, los sistemas SLAM visuales suelen organizarse en etapas de \textit{inicialización}, \textit{seguimiento} y
     \textit{mapeado}. La inicialización establece un sistema de coordenadas global y genera un mapa inicial; el seguimiento mantiene la
     estimación de la \textit{pose} del sensor respecto al mapa a partir de correspondencias 2D--3D, resolviendo de forma recurrente problemas de
     estimación de pose (por ejemplo, PnP); y el mapeado expande y refina la representación del entorno a medida que se incorporan nuevas
     observaciones. Además, para preservar consistencia a largo plazo, muchos sistemas incorporan mecanismos de \textit{relocalización} y
-    \textit{cierre de bucle} (\textit{loop closure}), que permiten detectar revisitas y corregir la deriva mediante optimización global. \cite{overview-vslam}
+    \textit{cierre de bucle} (\textit{loop closure}), que permiten detectar revisitas y corregir la deriva mediante optimización global \cite{overview-vslam}.
 
     En VI-SLAM, la IMU se integra de forma estrecha con la estimación visual para propagar el estado entre fotogramas y aumentar la robustez
-    frente a desenfoque, oclusiones o falta de textura. Se pueden distinguir entre enfoques basados en filtrado y enfoques basados
+    frente a desenfoque, oclusiones o falta de textura. Pueden distinguirse enfoques basados en filtrado y enfoques basados
     en optimización, siendo habitual el uso de ventanas deslizantes para combinar restricciones visuales e inerciales. Esta
     formulación permite estimar de forma consistente no solo posición y orientación, sino también variables como velocidad y sesgos de la IMU,
-    que resultan determinantes para la estabilidad del sistema. \cite{overview-vslam}
+    que resultan determinantes para la estabilidad del sistema \cite{overview-vslam}.
 
     La literatura reciente recoge múltiples sistemas representativos dentro de VI-SLAM y VIO, con diseños que priorizan distintos compromisos
     entre precisión, robustez y coste computacional. Por ejemplo, se describen aproximaciones como ROVIO (enfoque basado en filtrado, típicamente
     sin cierre de bucle), VIORB y VINS-Mono (enfoques basados en optimización con capacidades de optimización global y, en ciertos casos, cierre
     de bucle), así como extensiones directas con fotometría como VI-DSO, que mejoran precisión local a costa de mayor sensibilidad y complejidad.
     Asimismo, se destacan sistemas de referencia como ORB-SLAM3, que integra visual, visual-inercial y multimap, incorporando mecanismos de
-    cierre de bucle y optimización global para mitigar la deriva a largo plazo. \cite{overview-vslam}
+    cierre de bucle y optimización global para mitigar la deriva a largo plazo \cite{overview-vslam}.
 
     Desde el punto de vista de evaluación, la comparación de métodos VI-SLAM requiere el uso de conjuntos de datos con sincronización temporal,
     calibración y \textit{ground truth} adecuados. En este sentido, son habituales datasets como EuRoC MAV y TUM VI, que proporcionan secuencias
@@ -363,7 +363,7 @@ localización.
     modelo que sirve como maestro o profesor generando pseudo-etiquetas densas de alta calidad que posteriormente 
     se alinean con medidas métricas ruidosas o dispersas mediante un ajuste robusto de escala y desplazamiento (p.\,ej., RANSAC). 
     Esta estrategia incrementa el detalle y la completitud de las etiquetas manteniendo la coherencia geométrica necesaria para tareas 
-    posteriores.~\cite{overview-da}
+    posteriores~\cite{overview-da}.
 
     \subsection{Limitaciones físicas y computacionales}
     A pesar de los avances, los estimadores monoculares de profundidad presentan limitaciones inherentes. La más relevante, en escenarios 
@@ -385,8 +385,8 @@ localización.
     en entrenamiento como en inferencia. Depth Anything 3 reporta entrenamiento a gran escala y evalúa variantes con distinto número de 
     parámetros, mostrando que el rendimiento mejora con el escalado del modelo y de los datos, pero a costa de mayores requisitos de 
     hardware. Además, la extensión a múltiples vistas incrementa el coste por el crecimiento del número de \textit{tokens} y por los 
-    mecanismos de atención entre vistas. En~\cite{overview-da} se cuantifican velocidades de ejecución y e discuten límites prácticos en el número 
-    máximo de imágenes procesables en GPU en el caso de depth anything 3, lo que evidencia que, aunque existan variantes 
+    mecanismos de atención entre vistas. En~\cite{overview-da} se cuantifican velocidades de ejecución y se discuten límites prácticos en el número 
+    máximo de imágenes procesables en GPU en el caso de Depth Anything 3, lo que evidencia que, aunque existan variantes 
     compactas, la carga computacional continúa siendo un factor determinante para su despliegue en sistemas con recursos limitados.
 
     Por último, en aplicaciones robóticas la latencia y la estabilidad temporal son críticas. Incluso cuando la inferencia se realiza a 

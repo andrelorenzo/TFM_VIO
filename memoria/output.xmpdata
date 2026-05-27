@@ -2,5 +2,5 @@
 \Author{André Jose Lorenzo Torres}
 \Copyright{\copyright The author. Some rights reserved. This document is under terms of Creative Commons license Attribution - Non Commercial - Non Derivatives.}
 \CopyrightURL{http://creativecommons.org/licenses/by-nc-nd/3.0/es/}
-\Keywords{Monocular vision\sep OpenCV\sep onnx\sep Depth Anything v3\sep orangeCube\sep cuda\sep autonomous navigation\sep obstacle avoidance\sep VI-SLAM\sep IMU}
+\Keywords{Monocular vision\sep OpenCV\sep onnx\sep Depth Anything v3\sep orangeCube\sep cuda\sep autonomous navigation\sep obstacle avoidance\sep VIO\sep IMU}
 \Subject{SUBJECT}

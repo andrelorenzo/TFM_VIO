@@ -39,13 +39,25 @@ private:
         std::function<plotlib::Point(const StateOut&)> sample;
     };
 
+    struct CollectionBinding {
+        plotlib::SeriesHandle series;
+        std::function<std::vector<plotlib::Point>(const StateOut&)> sample;
+    };
+
     plotlib::PlotHandle addTimePlot(const char* id, const char* title, const char* y_label);
     plotlib::PlotHandle addTrajectoryPlot(const char* id, const char* title);
 
     void bind(const plotlib::PlotHandle& plot,
               const char* label,
               std::function<plotlib::Point(const StateOut&)> sample,
-              float line_weight = 1.0f);
+              float line_weight = 1.0f,
+              bool scatter = false);
+
+    void bindCollection(const plotlib::PlotHandle& plot,
+                        const char* label,
+                        std::function<std::vector<plotlib::Point>(const StateOut&)> sample,
+                        float line_weight = 1.0f,
+                        bool scatter = false);
 
     void bindVec3Time(const plotlib::PlotHandle& plot,
                       const char* prefix,
@@ -59,6 +71,12 @@ private:
                         const char* label,
                         std::function<vec3(const StateOut&)> position);
 
+    void bindTrajectoryCollection(const plotlib::PlotHandle& plot,
+                                  const char* label,
+                                  std::function<std::vector<vec3>(const StateOut&)> positions,
+                                  float line_weight = 1.0f,
+                                  bool scatter = false);
+
     static double timeSeconds(const StateOut& state);
     static vec3 poseRpy(Pose pose);
     static double preimuAt(const StateOut& state, int index);
@@ -70,6 +88,7 @@ private:
 
     plotlib::PlotRegistry plots_;
     std::vector<Binding> bindings_;
+    std::vector<CollectionBinding> collection_bindings_;
     VioPlotterOptions options_;
     bool enabled_ = false;
     int dashboard_columns_ = 2;

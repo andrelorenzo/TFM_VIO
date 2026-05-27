@@ -8,7 +8,7 @@ gen.input: "../../bags/SlowWithEvitation_Full.bag"
 # gen.input: "COM6"
 gen.output: "../../output/traynn.csv"
 
-gen.depth_on: false
+gen.depth_on: true
 gen.color_on: true
 gen.imu_on: true
 gen.show: true
@@ -111,7 +111,7 @@ ctrl.wz.dumin: -6.0
 ctrl.wz.dumax: 6.0
 
 ppr3d.la_m: 0.75
-ppr3d.searc_win: 50 
+ppr3d.searc_win: 20 
 ppr3d.v_max_xy: 0.75
 ppr3d.v_max_z: 0.45
 ppr3d.w_max_z: 1.0

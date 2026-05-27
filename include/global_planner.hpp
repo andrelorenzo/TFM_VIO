@@ -3,4 +3,4 @@
 #include "config.hpp"
 
 void globalPlanInit(const Config * config);
-void globalPlanUpdate(const StateOut& state, Waypoints& path);
+void globalPlanUpdate(StateOut& state, Waypoints& path);

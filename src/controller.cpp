@@ -1,4 +1,5 @@
 #include "controller.hpp"
+#include "lie_math.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -178,8 +179,15 @@ void controllerInit(const Config * config){
     Logger(INFO,"controllerInit: enabled=%d dt=%.4f gains_vx=[%.3f %.3f %.3f] gains_vy=[%.3f %.3f %.3f] gains_vz=[%.3f %.3f %.3f] gains_wz=[%.3f %.3f %.3f]",gctrl.config.enabled ? 1 : 0,gctrl.config.default_dt,gctrl.config.vx.kp, gctrl.config.vx.ki, gctrl.config.vx.kd,gctrl.config.vy.kp, gctrl.config.vy.ki, gctrl.config.vy.kd,gctrl.config.vz.kp, gctrl.config.vz.ki, gctrl.config.vz.kd,gctrl.config.wz.kp, gctrl.config.wz.ki, gctrl.config.wz.kd);
 }
 
-void controllerUpdate(const StateOut& state, Command * cmd){
-    if(cmd == nullptr || !gctrl.initialized || !gctrl.config.enabled){
+void controllerUpdate(StateOut& state, Command * cmd){
+    if(cmd == nullptr){
+        return;
+    }
+
+    state.deb.post_pid_lin_cmd = cmd->lenvel_ms;
+    state.deb.post_pid_ang_cmd = cmd->angvel_rads;
+
+    if(!gctrl.initialized || !gctrl.config.enabled){
         return;
     }
 
@@ -190,7 +198,11 @@ void controllerUpdate(const StateOut& state, Command * cmd){
     gctrl.wz.setDt(dt);
 
     const vec3 v_meas = state.state.vel;
-    const vec3 w_meas = state.state.dpose.vgyr;
+    vec3 w_meas_cam = state.state.dpose.vgyr;
+    if (state.Localx.size() >= 17) {
+        const mat3 Rci = QuatToRot(state.Localx.segment(10,4));
+        w_meas_cam = Rci * w_meas_cam;
+    }
 
     const vec3 v_ref = cmd->lenvel_ms;
     const vec3 w_ref = cmd->angvel_rads;
@@ -198,7 +210,8 @@ void controllerUpdate(const StateOut& state, Command * cmd){
     const double vx_f = gctrl.vx.filter(v_meas.x());
     const double vy_f = gctrl.vy.filter(v_meas.y());
     const double vz_f = gctrl.vz.filter(v_meas.z());
-    const double wz_f = gctrl.wz.filter(w_meas.z());
+    // Camera yaw is rotation about -y in the visual frame.
+    const double yaw_rate_f = gctrl.wz.filter(-w_meas_cam.y());
 
     cmd->ts_ms = state.ts_ms;
     cmd->lenvel_ms.x() = gctrl.vx.control(v_ref.x(), vx_f, 0.0, 0.0, v_ref.x(), "AUTO");
@@ -206,5 +219,8 @@ void controllerUpdate(const StateOut& state, Command * cmd){
     cmd->lenvel_ms.z() = gctrl.vz.control(v_ref.z(), vz_f, 0.0, 0.0, v_ref.z(), "AUTO");
     cmd->angvel_rads.x() = 0.0;
     cmd->angvel_rads.y() = 0.0;
-    cmd->angvel_rads.z() = gctrl.wz.control(w_ref.z(), wz_f, 0.0, 0.0, w_ref.z(), "AUTO");
+    cmd->angvel_rads.z() = gctrl.wz.control(w_ref.z(), yaw_rate_f, 0.0, 0.0, w_ref.z(), "AUTO");
+
+    state.deb.post_pid_lin_cmd = cmd->lenvel_ms;
+    state.deb.post_pid_ang_cmd = cmd->angvel_rads;
 }

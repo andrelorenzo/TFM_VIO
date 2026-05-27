@@ -30,6 +30,26 @@ void VioPlotter::configure(const Config& config, VioPlotterOptions options) {
         bindTrajectory(plot, "vio", [](const StateOut& s) { return s.state.pose.pos; });
         if (config.gen.depth_on)
             bindTrajectory(plot, "gt", [](const StateOut& s) { return s.gtpose.pos; });
+        bindTrajectoryCollection(plot,
+                                 "global path",
+                                 [](const StateOut& s) { return s.deb.gplan_path; },
+                                 1.0f,
+                                 true);
+        bindTrajectoryCollection(plot,
+                                 "waypoints",
+                                 [](const StateOut& s) { return s.deb.gplan_waypoints; },
+                                 1.0f,
+                                 true);
+        bindTrajectoryCollection(plot,
+                                 "local target",
+                                 [](const StateOut& s) {
+                                     if (!s.deb.lplan_target_valid) {
+                                         return std::vector<vec3>{};
+                                     }
+                                     return std::vector<vec3>{s.deb.lplan_target_pos};
+                                 },
+                                 1.0f,
+                                 true);
     }
 
     if (config.gen.plot_vis_tray) {
@@ -105,6 +125,18 @@ void VioPlotter::configure(const Config& config, VioPlotterOptions options) {
 
         auto vel = addTimePlot("state_velocity", "State velocity", "m/s");
         bindVec3Time(vel, "vel", [](const StateOut& s) { return s.state.vel; });
+
+        auto planner_cmd = addTimePlot("planner_velocity_cmd", "Velocity Commands Before/After PID", "m/s");
+        bindVec3Time(planner_cmd, "pre pid", [](const StateOut& s) { return s.deb.pre_pid_lin_cmd; });
+        bindVec3Time(planner_cmd, "post pid", [](const StateOut& s) { return s.deb.post_pid_lin_cmd; });
+
+        auto planner_yaw = addTimePlot("planner_yaw_cmd", "Yaw Rate Before/After PID", "rad/s");
+        bind(planner_yaw, "pre pid yaw", [](const StateOut& s) {
+            return plotlib::Point{timeSeconds(s), s.deb.pre_pid_ang_cmd.z()};
+        });
+        bind(planner_yaw, "post pid yaw", [](const StateOut& s) {
+            return plotlib::Point{timeSeconds(s), s.deb.post_pid_ang_cmd.z()};
+        });
     }
 
     if (config.gen.plot_da3) {
@@ -180,6 +212,10 @@ void VioPlotter::update(const StateOut& state) {
     for (const auto& binding : bindings_) {
         plots_.push(binding.series, binding.sample(state));
     }
+
+    for (const auto& binding : collection_bindings_) {
+        plots_.setSeries(binding.series, binding.sample(state));
+    }
 }
 
 void VioPlotter::render() {
@@ -195,6 +231,7 @@ void VioPlotter::clearSamples() {
 
 void VioPlotter::reset() {
     bindings_.clear();
+    collection_bindings_.clear();
     plots_.reset();
     enabled_ = false;
 }
@@ -230,13 +267,29 @@ plotlib::PlotHandle VioPlotter::addTrajectoryPlot(const char* id, const char* ti
 void VioPlotter::bind(const plotlib::PlotHandle& plot,
                       const char* label,
                       std::function<plotlib::Point(const StateOut&)> sample,
-                      float line_weight) {
+                      float line_weight,
+                      bool scatter) {
     plotlib::SeriesConfig series;
     series.label = label;
     series.line_weight = line_weight;
+    series.scatter = scatter;
 
     auto handle = plots_.addSeries(plot, std::move(series));
     bindings_.push_back(Binding{handle, std::move(sample)});
+}
+
+void VioPlotter::bindCollection(const plotlib::PlotHandle& plot,
+                                const char* label,
+                                std::function<std::vector<plotlib::Point>(const StateOut&)> sample,
+                                float line_weight,
+                                bool scatter) {
+    plotlib::SeriesConfig series;
+    series.label = label;
+    series.line_weight = line_weight;
+    series.scatter = scatter;
+
+    auto handle = plots_.addSeries(plot, std::move(series));
+    collection_bindings_.push_back(CollectionBinding{handle, std::move(sample)});
 }
 
 void VioPlotter::bindVec3Time(const plotlib::PlotHandle& plot,
@@ -283,6 +336,22 @@ void VioPlotter::bindTrajectory(const plotlib::PlotHandle& plot,
     bind(plot, label, [this, position](const StateOut& s) {
         return projectTrajectory(position(s));
     }, 2.0f);
+}
+
+void VioPlotter::bindTrajectoryCollection(const plotlib::PlotHandle& plot,
+                                          const char* label,
+                                          std::function<std::vector<vec3>(const StateOut&)> positions,
+                                          float line_weight,
+                                          bool scatter) {
+    bindCollection(plot, label, [this, positions](const StateOut& s) {
+        const auto pts3 = positions(s);
+        std::vector<plotlib::Point> pts2;
+        pts2.reserve(pts3.size());
+        for (const auto& p : pts3) {
+            pts2.push_back(projectTrajectory(p));
+        }
+        return pts2;
+    }, line_weight, scatter);
 }
 
 double VioPlotter::timeSeconds(const StateOut& state) {

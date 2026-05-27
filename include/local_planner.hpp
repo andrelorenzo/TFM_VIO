@@ -3,4 +3,4 @@
 #include "config.hpp"
 
 void localPlannerInit(Config * config);
-void localPlannerUpdate(EvitationDir dir, StateOut state, Waypoints path, Command * cmd);
+void localPlannerUpdate(const EvitationDir& dir, StateOut& state, const Waypoints& path, Command * cmd);

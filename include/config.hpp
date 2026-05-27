@@ -780,6 +780,18 @@ struct DebugState {
     // VIO State
     uint64_t vio_inl;
     bool vio_valid;
+
+    // Planner debug
+    std::vector<vec3> gplan_waypoints;
+    std::vector<vec3> gplan_path;
+    vec3 lplan_target_pos = vec3::Zero();
+    bool lplan_target_valid = false;
+
+    // Velocity commands before and after the PID controller.
+    vec3 pre_pid_lin_cmd = vec3::Zero();
+    vec3 pre_pid_ang_cmd = vec3::Zero();
+    vec3 post_pid_lin_cmd = vec3::Zero();
+    vec3 post_pid_ang_cmd = vec3::Zero();
 };
 
 struct EvitationDir {

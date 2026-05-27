@@ -2,12 +2,12 @@
 
 La evitación de obstáculos desarrollada en este proyecto se plantea como la continuación natural del 
 trabajo realizado previamente en el proyecto de investigación tutelado~\cite{estudio-nav2D}. En dicho 
-estudio se analizó la viabilidad de implementar un sistema de evitación de obstaculos visual para drones de bajo 
-coste empleando únicamente una cámara monocular RGB. Esta restricción imponía dos requisitos fundamentales, extraer información geométrica 
+estudio se analizó la viabilidad de implementar un sistema de evitación visual de obstáculos para drones de bajo 
+coste empleando únicamente una cámara monocular RGB. Esta restricción imponía dos requisitos fundamentales: extraer información geométrica 
 suficiente a partir de una única imagen y mantener una velocidad de procesamiento compatible con una aplicación en tiempo real.
 
 El trabajo previo se centró principalmente en el estudio comparativo de distintos modelos de estimación 
-de profundidad monocular y en la definición de una arquitectura software capaz de ejecutarlos de forma 
+de profundidad monocular y en la definición de una arquitectura de software capaz de ejecutarlos de forma 
 eficiente. Para ello se evaluaron diferentes alternativas, entre ellas MiDaS~\cite{Ranftl2020}, Depth 
 Anything~\cite{cheng2024depthanything} y otros modelos recientes de estimación de profundidad, valorando 
 aspectos como la velocidad de inferencia, la estabilidad temporal, la precisión relativa de la 
@@ -82,7 +82,7 @@ evitación de obstáculos. Para ello se evaluaron principalmente dos motores de 
 ONNX Runtime~\cite{onnx_repo}. Además, se comparó la ejecución sobre CPU y sobre GPU, ya que la arquitectura final del 
 sistema debía aprovechar la aceleración por hardware disponible.
 
-Las pruebas se realizaron sobre secuencias de 400 frames, midiendo el tiempo medio, mínimo y máximo de inferencia, así 
+Las pruebas se realizaron sobre secuencias de 400 frames, midiendo el tiempo medio, mínimo y fps de inferencia, así 
 como los FPS equivalentes. La Tabla~\ref{tab:depth_models_efficiency} resume los resultados más relevantes obtenidos.
 
 \begin{table}[H]
@@ -166,7 +166,7 @@ El módulo de evitación se basa en la salida de un estimador monocular de profu
 imagen RGB se obtiene un mapa de profundidad denso, sobre el que se calcula una señal de 
 \textbf{activación de la evitación} y, una \textbf{dirección angular de escape}.
 
-\subsection{1. Estimación de profundidad relativa}
+\subsection{Estimación de profundidad relativa}
 Sea \(I\) la imagen RGB. Esta imagen se redimensiona al tamaño de entrada de la red y se normaliza 
 antes de ser inferida mediante el modelo DA3. La salida es un mapa de profundidad relativa
 \[D(x,y),\]
@@ -357,7 +357,7 @@ de escape como se puede ver en la Figura~\ref{fig:sectors}
 \begin{figure}[H]
     \centering
     \includegraphics[width=1\textwidth]{images/sectors_ex.png}
-    \caption{ROI de guido dividida en 9 sectores verticales, en azul el sector seleccionado.}
+    \caption{ROI de guiado dividida en 9 sectores verticales, en azul el sector seleccionado.}
     \label{fig:sectors}
 \end{figure}
 
@@ -439,7 +439,7 @@ para devolverlo como \textit{evade\_angle}~\ref{fig:evade_angle}.
 \begin{figure}[H]
     \centering
     \includegraphics[width=1\textwidth]{images/evade_angle.png}
-    \caption{La flecha indica la direción de evitación decidida por el algoritmo.}
+    \caption{La flecha indica la dirección de evitación decidida por el algoritmo.}
     \label{fig:evade_angle}
 \end{figure}
 
@@ -473,7 +473,7 @@ aterrizaje del drone en el suelo).
 \begin{figure}[H]
     \centering
     \includegraphics[width=1\textwidth]{images/avoidance_mag.png}
-    \caption{Puntuaje de obstáculo.}
+    \caption{Puntuación de obstáculo.}
     \label{fig:avoidance_mag}
 \end{figure}
 \begin{figure}[H]

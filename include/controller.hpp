@@ -3,4 +3,4 @@
 #include "config.hpp"
 
 void controllerInit(const Config * config);
-void controllerUpdate(const StateOut& state, Command * cmd);
+void controllerUpdate(StateOut& state, Command * cmd);

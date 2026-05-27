@@ -1,6 +1,345 @@
 \chapter{Planificadores y controladores de trayectoria}
+
+En este capítulo se describe la arquitectura empleada para el seguimiento de trayectoria del vehículo aéreo no tripulado. El sistema 
+se ha dividido en tres bloques principales: un planificador global, un planificador local y un controlador de bajo nivel.
+
+El planificador global se encarga de transformar una lista de \textit{waypoints} en una trayectoria discretizada. 
+
+El planificador local toma dicha trayectoria y, a partir de la posición actual del dron, calcula una referencia local mediante una 
+estrategia de tipo \textit{Pure Pursuit} tridimensional. 
+
+Finalmente, el controlador recibe las velocidades de referencia generadas por 
+el planificador local y aplica una ley de control PID para obtener los comandos de velocidad necesarios.
+
+
+
 \section{Planificador Local}
+La metodología de guiado local se basa en la técnica \textit{Pure Pursuit} aplicada a vehículos aéreos, siguiendo el enfoque presentado 
+en \cite{9828198}. En dicho trabajo, el problema de guiado de un dron en el espacio tridimensional se plantea mediante la generación 
+sucesiva de puntos virtuales que deben ser seguidos por el vehículo. En la implementación desarrollada en este trabajo, esta idea se 
+adapta al seguimiento de una trayectoria 3D previamente discretizada mediante \textit{waypoints}.
+
+El planificador local tiene como objetivo calcular una consigna de velocidad instantánea a partir de la trayectoria generada por el 
+planificador global y del estado actual del dron. Su entrada principal es una secuencia discreta de puntos de trayectoria,
+
+\[\mathcal{P} =\left\{\mathbf{p}_0,\mathbf{p}_1,\dots,\mathbf{p}_{N-1}\right\},\]
+
+
+El estado de navegación utilizado por el planificador local contiene la pose completa del UAV:
+
+\[\mathbf{x} =\begin{bmatrix}x ,y ,z ,qw,qx,qy,qz\end{bmatrix},\]
+
+A partir de la orientación se extrae el ángulo de guiñada o \textit{yaw}, necesario para calcular la velocidad angular de orientación 
+hacia el objetivo local.
+El algoritmo implementado corresponde a una variante tridimensional de \textit{Pure Pursuit}. En lugar de perseguir directamente el 
+punto final de la trayectoria, el planificador selecciona un punto adelantado una distancia fija \(L_d\), denominada 
+\textit{lookahead}. Esta estrategia reduce oscilaciones y permite un seguimiento más suave de la trayectoria.
+
+En primer lugar el algoritmo selecciona un punto de la trayectoria a seguir, siendo este siempre uno con índice mayor que el 
+anterioremente seleccionado y que sea el más alejado del UAV pero siempre con una distancia menor a \(L_d\). En la Figura~\ref{fig:lplan_tray} se muestra 
+el camino teorico seguido por un drone en base a los puntos de seguimiento generados por el algoritmo.
+
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{images/lplan_tray.png}
+    \caption{Ejemplo de generación de trayectoria en base al planificador local.}
+    \label{fig:lplan_tray}
+\end{figure}
+
+
+Esta operación se realiza recorriendo los segmentos consecutivos de la trayectoria y acumulando la distancia recorrida hasta alcanzar 
+la distancia de \textit{lookahead}. La longitud del segmento entre dos puntos consecutivos se define como
+
+\[\Delta s_i =\left\|\mathbf{p}_{i+1} - \mathbf{p}_i\right\|.\]
+
+Si la distancia de \textit{lookahead} restante cae dentro del segmento comprendido entre \(\mathbf{p}_i\) y \(\mathbf{p}_{i+1}\), el punto de referencia local se obtiene mediante interpolación lineal:
+
+\[\mathbf{p}_{ref}=(1-\alpha)\mathbf{p}_i+\alpha \mathbf{p}_{i+1},\]
+
+\[\alpha =\frac{L_{rem}}{\Delta s_i}.\]
+
+Aquí, \(L_{rem}\) representa la distancia de \textit{lookahead} restante cuando se alcanza el segmento actual. En caso de que no 
+exista suficiente trayectoria por delante, el punto de referencia se fija como el último punto del camino:
+
+\[\mathbf{p}_{ref} = \mathbf{p}_{N-1}.\]
+
+Para el cálculo del comando de velocidad lineal se cálcula el error geometrico como
+
+\[\mathbf{e} =\mathbf{p}_{ref} - \mathbf{p}\]
+
+A partir de este error se genera una velocidad lineal de referencia en base a la distancia del error de posición, una constante de 
+proporcionalidad \(k_{xz}\) y finalmente se satura a unos valores maximos y minimos de manera que la consigna sea fisicamente aceptable:
+
+\[d_{xz} =\sqrt{e_x^2 + e_z^2}.\]
+\[v_{xz} =k_{xz} d_{xz}.\]
+\[v_{xz} =\operatorname{sat}\left(v_{xz},-v_{xz\max},v_{xz\max}\right).\]
+
+De igual manera para la altura (\(v_{y}\)) se realiza la misma operación haciendo uso de otra constante de proporcionalidad \(k_{y}\).
+
+Además de la velocidad lineal, el planificador local genera una velocidad angular alrededor del eje vertical. Para ello se calcula el 
+ángulo deseado hacia el punto de referencia:
+
+
+\[
+\psi_{ref} =
+\operatorname{atan2}(e_z,e_x).
+\]
+
+El error de orientación se obtiene como
+
+\[
+e_{\psi} =
+\operatorname{wrap}(\psi_{ref}-\psi),
+\]
+
+donde \(\psi\) es el ángulo de yaw actual del dron y \(\operatorname{wrap}(\cdot)\) normaliza el ángulo al intervalo \([-\pi,\pi]\). La velocidad angular comandada es
+
+\[
+\omega_y =
+k_{\psi} e_{\psi}.
+\]
+
+Al igual que en el caso lineal, esta velocidad se satura para respetar los límites dinámicos del sistema:
+
+\[
+\omega_y =
+\operatorname{sat}
+\left(
+k_{\psi} e_{\psi},
+-\omega_{y,\max},
+\omega_{y,\max}
+\right).
+\]
+
+La salida del planificador local es, por tanto, un comando de tipo \textit{twist}, formado por una velocidad lineal y una velocidad 
+angular como se puede observar en la Figura~\ref{fig:lplan_cmd}:
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{images/lplan_cmd.png}
+    \caption{Ejemplo de generación de comandos de velocidad en base al planficiador local.}
+    \label{fig:lplan_cmd}
+\end{figure}
+
+
+\[
+\mathbf{v}_{ref}
+=
+\begin{bmatrix}
+v_x \\
+v_y \\
+v_z
+\end{bmatrix},
+\]
+
+\[
+\boldsymbol{\omega}_{ref}
+=
+\begin{bmatrix}
+0 \\
+\omega_y \\
+0 
+\end{bmatrix}.
+\]
+
+El planificador local también incorpora la información procedente del estimador de profundidad para realizar maniobras de evasión. Cuando se detecta un obstáculo y la variable \texttt{must\_evade} está activa, la referencia de velocidad deja de venir únicamente del seguimiento Pure Pursuit y pasa a estar dominada por una dirección de evasión. Esta dirección se calcula a partir del vector normalizado proporcionado por el módulo de percepción, separando su componente lateral y vertical, y transformándola al sistema de referencia global mediante la orientación actual del UAV.
+
+La dirección de evasión se define como:
+\[
+\mathbf{d}_{ev} =
+\frac{l\,\mathbf{r}_w + v\,\mathbf{u}_w}
+{\left\|l\,\mathbf{r}_w + v\,\mathbf{u}_w\right\|},
+\]
+donde \(l\) y \(v\) representan las componentes lateral y vertical del vector de evasión, \(\mathbf{r}_w\) es la dirección lateral derecha del UAV en el marco global y \(\mathbf{u}_w\) es el eje vertical. La velocidad de evasión se calcula como:
+\[
+\mathbf{v}_{ev} = k_{ev}\,v_{\max}\,\mathbf{d}_{ev},
+\]
+siendo \(k_{ev}\) una ganancia limitada entre 0 y 1, obtenida a partir de la magnitud de evasión estimada.
+
+Finalmente, para evitar cambios bruscos entre el seguimiento de trayectoria y la evasión, el comando enviado al controlador mantiene una pequeña contribución del planificador local Pure Pursuit. En concreto, la velocidad lineal comandada se obtiene como:
+\[
+\mathbf{v}_{cmd} =
+\operatorname{sat}\left(\mathbf{v}_{ev} + \alpha\,\mathbf{v}_{pp}\right),
+\]
+mientras que la velocidad angular queda reducida a:
+\[
+\omega_{cmd} = \alpha\,\omega_{pp},
+\]
+donde \(\alpha = 0.1\). De esta forma, durante la evasión el UAV prioriza la separación respecto al obstáculo, pero conserva un 10\% del comando de avance asociado a la trayectoria global, permitiendo una transición más suave y evitando que el vehículo pierda completamente la dirección de navegación deseada.
 
 \section{Planificador Global}
 
+El planificador global es el encargado de generar la trayectoria de referencia que posteriormente será seguida por el planificador local. Su entrada es una lista de \textit{waypoints} definidos en el espacio tridimensional:
+
+\[
+\mathcal{W} =
+\left\{
+\mathbf{w}_0,
+\mathbf{w}_1,
+\dots,
+\mathbf{w}_{M-1}
+\right\},
+\]
+
+Estos puntos representan posiciones espaciales por las que debe pasar el dron. Sin embargo, una lista de \textit{waypoints} puede estar demasiado separada para ser utilizada directamente por un planificador local. Por ello, el planificador global interpola linealmente entre cada par de puntos consecutivos, generando una trayectoria más densa y uniforme.
+
+Cada punto intermedio se obtiene mediante interpolación lineal:
+
+\[
+\mathbf{p}_{i,j}
+=
+(1-\alpha_j)\mathbf{w}_i
++
+\alpha_j \mathbf{w}_{i+1},
+\]
+
+donde
+
+\[
+\alpha_j =
+\frac{j}{n_i-1},
+\qquad
+j = 0,1,\dots,n_i-1.
+\]
+
+De este modo, el planificador global transforma una trayectoria definida por pocos puntos de paso en una secuencia densa de puntos 3D:
+
+\[
+\mathcal{P} =
+\left\{
+\mathbf{p}_0,
+\mathbf{p}_1,
+\dots,
+\mathbf{p}_{N-1}
+\right\}.
+\]
+
+En la Figura~\ref{fig:gplan_tray} se muestra la generación lde la trayectoria interpolada en base a un conjunto de waypoints.
+
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{images/gplan_tray.png}
+    \caption{Ejemplo de generación de trayectoria interpolada.}
+    \label{fig:gplan_tray}
+\end{figure}
+
+
 \section{Controlador}
+
+El controlador es el bloque encargado de transformar las velocidades de referencia generadas por el planificador local en comandos de 
+velocidad admisibles para el UAV. Su función no es generar la trayectoria, sino corregir las referencias de velocidad en función de la 
+velocidad medida del vehículo, reduciendo así el error de seguimiento. En la Figura~\ref{fig:pid_esq} se muestra el esquema interno 
+del controlador implementado.
+
+
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{images/pid_esq.png}
+    \caption{Arquitectura del PID diferencial.}
+    \label{fig:pid_esq}
+\end{figure}
+
+
+El sistema emplea cuatro controladores independientes: tres para las componentes de velocidad lineal \(v_x\), \(v_y\) y \(v_z\), y uno 
+para la velocidad angular de guiñada \(\omega_y\). De forma compacta, la entrada del controlador puede expresarse como
+
+\[
+\mathbf{r} =
+\begin{bmatrix}
+v_{x,ref} & v_{y,ref} & v_{z,ref} & \omega_{y,ref}
+\end{bmatrix}^T,
+\qquad
+\mathbf{y} =
+\begin{bmatrix}
+v_x & v_y & v_z & \omega_y
+\end{bmatrix}^T.
+\]
+
+Para una componente genérica, el error se define como
+
+\[
+e[k] = r[k] - y[k].
+\]
+
+A partir de este error, el controlador calcula una acción proporcional, integral y derivativa. La implementación utilizada no corresponde a un PID ideal continuo, sino a una versión discreta preparada para su uso real en el UAV. Por ello, además de las ganancias \(K_p\), \(K_i\) y \(K_d\), se incorporan ponderación de referencia, filtrado de la medida, saturación, limitación de variación del comando y anti-\textit{windup}.
+
+La acción proporcional utiliza un peso \(b\) sobre la referencia, mientras que la acción derivativa utiliza un peso \(c\). De este modo, el controlador puede reducir la sensibilidad frente a cambios bruscos de referencia. De forma simplificada, la acción de control antes de aplicar límites puede escribirse como
+
+\[
+u_{raw}[k] =
+u_0
++
+K_p\left(b\,r[k]-y[k]\right)
++
+x_i[k]
++
+K_d\left(c\,\dot{r}[k]-\dot{y}[k]\right),
+\]
+
+donde \(x_i[k]\) representa el estado integral y \(u_0\) una posible acción nominal. En la práctica, usar valores reducidos de \(c\) permite evitar picos derivados cuando la referencia cambia rápidamente, algo especialmente importante cuando las referencias proceden de un sistema inestable como es un UAV.
+
+Cuando se activa la acción integral, el integrador se actualiza a partir del error actual:
+
+\[
+x_i[k] = x_i[k-1] + K_i \Delta t\, e[k].
+\]
+
+Esta acción permite compensar errores persistentes entre la referencia y la medida. Sin embargo, como la salida del controlador está limitada, se incluye un mecanismo anti-\textit{windup} para evitar que la integral siga creciendo. 
+
+
+La salida del controlador se limita en dos niveles. En primer lugar, se aplica una saturación absoluta:
+
+\[
+u_{min} \leq u[k] \leq u_{max}.
+\]
+
+En segundo lugar, se limita la variación máxima del comando entre dos iteraciones consecutivas:
+
+\[
+\Delta u_{min}\Delta t
+\leq
+u[k]-u[k-1]
+\leq
+\Delta u_{max}\Delta t.
+\]
+
+Esta segunda limitación es especialmente importante para el UAV, ya que evita enviar comandos con cambios demasiado bruscos. Por tanto, aunque el PID genere una corrección elevada, la señal final enviada al dron evoluciona de forma suave y físicamente admisible.
+
+La salida final del bloque de control queda formada por las tres velocidades lineales corregidas y la velocidad angular de guiñada:
+
+\[
+\mathbf{u}_{cmd} =
+\begin{bmatrix}
+v_x^{cmd} & v_y^{cmd} & v_z^{cmd} & \omega_y^{cmd}
+\end{bmatrix}^T.
+\]
+
+Las velocidades angulares de roll y pitch no se modifican en este bloque, por lo que se fijan a cero:
+
+\[
+\omega_x^{cmd}=0,
+\qquad
+\omega_z^{cmd}=0.
+\]
+
+En la Figura~\ref{fig:pid_salida_comandos} se muestra un ejemplo de la referencia recibida por el controlador y del comando final 
+generado tras aplicar el PID y sus limitaciones. En la Figura~\ref{fig:pid_sim} se muestra una simulación basada en el control PID.
+
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{images/pid_out.png}
+    \caption{Simulación de control PID diferencial.}
+    \label{fig:pid_salida_comandos}
+\end{figure}
+
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{images/sim_tray.png}
+    \caption{Simulación de generación de trayectoria mediante control PID.}
+    \label{fig:pid_sim}
+\end{figure}

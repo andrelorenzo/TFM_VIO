@@ -1,5 +1,5 @@
 \chapter{Comunicaciones}
-\section{Pasarela de abordo}
+\section{Pasarela de a bordo}
 
 El programa implementa una pasarela de comunicación entre la cámara Intel RealSense D435i y la estación de tierra. Su función 
 principal es separar la información capturada por la cámara en distintos canales de comunicación: vídeo RGB transmitido mediante RTSP, 
@@ -27,7 +27,7 @@ establecimiento de conexión, el sistema almacena su dirección y activa el env�
 estado también se utiliza para controlar el envío del flujo de vídeo, evitando introducir imágenes en el servidor RTSP cuando no existe 
 ningún cliente conectado.
 
-La arquitectura de funcionamiento se muestra en la Figura~\ref{fig:threads_comms}
+La arquitectura de funcionamiento se muestra en la Figura~\ref{fig:threads_comms}.
 
 \begin{figure}[H]
     \ffigbox[\FBwidth] {
@@ -46,10 +46,10 @@ El módulo de adquisición se encarga de leer los datos procedentes de la Jetson
 sincronizados para el algoritmo de navegación. Cada paquete contiene una imagen RGB y un conjunto de muestras inerciales comprendidas 
 entre dos imágenes consecutivas.
 
-El proceso comienza en la incialización del receptor RTSP y la creación del socket UDP para la recepción de los 
+El proceso comienza en la inicialización del receptor RTSP y la creación del socket UDP para la recepción de los 
 datos inerciales.
 
-Una vez inicializado el sistema, se lanza un hilo de adquisición. Este hilo se ejecuta interativamente. Las muestras 
+Una vez inicializado el sistema, se lanza un hilo de adquisición. Este hilo se ejecuta iterativamente. Las muestras 
 inerciales se almacenan en un buffer independiente, uno para el acelerómetro y otro para el giróscopo. Cada muestra queda asociada a una 
 marca temporal.
 
@@ -224,11 +224,11 @@ algoritmo de navegación:
         v_x &
         v_y &
         v_z &
-        \omega_z
+        \omega_y
     \end{bmatrix}^{T},
 \end{equation}
 
-donde $v_x$, $v_y$ y $v_z$ representan las componentes de velocidad lineal, y $\omega_z$ corresponde a la velocidad angular 
+donde $v_x$, $v_y$ y $v_z$ representan las componentes de velocidad lineal, y $\omega_y$ corresponde a la velocidad angular 
 alrededor del eje vertical del UAV.
 
 El envío de comandos se realiza desde la estación de tierra hacia la plataforma aérea mediante comunicación UDP. Esta 
@@ -261,21 +261,21 @@ velocidad. Esta saturación puede expresarse como
     \qquad
     i \in \{x,y,z\},
     \\[2mm]
-    \bar{\omega}_z
+    \bar{\omega}_y
     &=
     \operatorname{sat}
     \left(
-        \omega_z,
-        \omega_{z,\max}
+        \omega_y,
+        \omega_{y,\max}
     \right)
     =
     \max
     \left(
-        -\omega_{z,\max},
+        -\omega_{y,\max},
         \min
         \left(
-            \omega_z,
-            \omega_{z,\max}
+            \omega_y,
+            \omega_{y,\max}
         \right)
     \right).
 \end{aligned}
@@ -290,7 +290,7 @@ Por tanto, el comando finalmente enviado al UAV queda definido como
         \bar{v}_x &
         \bar{v}_y &
         \bar{v}_z &
-        \bar{\omega}_z
+        \bar{\omega}_y
     \end{bmatrix}^{T}.
 \end{equation}
 

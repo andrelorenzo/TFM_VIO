@@ -136,14 +136,17 @@ void globalPlanInit(const Config * config){
     Logger(INFO,    "globalPlanInit: waypoint_file=%s raw_waypoints=%d path_points=%d resolution=%.3f", gplan.config.waypoints_file.c_str(), static_cast<int>(gplan.raw_waypoints.p.size()),  static_cast<int>(gplan.generated_path.p.size()),  gplan.config.resolution);
 }
 
-void globalPlanUpdate(const StateOut& state, Waypoints& path){
-    (void)state;
-
+void globalPlanUpdate(StateOut& state, Waypoints& path){
     if(!gplan.initialized){
+        state.deb.gplan_waypoints.clear();
+        state.deb.gplan_path.clear();
         return;
     }
 
     if(path.p.size() != gplan.generated_path.p.size()){
         path = gplan.generated_path;
     }
+
+    state.deb.gplan_waypoints = gplan.raw_waypoints.p;
+    state.deb.gplan_path = path.p;
 }

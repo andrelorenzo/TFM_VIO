@@ -104,6 +104,13 @@ static void setLatestPose(int nImageId, double timestamp, StateOut * state) {
     vio_est.last_pose.pos = -QuatToRot(QuatInv(rota))*state->Localx.segment(4,3);
 }
 
+static Pose poseFromGlobalState(const vec4& qG, const vec3& tG) {
+    Pose pose;
+    pose.rot = normalizeQ(quat(qG(3), qG(0), qG(1), qG(2)));
+    pose.pos = -QuatToRot(QuatInv(qG))*tG;
+    return pose;
+}
+
 
 static bool vioInitWhileSteady(Config config, SourceIn * source, StateOut * state){
     static int nImuCount = 0;
@@ -319,6 +326,9 @@ bool vioUpdate(SourceIn * source, StateOut * state) {
 
     vec4 qkG = state->Localx.head(4);
     vec3 pGk = -QuatToRot(QuatInv(qkG))*state->Localx.segment(4,3);
+    (void)pGk;
+
+    state->deb.vis = poseFromGlobalState(qkG, state->Localx.segment(4,3));
 
 
     setLatestPose(vio_est.im_id, source->frame_tsms, state);

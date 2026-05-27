@@ -1,5 +1,6 @@
 #include "local_planner.hpp"
 #include "config.hpp"
+#include "lie_math.hpp"
 #include <cmath>
 #include <algorithm>
 #include <cfloat>
@@ -46,20 +47,21 @@ static vec3 vec3Interp(vec3 a, vec3 b, float alpha){
 }
 
 static float yawFromQuat(quat q){
-    float siny_cosp = 2.0f*(q.w()*q.z() + q.x()*q.y());
-    float cosy_cosp = 1.0f - 2.0f*(q.y()*q.y() + q.z()*q.z());
-    return atan2f(siny_cosp, cosy_cosp);
+    return static_cast<float>(quatToCameraRpyRad(q).z());
 }
 
 static vec3 clampVelocity(vec3 vel){
-    const float xy_norm = static_cast<float>(std::hypot(vel.x(), vel.y()));
-    if(xy_norm > ppconfig.v_max_xy && xy_norm > 1e-6f){
-        const float scale = ppconfig.v_max_xy / xy_norm;
+    // VIO/world frame uses camera convention: x right, y down, z forward.
+    // The planar motion for navigation lives on the x-z plane.
+    const float xz_norm = static_cast<float>(std::hypot(vel.x(), vel.z()));
+    if(xz_norm > ppconfig.v_max_xy && xz_norm > 1e-6f){
+        const float scale = ppconfig.v_max_xy / xz_norm;
         vel.x() *= scale;
-        vel.y() *= scale;
+        vel.z() *= scale;
     }
 
-    vel.z() = clampf(static_cast<float>(vel.z()), -ppconfig.v_max_z, ppconfig.v_max_z);
+    // The legacy v_max_z parameter now limits the vertical camera axis (y-down).
+    vel.y() = clampf(static_cast<float>(vel.y()), -ppconfig.v_max_z, ppconfig.v_max_z);
     return vel;
 }
 
@@ -68,6 +70,10 @@ static bool buildEvadeVelocity(const EvitationDir& dir, float yaw, vec3 * evade_
         return false;
     }
 
+    // dir.obstacle_score;
+    // dir.must_evade;
+    // dir.norm_vec;
+    
     const vec3 raw_dir = dir.norm_vec;
     const float lateral = static_cast<float>(raw_dir.x());
     const float vertical = static_cast<float>(-raw_dir.y());
@@ -76,8 +82,8 @@ static bool buildEvadeVelocity(const EvitationDir& dir, float yaw, vec3 * evade_
         return false;
     }
 
-    const vec3 right_w(-std::sin(yaw), std::cos(yaw), 0.0);
-    const vec3 up_w(0.0, 0.0, 1.0);
+    const vec3 right_w(std::cos(yaw), 0.0, std::sin(yaw));
+    const vec3 up_w(0.0, -1.0, 0.0);
 
     vec3 evade_dir = lateral*right_w + vertical*up_w;
     const double evade_dir_norm = evade_dir.norm();
@@ -165,7 +171,7 @@ static bool getPurePursuitTarget3D(vec3 pos, Waypoints path, vec3 *p_ref, bool *
     *target_is_end = true;
     return true;
 }
-void localPlannerUpdate(EvitationDir dir, StateOut state, Waypoints path, Command * cmd){
+void localPlannerUpdate(const EvitationDir& dir, StateOut& state, const Waypoints& path, Command * cmd){
     vec3 pos = state.state.pose.pos;
     quat ori = state.state.pose.rot;
     double dt = state.dt;
@@ -173,6 +179,9 @@ void localPlannerUpdate(EvitationDir dir, StateOut state, Waypoints path, Comman
 
     cmd->lenvel_ms = vec3(0.0f, 0.0f, 0.0f);
     cmd->angvel_rads = vec3(0.0f, 0.0f, 0.0f);
+    state.deb.lplan_target_valid = false;
+    state.deb.pre_pid_lin_cmd = vec3::Zero();
+    state.deb.pre_pid_ang_cmd = vec3::Zero();
 
     if(ppconfig.finished){
         return;
@@ -193,11 +202,14 @@ void localPlannerUpdate(EvitationDir dir, StateOut state, Waypoints path, Comman
         return;
     }
 
+    state.deb.lplan_target_pos = p_ref;
+    state.deb.lplan_target_valid = true;
+
     float ex = p_ref.x() - pos.x();
     float ey = p_ref.y() - pos.y();
     float ez = p_ref.z() - pos.z();
 
-    float dist_xy = sqrtf(ex*ex + ey*ey);
+    const float dist_xz = sqrtf(ex*ex + ez*ez);
     float dist_goal = vec3Dist(pos, path.p[path.p.size() - 1]);
 
     if(target_is_end && dist_goal < ppconfig.goal_tol_m){
@@ -208,24 +220,24 @@ void localPlannerUpdate(EvitationDir dir, StateOut state, Waypoints path, Comman
     }
 
     float vx = 0.0f;
-    float vy = 0.0f;
+    float vz = 0.0f;
 
-    if(dist_xy > 1e-6f){
-        float v_xy = ppconfig.k_xy*dist_xy;
+    if(dist_xz > 1e-6f){
+        float v_xy = ppconfig.k_xy*dist_xz;
         v_xy = clampf(v_xy, 0.0f, ppconfig.v_max_xy);
 
-        vx = v_xy*ex/dist_xy;
-        vy = v_xy*ey/dist_xy;
+        vx = v_xy*ex/dist_xz;
+        vz = v_xy*ez/dist_xz;
     }
 
-    float vz = ppconfig.k_z*ez;
-    vz = clampf(vz, -ppconfig.v_max_z, ppconfig.v_max_z);
+    float vy = ppconfig.k_z*ey;
+    vy = clampf(vy, -ppconfig.v_max_z, ppconfig.v_max_z);
 
     float yaw = yawFromQuat(ori);
     float wz = 0.0f;
 
-    if(dist_xy > 1e-6f){
-        float yaw_ref = atan2f(ey, ex);
+    if(dist_xz > 1e-6f){
+        float yaw_ref = atan2f(ex, ez);
         float yaw_error = wrapPi(yaw_ref - yaw);
 
         wz = ppconfig.k_yaw*yaw_error;
@@ -244,4 +256,6 @@ void localPlannerUpdate(EvitationDir dir, StateOut state, Waypoints path, Comman
 
     cmd->lenvel_ms = cmd_vel;
     cmd->angvel_rads = vec3(0.0f, 0.0f, cmd_wz);
+    state.deb.pre_pid_lin_cmd = cmd_vel;
+    state.deb.pre_pid_ang_cmd = cmd->angvel_rads;
 }

@@ -70,6 +70,43 @@ void PlotRegistry::push(SeriesHandle series, Point p) {
     push(series, p.x, p.y);
 }
 
+void PlotRegistry::setSeries(SeriesHandle series, const std::vector<Point>& points) {
+    if (!series.valid()) {
+        return;
+    }
+
+    std::lock_guard<std::mutex> lock(mutex_);
+
+    if (series.plot >= plots_.size()) {
+        return;
+    }
+
+    auto& plot = plots_[series.plot];
+    if (series.series >= plot.series.size()) {
+        return;
+    }
+
+    auto& s = plot.series[series.series];
+    s.x.clear();
+    s.y.clear();
+    s.x.reserve(points.size());
+    s.y.reserve(points.size());
+
+    for (const auto& point : points) {
+        if (!std::isfinite(point.x)) {
+            continue;
+        }
+        if (plot.config.skip_nan_points && !std::isfinite(point.y)) {
+            continue;
+        }
+
+        s.x.push_back(point.x);
+        s.y.push_back(point.y);
+    }
+
+    trim(s, plot.config.max_points);
+}
+
 void PlotRegistry::clearSamples() {
     std::lock_guard<std::mutex> lock(mutex_);
     for (auto& plot : plots_) {
@@ -163,6 +200,16 @@ void PlotRegistry::renderPlotWidget(const PlotData& plot, const ImVec2& requeste
 
         for (const auto& series : plot.series) {
             if (!series.config.enabled || series.x.empty() || series.x.size() != series.y.size()) {
+                continue;
+            }
+
+            if (series.config.scatter) {
+                ImPlot::PlotScatter(
+                    series.config.label.c_str(),
+                    series.x.data(),
+                    series.y.data(),
+                    static_cast<int>(series.x.size())
+                );
                 continue;
             }
 

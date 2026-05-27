@@ -25,7 +25,7 @@ El flujo principal del algoritmo se puede resumir en los siguientes pasos:
 \begin{enumerate}[nosep]
     \item Se recibe un paquete, compuesto por una imagen RGB y una secuencia de medidas IMU sincronizadas con el intervalo de dos imágenes consecutivas.
     \item Si el sistema aún no ha sido inicializado, se estima la dirección de la gravedad y los sesgos iniciales de la IMU a partir de un intervalo en reposo.
-    \item Se propaga el estado mediante pre-integracion inercial, generando un nuevo factor IMU y actualizando la matriz de información \textit{square-root}.
+    \item Se propaga el estado mediante preintegracion inercial, generando un nuevo factor IMU y actualizando la matriz de información \textit{square-root}.
     \item Se predice la pose de la cámara a partir del estado propagado.
     \item Se realiza el seguimiento visual de características mediante flujo óptico KLT y se rechazan correspondencias erróneas mediante RANSAC.
     \item Se triangulan nuevas features usando parametrización de profundidad inversa.
@@ -100,7 +100,7 @@ medidas, $g_0$ es el módulo de la gravedad y $\mathbf{g}$ es la dirección esti
 comience ya en movimiento y no exista un intervalo inicial en reposo, el sistema utiliza la última muestra disponible como estimación 
 inicial.
 
-Una vez calculadas estas magnitudes, se inicializa el vector de estado local del estimador. Este vector contiene la orientación(q) y 
+Una vez calculadas estas magnitudes, se inicializa el vector de estado local del estimador. Este vector contiene la orientación (q) y 
 posición, la dirección de la gravedad, la velocidad y los sesgos de la IMU:
 
 \begin{equation}
@@ -118,7 +118,7 @@ posición, la dirección de la gravedad, la velocidad y los sesgos de la IMU:
 
 
 El vector se inicializa de la siguiente manera, con la inicialización se establece la orientación, vector de gravedad y sesgos. La 
-velocidad y posición se incializa a 0.
+velocidad y posición se inicializan a 0.
 
 Además del vector de estado, se inicializa la matriz de información local del estimador. Esta matriz introduce la confianza inicial 
 sobre cada una de las variables del estado. Se utilizan las constantes de Allan N y K para inicializar las covarianzas del vector de 
@@ -805,7 +805,7 @@ I_k(\mathbf{x}) + \nabla I_k(\mathbf{x})^\top \mathbf{d}_i.
 
 
 A partir de la linealización anterior, el problema se resuelve iterativamente mediante un
-sistema de mínimos cuadrados. Definiendo
+sistema de mínimos cuadrados.
 
 \[
 \mathbf{J}(\mathbf{x}) =
@@ -902,7 +902,7 @@ Una correspondencia se acepta si
 e_{S,i} < \tau_S,
 \]
 
-donde $\tau_S$ es el umbral de aceptación configurados para RANSAC.
+donde $\tau_S$ es el umbral de aceptación configurado para RANSAC.
 
 Tras el rechazo de outliers, sólo las correspondencias aceptadas se mantienen activas y se
 incorporan al historial de observaciones de cada característica. Si una característica no
@@ -1188,7 +1188,7 @@ Cuando una característica deja de estar activa, su variable no se mantiene inde
 en el estado. En su lugar, se marginaliza de la matriz de información, conservando
 únicamente la información que aporta sobre el resto de variables. De esta forma, el sistema
 mantiene las restricciones útiles sin aumentar innecesariamente la dimensión del problema. Este proceso se puede ver
-representado en la figura~\ref{fig:robocentric_comp} 
+representado en la Figura~\ref{fig:robocentric_comp} 
 
 
 \begin{figure}[H]
@@ -1238,7 +1238,7 @@ donde \(\tilde{\boldsymbol{\Omega}}_k\) es la velocidad angular medida,
 \(\boldsymbol{\Omega}_k\) es la velocidad angular real, \(\mathbf{b}_{g,k}\) es el sesgo
 del giróscopo y \(\boldsymbol{\eta}(t)\) representa el ruido temporal de medida. 
 
-Donde este ruido se divide en un ruido blanco (\(\boldsymbol{\eta}_N(t)\) o Angular random walk), un ruido rosa (\(\boldsymbol{\eta}_B(t)\) o bias instability) y un 
+Este ruido se divide en un ruido blanco (\(\boldsymbol{\eta}_N(t)\) o Angular random walk), un ruido rosa (\(\boldsymbol{\eta}_B(t)\) o bias instability) y un 
 ruido marrón/rojo (\(\boldsymbol{\eta}_K(t)\) o rate random walk) de tal manera que:
 
 \begin{equation}
@@ -1297,7 +1297,7 @@ ese valor de \(\tau\). Habitualmente se representa la desviación de Allan,
     \includegraphics[width=1\textwidth]{images/allan_variance_explanation.png}
     \caption{Forma representativa de una curva de desviación de Allan. En escala
     logarítmica pueden identificarse distintas regiones asociadas al ruido blanco de
-    medida, la inestabilidad del sesgo y el random walk del sesgo.}
+    medida, la inestabilidad del sesgo y el bias random walk.}
     \label{fig:allan_variance_example}
 \end{figure}
 
@@ -1314,7 +1314,7 @@ suelen considerarse principalmente tres contribuciones:
     plana de la curva. Representa una variación lenta del sesgo que no sigue exactamente
     un modelo de random walk ideal.
 
-    \item \textbf{random walk del sesgo} (\(K\)): domina para tiempos de integración
+    \item \textbf{bias random walk} (\(K\)): domina para tiempos de integración
     grandes. En la curva aparece como una recta con pendiente \(+1/2\). Este término
     modela la deriva lenta de los sesgos del acelerómetro y del giróscopo.
 \end{itemize}
@@ -1393,7 +1393,7 @@ giróscopo.
     \includegraphics[width=0.85\textwidth]{images/gx_allan.png}
     \caption{Desviación de Allan correspondiente al eje \(x\) del giróscopo. La región de
     pendiente \(-1/2\) permite estimar el ruido blanco de medida \(N_g\), mientras que la
-    región de pendiente \(+1/2\) permite estimar el random walk del sesgo \(K_g\).}
+    región de pendiente \(+1/2\) permite estimar el bias random walk \(K_g\).}
     \label{fig:allan_gx}
 \end{figure}
 
