@@ -50,32 +50,31 @@ localización.
     la estimación de actitud y estabilidad, así como el empleo de GNSS/GPS para la obtención de posición global cuando la señal se encuentra 
     disponible. Sin embargo, en entornos interiores o en escenarios con degradación de la señal GNSS, resulta necesario recurrir a estrategias 
     alternativas basadas en percepción, donde adquieren especial relevancia los sensores visuales y los sensores inerciales , así como la 
-    fusión multisensor como enfoque predominante para incrementar la robustez y la precisión del sistema.
+    fusión multisensor para incrementar la robustez y la precisión del sistema.
 
     En particular, la odometría visual-inercial (VIO) y otros esquemas de fusión permiten mitigar la deriva inherente de la estimación 
     puramente inercial, aunque persisten desafíos significativos asociados a la sensibilidad frente a variaciones de iluminación, oclusiones 
     y ambigüedad de escala, además de los requisitos computacionales necesarios para ejecutar métodos de filtrado u optimización en tiempo real. 
     Finalmente, el uso de técnicas de inteligencia artificial ha adquirido una relevancia creciente en este ámbito, al permitir mejorar la 
-    percepción y la estimación de la odometría incluso con configuraciones sensoriales limitadas; no obstante, su aplicabilidad práctica en UAV 
-    de pequeño tamaño continúa condicionada por las restricciones de cómputo embarcado y la disponibilidad de datos adecuados~\cite{advancedments-uavs}.
+    percepción y la estimación de la odometría incluso con configuraciones sensoriales limitadas. No obstante, su usabilidad continúa 
+    condicionada por las restricciones de cómputo~\cite{advancedments-uavs}.
 
 
 \section{Arquitecturas de control}
     Uno de los avances más relevantes en el ámbito de la navegación autónoma ha sido el desarrollo de nuevas arquitecturas de control, 
-    tanto en términos de planificación de trayectorias como en la incorporación de información sensorial alternativa. No obstante, a pesar 
-    de la diversidad de enfoques existentes, la mayoría de los sistemas de navegación comparten un marco conceptual común que puede 
-    describirse mediante una estructura funcional similar a nivel de sistema.
+    tanto en términos de planificación de trayectorias como en la incorporación de información sensorial alternativa. En cualquier caso la mayoría de los sistemas de 
+    navegación comparten un marco conceptual común a nivel de sistema.
 
-    \subsection{Marco teórico de control en la navegación autónoma  }
+    \subsection{Marco teórico de control en la navegación autónoma}
     La complejidad inherente de la navegación autónoma, como ocurre en numerosas aplicaciones de robótica móvil, ha motivado que su estudio 
     y desarrollo se organicen en módulos de menor complejidad. Este enfoque modular permite abordar de forma separada los distintos 
-    subproblemas, facilitando su diseño, análisis y validación. En términos generales, el objetivo es dotar al sistema de la capacidad de 
+    problemas. En términos generales, el objetivo es dotar al sistema de la capacidad de 
     adquirir información procedente de múltiples sensores y fusionarla de manera coherente, de modo que se obtenga una estimación única del 
-    estado del vehículo que refleje adecuadamente las incertidumbres asociadas a cada fuente de medida.
+    estado del vehículo, reflejando además, las incertidumbres de cada fuente de medida.
 
     En este contexto, la \textit{localización} constituye un concepto fundamental. Disponer de una estimación fiable de la posición y 
-    orientación del vehículo resulta imprescindible para seguir una trayectoria previamente definida o para alcanzar un objetivo determinado. 
-    En ausencia de una referencia precisa del estado actual, no es posible verificar el seguimiento correcto de la ruta ni determinar con 
+    orientación del vehículo resulta imprescindible para seguir una trayectoria o para alcanzar un objetivo determinado. 
+    En ausencia de una referencia del estado actual, no es posible verificar el seguimiento correcto de la ruta ni determinar con 
     garantías si se ha alcanzado el destino.
 
     El \textit{mapeado}, aunque no es estrictamente necesario en todos los escenarios, desempeña un papel relevante en sistemas de 
@@ -84,7 +83,7 @@ localización.
 
     Finalmente, los conceptos de \textit{planificación} y \textit{control} completan el marco teórico. El planificador global suele operar 
     a baja frecuencia y tiene como finalidad calcular una ruta, es decir, una secuencia de puntos o referencias entre el origen y el 
-    destino, teniendo en cuenta la información disponible del entorno. Por el contrario, el controlador opera a mayor frecuencia y 
+    destino, teniendo en cuenta la información disponible del entorno. Por el contrario, el planificador local o controlador opera a mayor frecuencia y 
     transforma dichas referencias en comandos de movimiento adecuados para el vehículo, ajustándolos en tiempo real en función de la 
     estimación del estado y de la información sensorial disponible. En la Figura~\ref{fig:control_theory_autnav} se representa una 
     arquitectura básica que resume estas relaciones funcionales.
@@ -101,12 +100,11 @@ localización.
     \subsection{Planificadores globales y controladores}
     En las arquitecturas de navegación autónoma se distingue habitualmente entre \textit{planificación} y \textit{control}, dado que ambos
     procesos operan en escalas temporales distintas y persiguen objetivos complementarios. La planificación se encarga de generar una solución
-    factible que conecte un estado inicial con un objetivo, imponiendo restricciones geométricas y de seguridad. Por su parte, el control
-    ejecuta dicha solución en el sistema físico, transformando referencias en comandos actuables y compensando perturbaciones, errores de
-    modelado y la presencia de obstáculos.
+    factible que conecte un estado inicial con un objetivo, imponiendo restricciones geométricas y de seguridad. Y por otro lado, el control
+    ejecuta dicha solución en el sistema físico, transformando referencias en comandos actuables y compensando perturbaciones y la presencia de obstáculos.
 
     \subsubsection*{Planificadores}
-    Los planificadores proporcionan una solución para permitir que un vehículo navegue de forma segura en el espacio, dada una \textit{pose}
+    Los planificadores proporcionan una solución que permite que un vehículo navegue de forma segura en el espacio, dada una \textit{pose}
     inicial, un objetivo y un conjunto de restricciones (radio máximo de giro, modelo de movimiento, penalizaciones por cambios de trayectoria,
     heurística, entre otras). En función de los requisitos de la aplicación existen múltiples algoritmos y variantes, cada uno con ventajas y
     limitaciones. El tiempo de cálculo suele ser elevado, por lo que, en general, se ejecutan de manera previa al movimiento del robot o a una
@@ -124,9 +122,9 @@ localización.
     En la Tabla~\ref{tab:planners_summary} se recogen, de forma comparativa, algunas ventajas y desventajas de los métodos más utilizados.
 
     \begin{table}[H]
-        \centering
+        % \centering
         
-        \ttabbox
+        % \ttabbox
         {\caption{Tabla comparativa de planificadores para la navegación autónoma}
         \label{tab:planners_summary}}
         {%
@@ -140,7 +138,7 @@ localización.
             \hline
             D* & Replanificación eficiente. & Mayor complejidad. \\
             \hline
-            RRT & Eficiente en espacios de alta dimensionalidad. & Trayectoria subóptima. \\
+            RRT & Eficiente en alta dimensionalidad. & Trayectoria subóptima. \\
             \hline
             RRT* & Converge asintóticamente. & Mayor tiempo de cómputo. \\
             \hline
@@ -158,8 +156,8 @@ localización.
     restricciones de seguridad y la dinámica del vehículo. A este componente local se le suele denominar \textit{controlador} o, en algunos
     enfoques, planificador local.
 
-    \subsubsection*{Controladores}
-    El controlador transforma la referencia (trayectoria, posición o velocidad deseada) en comandos para el sistema de propulsión y los
+    \subsubsection*{Planificador local}
+    El planificador local transforma la referencia (trayectoria, posición o velocidad deseada) en comandos para el sistema de propulsión y los
     actuadores. En robótica móvil se emplean controladores clásicos como PID o LQR, así como métodos específicos para el seguimiento de
     trayectorias y la evitación local, tales como \textit{Pure Pursuit},Figura~\ref{fig:purepursuit}, o los \textit{campos potenciales}. Asimismo, el control predictivo
     basado en modelo (MPC) permite incorporar restricciones explícitas y anticipar la evolución del sistema, a costa de un mayor coste de
@@ -192,16 +190,16 @@ localización.
         }
     \end{table}
 
-    En síntesis, la selección de planificador y controlador depende del entorno, del nivel de incertidumbre y, especialmente, de las
-    restricciones computacionales y temporales del sistema objetivo.
+La selección de planificador y controlador depende del entorno, del nivel de incertidumbre y, especialmente, de las
+restricciones computacionales y temporales del sistema objetivo.
 
-    \begin{figure}[H]
-    	\ffigbox[\FBwidth] {
-            \caption[Ejemplo de control por Pure Pursuit]{Ejemplo de control mediante Pure Pursuit.}
-            \label{fig:purepursuit}
-    	}
-    	{\includegraphics[scale=0.18]{images/pute_purpursuit.png}}
-    \end{figure}
+\begin{figure}[H]
+    \ffigbox[\FBwidth] {
+        \caption[Ejemplo de control por Pure Pursuit]{Ejemplo de control mediante Pure Pursuit.}
+        \label{fig:purepursuit}
+    }
+    {\includegraphics[scale=0.18]{images/pute_purpursuit.png}}
+\end{figure}
 
     \subsection{Control mediante fusión visual-inercial(VI)}
     En el control aplicado a la navegación es habitual distinguir dos fuentes de estimación del estado con características complementarias. En
@@ -214,13 +212,10 @@ localización.
     deriva con disponibilidad continua a alta frecuencia.
 
 
-
-    De forma general, esta arquitectura se implementa mediante GNSS/GPS como localizador global en exteriores, o bien mediante LiDAR y/o cámaras
-    RGB-D junto con técnicas SLAM en entornos interiores. Como fuente odométrica se emplean sensores como la IMU, encoders rotacionales o
-    sensores de posición, que se combinan con un estimador estadístico del estado, como un filtro de Kalman, para obtener una estimación
-    consistente. En el caso de interés de este trabajo, el localizador global suele basarse en información visual, mediante la extracción de
-    características en imagen 2D y su integración en un esquema de VIO, capaz de corregir la deriva a una frecuencia inferior. Por otro
-    lado, la IMU aporta la información inercial necesaria a alta frecuencia para mantener una estimación continua del estado.
+    Generalmente, esta arquitectura se implementa mediante el uso de GNSS/GPS en exteriores o mediante Lidar y/o camaras 3D en itneriores como fuente global y el uso de
+    encoders o IMUs como fuente odométrica. Estas son combinadas de manera estadisticas con un filtro, como puede ser un filtro de Kalma. En el caso de interés de este 
+    trabajo, el localizador global suele basarse en información visual, mediante la extracción de
+    características de una imagen 2D junto con la medida de una IMU a alta frecuencia para así, mantener una estimación continua del estado.
     \begin{figure}[H]
         \ffigbox[\FBwidth]{
             \caption[Esquema teórico de localización mediante odometría y sensor global]{Esquema teórico de localización mediante odometría y sensor global.}
@@ -229,6 +224,7 @@ localización.
             \includegraphics[scale=0.4]{images/localizador-global-local.png}
         }
     \end{figure}
+
     Desde la perspectiva del control, los sistemas VI se integran típicamente en una arquitectura jerárquica. En los lazos internos, el
     autopiloto estabiliza la actitud y regula la velocidad angular utilizando directamente la IMU, que ofrece tasas de actualización elevadas.
     En los lazos externos, la estimación de posición y velocidad proporcionada por VIO/VI-SLAM se emplea para generar referencias de movimiento
@@ -237,18 +233,16 @@ localización.
     aprovechar simultáneamente la alta frecuencia de la IMU y la capacidad correctiva de la cámara.
 
     Un aspecto relevante en la navegación VI es la gestión de incertidumbre y latencia. La estimación visual suele introducir retardo de
-    procesamiento, especialmente cuando se emplean métodos de optimización sobre ventanas deslizantes o modelos basados en aprendizaje. En
-    consecuencia, el diseño del controlador debe considerar dichas latencias para evitar inestabilidades, por ejemplo mediante predicción del
+    procesamiento. En consecuencia, el diseño del controlador debe considerar dichas latencias para evitar inestabilidades, por ejemplo mediante predicción del
     estado al tiempo actual, filtrado de medidas o reducción de la agresividad de maniobra cuando disminuye la confianza en la estimación. De
-    forma análoga, el sistema debe contemplar condiciones adversas: cambios bruscos de iluminación, desenfoque por movimiento, oclusiones y
-    escenas con baja textura pueden degradar la calidad de la odometría. En tales casos, la IMU actúa como soporte de continuidad, aunque la
-    integración sin corrección conduce inevitablemente a deriva.
+    forma análoga, el sistema debe contemplar condiciones adversas como cambios bruscos de iluminación, desenfoque por movimiento u oclusiones que pueden degradar la 
+    calidad de la odometría. En tales casos, la IMU actúa como soporte.
 
     En aplicaciones prácticas, el enfoque VI condiciona también decisiones de diseño a nivel de percepción. La elección de cámara (\textit{global
     shutter} frente a \textit{rolling shutter}), la calibración intrínseca y extrínseca, la sincronización temporal entre cámara e IMU y el
     modelado adecuado de sesgos inerciales influyen de forma directa en la estabilidad del control. En particular, la sincronización resulta
-    crítica: errores temporales pequeños pueden traducirse en estimaciones inconsistentes y, por tanto, en comandos incorrectos. Por ello, los
-    sistemas VI robustos priorizan una cadena de adquisición bien caracterizada y procedimientos de calibración reproducibles.
+    crítica: errores temporales pequeños pueden traducirse en estimaciones inconsistentes. Por ello, los
+    sistemas VI robustos priorizan una cadena de adquisición bien caracterizada y procedimientos de calibración robustos.
 
 
     % \subsection{Mención honorífica, ROS}
@@ -269,61 +263,52 @@ localización.
     % En consecuencia, ROS y, en particular, Nav2, han contribuido de forma notable a que la implementación de arquitecturas de navegación sea
     % más accesible y reproducible. La modularidad inherente reduce el esfuerzo de integración y permite centrar el desarrollo en componentes
     % específicos (por ejemplo, percepción o estimación de profundidad), manteniendo una infraestructura estable para la coordinación del sistema.
+    \section{Localización (VIO)}
+    La localización constituye uno de los bloques fundamentales en un sistema de navegación autónoma, ya que permite estimar la \textit{pose}
+    del vehículo a partir de la información sensorial disponible. En el caso de plataformas aéreas, esta estimación debe
+    obtenerse con baja latencia, suficiente precisión y un coste computacional compatible con las restricciones del sistema.
 
-\section{Localización (VIO)}
-    La localización y mapeado simultáneo (\textit{SLAM}) constituye una de las técnicas más consolidadas
-    en robótica móvil para dotar a un sistema de la capacidad de estimar su \textit{pose} y, simultáneamente, construir una representación del
-    entorno sin depender de infraestructura externa. Su adopción se debe, principalmente, a su precisión y versatilidad, así como a su
-    integración natural en arquitecturas de navegación donde la estimación del estado es un requisito crítico. En términos generales, SLAM
-    permite operar en escenarios no estructurados o parcialmente desconocidos, facilitando la planificación de trayectorias, la evitación de
-    obstáculos y el replanteamiento ante cambios del entorno.
+    En este contexto, la odometría visual-inercial (\textit{Visual-Inertial Odometry}, VIO) permite estimar el movimiento relativo del sensor
+    combinando imágenes de una o varias cámaras con medidas proporcionadas por una unidad de medida inercial (IMU). A diferencia de un sistema
+    SLAM completo, cuyo objetivo incluye la construcción y mantenimiento de un mapa global del entorno, un sistema VIO se centra principalmente
+    en estimar de forma local y continua la trayectoria del vehículo respecto a un marco de referencia inicial. Por tanto, la salida principal
+    del sistema es una estimación de posición, orientación y, en muchos casos, velocidad.
 
-    Desde un punto de vista funcional, un sistema SLAM combina tres elementos principales: (i) un módulo de \textit{front-end} encargado de
-    procesar las observaciones sensoriales y extraer correspondencias (por ejemplo, características visuales o alineamiento de nubes de puntos),
-    (ii) un módulo de \textit{back-end} que estima el estado optimizando un criterio global, ya sea mediante filtrado (p.\,ej., EKF) u
-    optimización sobre grafos, y (iii) un mecanismo de \textit{realimentación} (p.\,ej., \textit{loop closure}) que permite detectar revisitas y
-    corregir la deriva acumulada. En la práctica, la elección del tipo de SLAM depende tanto de la sensórica disponible (visual, LiDAR,
-    inercial) como de las restricciones computacionales y del entorno de operación (interior/exterior, textura, iluminación, dinámica).
+    Desde un punto de vista funcional, un sistema VIO suele estar formado por dos bloques principales. El primero es un \textit{front-end}
+    visual, encargado de procesar las imágenes, detectar o seguir características y generar correspondencias temporales entre fotogramas. El
+    segundo es un estimador de estado, que combina dichas observaciones visuales con las medidas de la IMU mediante técnicas de filtrado u
+    optimización. La IMU permite propagar el estado a alta frecuencia entre imágenes consecutivas, mientras que la información visual corrige la
+    deriva acumulada por la integración inercial.
 
-    En el contexto de vehículos aéreos no tripulados, SLAM adquiere especial relevancia en entornos interiores o con señal GNSS degradada, donde
-    resulta necesario disponer de una estimación del estado robusta, con latencia reducida y suficiente consistencia global para planificar y
-    controlar el movimiento. No obstante, su aplicación en UAV de pequeño tamaño presenta retos adicionales relacionados con la limitación de
-    cómputo embarcado, la sensibilidad a condiciones visuales adversas y la necesidad de operar a frecuencias compatibles con el control de
-    vuelo. Por ello, es habitual recurrir a variantes optimizadas y a esquemas de fusión multisensor, donde la información inercial se utiliza
-    para estabilizar la estimación y reducir la dependencia de las condiciones visuales.
-    \subsection{VIO}
-    El término VI-SLAM (\textit{Visual-Inertial SLAM}) hace referencia a los sistemas SLAM que combinan información visual, procedente de una o
-    varias cámaras, con medidas inerciales obtenidas de una IMU. Esta combinación permite explotar la complementariedad entre ambas fuentes: la
-    IMU aporta medidas a alta frecuencia que describen la dinámica rápida del vehículo, mientras que la cámara proporciona observaciones del
-    entorno que permiten corregir la deriva acumulada por la integración inercial. En consecuencia, VI-SLAM se ha consolidado como una solución
-    de referencia para navegación en interiores y escenarios con GNSS degradado, especialmente en plataformas donde el peso y el consumo
-    restringen el uso de sensores activos \cite{overview-vslam}.
+    A nivel estructural, los sistemas VIO suelen organizarse en etapas de inicialización, propagación inercial, seguimiento visual y actualización
+    del estado. La inicialización permite estimar condiciones iniciales como la dirección de la gravedad, los sesgos de la IMU y la primera
+    referencia local del sistema. Posteriormente, las medidas inerciales se integran entre fotogramas consecutivos para predecir la evolución de
+    la orientación, la velocidad y la posición. Finalmente, las observaciones visuales se emplean para corregir esta predicción, reduciendo la
+    deriva y mejorando la consistencia de la estimación.
 
-    A nivel estructural, los sistemas SLAM visuales suelen organizarse en etapas de \textit{inicialización}, \textit{seguimiento} y
-    \textit{mapeado}. La inicialización establece un sistema de coordenadas global y genera un mapa inicial; el seguimiento mantiene la
-    estimación de la \textit{pose} del sensor respecto al mapa a partir de correspondencias 2D--3D, resolviendo de forma recurrente problemas de
-    estimación de pose (por ejemplo, PnP); y el mapeado expande y refina la representación del entorno a medida que se incorporan nuevas
-    observaciones. Además, para preservar consistencia a largo plazo, muchos sistemas incorporan mecanismos de \textit{relocalización} y
-    \textit{cierre de bucle} (\textit{loop closure}), que permiten detectar revisitas y corregir la deriva mediante optimización global \cite{overview-vslam}.
+    Existen dos familias principales de métodos VIO: los enfoques basados en filtrado y los enfoques basados en optimización. Los primeros, como
+    los basados en filtros de Kalman extendidos, actualizan el estado de forma recursiva a medida que llegan nuevas medidas. Los segundos formulan
+    el problema como una optimización sobre una ventana temporal de estados, incorporando restricciones visuales e inerciales de forma conjunta.
+    En ambos casos, es habitual estimar no solo posición y orientación, sino también velocidad, sesgos del acelerómetro y del giróscopo.
 
-    En VI-SLAM, la IMU se integra de forma estrecha con la estimación visual para propagar el estado entre fotogramas y aumentar la robustez
-    frente a desenfoque, oclusiones o falta de textura. Pueden distinguirse enfoques basados en filtrado y enfoques basados
-    en optimización, siendo habitual el uso de ventanas deslizantes para combinar restricciones visuales e inerciales. Esta
-    formulación permite estimar de forma consistente no solo posición y orientación, sino también variables como velocidad y sesgos de la IMU,
-    que resultan determinantes para la estabilidad del sistema \cite{overview-vslam}.
+    Una diferencia importante entre VIO y VI-SLAM es el alcance de la estimación. Mientras que VI-SLAM incorpora mecanismos de mapeado,
+    relocalización y cierre de bucle para mantener una representación global consistente del entorno, VIO se centra en la estimación local del
+    movimiento. Por este motivo, la VIO puede acumular deriva a largo plazo, pero suele presentar menor complejidad computacional y menor latencia,
+    lo que la hace especialmente atractiva para aplicaciones de control en tiempo real.
 
-    La literatura reciente recoge múltiples sistemas representativos dentro de VI-SLAM y VIO, con diseños que priorizan distintos compromisos
-    entre precisión, robustez y coste computacional. Por ejemplo, se describen aproximaciones como ROVIO (enfoque basado en filtrado, típicamente
-    sin cierre de bucle), VIORB y VINS-Mono (enfoques basados en optimización con capacidades de optimización global y, en ciertos casos, cierre
-    de bucle), así como extensiones directas con fotometría como VI-DSO, que mejoran precisión local a costa de mayor sensibilidad y complejidad.
-    Asimismo, se destacan sistemas de referencia como ORB-SLAM3, que integra visual, visual-inercial y multimap, incorporando mecanismos de
-    cierre de bucle y optimización global para mitigar la deriva a largo plazo \cite{overview-vslam}.
-
-    Desde el punto de vista de evaluación, la comparación de métodos VI-SLAM requiere el uso de conjuntos de datos con sincronización temporal,
-    calibración y \textit{ground truth} adecuados. En este sentido, son habituales datasets como EuRoC MAV y TUM VI, que proporcionan secuencias
-    con cámara e IMU, marcas temporales y trayectorias de referencia para analizar precisión y robustez bajo distintas condiciones de movimiento
-    y entorno. Estas referencias resultan especialmente útiles para valorar el rendimiento en escenarios típicos de UAV en interiores. \cite{overview-vslam}
-
+    La literatura reciente recoge múltiples sistemas representativos dentro de la odometría visual-inercial, con diseños que priorizan distintos
+    compromisos entre precisión, robustez y coste computacional. Por ejemplo, se han propuesto métodos basados en filtrado, como RVIO, y métodos
+    basados en optimización sobre ventanas deslizantes, como VINS-Mono. También existen sistemas más completos, como ORB-SLAM3, que pueden operar
+    en modo visual-inercial e incorporar capacidades propias de SLAM, aunque con una complejidad superior. Estos enfoques muestran que la elección
+    de la arquitectura depende directamente de los requisitos de la aplicación, especialmente de la frecuencia de actualización, la disponibilidad
+    de cómputo y la necesidad, o no, de consistencia global a largo plazo \cite{overview-vslam}.
+    
+    En este trabajo, la localización se plantea como un problema de odometría visual-inercial robocéntrica. El sistema estima la evolución del
+    UAV respecto al instante inicial de navegación, utilizando la IMU para propagar el estado y las observaciones visuales para corregir dicha
+    propagación. Esta formulación resulta adecuada para el objetivo del proyecto, ya que no se requiere construir un mapa global persistente del
+    entorno, sino disponer de una estimación local suficientemente precisa y estable para alimentar los módulos de planificación, control y
+    evitación de obstáculos.
+    
 \section{Estimadores de profundidad}
 
     La estimación de profundidad a partir de visión monocular (\textit{Monocular Depth Estimation}, MDE) persigue recuperar, para cada 
@@ -371,8 +356,7 @@ localización.
     la profundidad monocular no determina de forma única la escala métrica, lo que obliga a realizar alineamientos posteriores 
     (escala y/o desplazamiento) cuando se requiere una medida absoluta. En Depth Anything 3 esta problemática se aborda explícitamente 
     mediante alineamiento de pseudo-profundidad con medidas métricas disponibles y, en el caso multivista~\cite{overview-da}, mediante el uso combinado de 
-    mapas de profundidad y rayos para recuperar geometría consistente; aun así, el propio trabajo refleja que la alineación con datos reales 
-    es necesaria debido a la baja calidad, dispersión o ruido de las profundidades en conjuntos del mundo real.
+    mapas de profundidad y rayos para recuperar geometría consistente.
 
     Asimismo, estos modelos están sujetos a errores sistemáticos que dependen del dominio: cambios de iluminación, superficies reflectantes 
     o translúcidas, regiones con baja textura y oclusiones pueden degradar la estimación. El documento señala de forma directa que parte de 

@@ -175,7 +175,7 @@ es relativa y no absoluta, es inviable el uso de \(D\) y es por ello que se debe
 
 \subsection{Normalización de la profundidad}
 Para eliminar posibles errores de computo se esocgen los pixeles con valores dentro de un rango configurable \([d_{\min}, d_{\max}]\). Sobre 
-estos pixeles válidos (\(Dv\)) se calculá el \textit{ratio} de pixeles válidos con el cociente entre \(sum(Dv)/sum(D)\) y 
+estos pixeles válidos (\(Dv\)) se calcula el \textit{ratio} de pixeles válidos con el cociente entre \(sum(Dv)/sum(D)\) y 
 por otro lado los percentiles \(p_{10}\) y \(p_{90}\) para así, poder realizar el cálculo de normalización:
 \[D_n(x,y) = \mathrm{clamp}\!\left(\frac{D(x,y) - p_{10}}{p_{90} - p_{10}},\, 0,\, 1\right).\]
 
@@ -186,9 +186,8 @@ De tal modo que \(C\approx 1\) indica proximidad o cercanía y \(C\approx 0\) le
 \subsection{Regiones de interés}
 Uno de los principales problemas en el algoritmo primigenio era el uso de toda la imagen para el cálculo del gradiente, esto 
 es un error ya que pueden existir casos donde el algoritmo no funcione, un ejemplo de ello puede ser un frame con una columna central lo 
-suficientemente centrada como para que el gradiente salga 0, otro ejemplo de desastre es el caso donde existe demasiado obstaculo y por tanto 
-la magnitud de vector de movimiento es demasiado baja. Es por ello que en el nuevo algoritmo se introduce la idea de las 
-regiones de interés
+suficientemente centrada como para que el gradiente salga 0, otro caso problemático es el caso donde existe demasiado obstáculo y por tanto 
+la magnitud del vector de movimiento es demasiado baja. Es por ello que en el nuevo algoritmo se introduce el uso de regiones de interés:
 
 \begin{itemize}
 \item una \textbf{ROI frontal}, usada para decidir si existe un obstáculo peligroso delante del vehículo;
@@ -206,7 +205,7 @@ colisión, mientras que la ROI de guiado analiza un área más ancha para buscar
 
 \subsection{Máscara de ocupación frontal}
 Dentro de la ROI frontal se umbraliza el mapa de cercanía para obtener una máscara binaria de obstáculo (\(M_F\)),~Figura \ref{fig:mask_obj}, obteniendo 1 en el caso 
-de que el valor del pixel en \(C(ROI_F)\) sea mayor a un umbral de cercanía y 0 en otro caso. A partir de esta 
+de que el valor del píxel en \(C(ROI_F)\) sea mayor a un umbral de cercanía y 0 en otro caso. A partir de esta 
 máscara y de la profundidad frontal se calculan las siguientes métricas:
 
 
@@ -227,7 +226,7 @@ máscara y de la profundidad frontal se calculan las siguientes métricas:
 \item \textbf{Profundidad frontal percentil 20:} \(d_{20} = P_{20}(D_t \text{ en } ROI_F),\)
 
 \item \textbf{profundidad frontal pico:} \(d_{p} = P_{q}(D_t \text{ en } ROI_F)\)
-donde \(q\) es un percentil pequeño, típicamente \(q=0.05\), para detectar obstáculos pequeños pero muy cercanos.
+donde \(q\) es un percentil pequeño, típicamente \(q=5\), para detectar obstáculos pequeños pero muy cercanos.
 \end{itemize}
 
 Estas dos últimas profundidades se convierten también a cercanía normalizada:
@@ -280,7 +279,7 @@ Para ello se definen varios umbrales:
     una zona especialmente próxima al vehículo. 
     \item Los umbrales \(A_{\min}\) y \(B_{\min}\) establecen, respectivamente, el porcentaje mínimo de área cercana y el 
     tamaño mínimo del mayor obstáculo conexo dentro de la región frontal. 
-    \item El umbral \(T_{\text{on}}\) es el umbral de activación de la puntuación global de obstáculo
+    \item El umbral \(T_{\text{on}}\) es el umbral de activación de la puntuación global de obstáculo.
     \item El umbral \(T_{\text{off}}\) es el umbral de desactivación empleado para introducir histéresis.
 \end{itemize}
 Las condiciones de activación son las siguientes:
@@ -293,7 +292,7 @@ Las condiciones de activación son las siguientes:
     \[c_p \ge T_p\]
 
     \item activación por ocupación, cuando el área cercana o el mayor obstáculo conexo dentro de la región frontal superan sus respectivos umbrales:
-    \[A_f \ge A_{\min} \quad \text{o} \quad B_f \ge B_{\min}\]
+    \[A_F \ge A_{\min} \quad \text{o} \quad B_F \ge B_{\min}\]
 
     \item activación por puntuación global, cuando la puntuación de obstáculo filtrada supera el umbral de activación:
     \[S_t \ge T_{\text{on}}\]
@@ -304,7 +303,7 @@ para la activación de la bandera booleana:
 
 \[
 \text{must\_evade} =
-(d_{20} \le d_{\text{evade}}) || (c_p \ge T_p) || (A_f \ge A_{\min}) || (B_f \ge B_{\min}) || (S_t \ge T_{\text{on}}). \]
+(d_{20} \le d_{\text{evade}}) || (c_p \ge T_p) || (A_F \ge A_{\min}) || (B_F \ge B_{\min}) || (S_t \ge T_{\text{on}}). \]
 
 Una vez activado el aviso de evitación, la desactivación no se realiza con el mismo umbral de activación, sino con un umbral inferior \(T_{\text{off}}\). De este modo, si el sistema ya estaba en estado de evasión, la bandera se mantiene activa mientras la puntuación de obstáculo siga siendo suficientemente alta:
 
@@ -327,7 +326,7 @@ Este comportamiento introduce una histéresis en la activación del aviso. De ma
 alguna condición supera su umbral correspondiente, pero solo se desactiva cuando la puntuación global cae por debajo de 
 \(T_{\text{off}}\). Al ser \(T_{\text{off}}\) menor que \(T_{\text{on}}\), se evita que la bandera \(must\_evade\) conmute 
 rápidamente entre activa e inactiva cuando la escena se encuentra cerca del límite de decisión, todo este comportamiento 
-se puede comprobar en la Figuras~\ref{} y \ref{}.
+se puede comprobar en las Figuras~\ref{fig:mustevade_false} y \ref{fig:mustevade_true}.
 
 
 
@@ -351,7 +350,7 @@ se puede comprobar en la Figuras~\ref{} y \ref{}.
 La dirección de evitación se calcula buscando la zona de la imagen que presenta mayor espacio libre. Para ello, se 
 utiliza la ROI de guiado, que corresponde a una región amplia de la imagen centrada en la zona de avance del UAV. Esta 
 región se divide en varios sectores verticales, de forma que cada uno de ellos representa una posible dirección lateral 
-de escape como se puede ver en la Figura~\ref{fig:sectors}
+de escape como se puede ver en la Figura~\ref{fig:sectors}.
 
 
 \begin{figure}[H]
@@ -385,8 +384,8 @@ i^\star = \arg\max_i g_i.
 
 El sector \(i^\star\) se interpreta como la dirección con mayor espacio libre dentro de la ROI de guiado. Sin embargo, no 
 se toma simplemente el centro geométrico del sector como punto objetivo, sino que se calcula un centroide ponderado hacia 
-las zonas más lejanas. Para ello, cada píxel del sector recibe un peso proporcional a su profundidad normalizada, elevando
-el peso a 2 de manera que, los píxeles correspondientes a regiones lejanas tengan más influencia en el cálculo del punto 
+las zonas más lejanas. Para ello, cada píxel del sector recibe un peso proporcional a su profundidad normalizada, elevando el peso al cuadrado, de manera que los píxeles 
+correspondientes a regiones lejanas tengan más influencia en el cálculo del punto 
 objetivo que aquellos situados en zonas menos despejadas.
 
 \[
@@ -430,7 +429,7 @@ Finalmente, se normaliza para obtener el vector final de evitación:
 \]
 
 Por tanto, el vector \(\mathbf{v}_t\) representa la dirección normalizada hacia la zona más segura de la imagen, y posteriormente se convierte en un ángulo de evasión 
-para devolverlo como \textit{evade\_angle}~\ref{fig:evade_angle}.
+para devolverlo como \textit{evade\_angle}, Figura~\ref{fig:evade_angle}.
 
 \[\textit{evade\_angle} = \mathrm{atan2}(v_y, v_x).\]
 
@@ -460,8 +459,7 @@ El planificador, por tanto, recibirá las tres variables (\textit{must\_evade}, 
 \textit{obstacle\_score}). En el momento en que la bandera de activación se ponga a 1, el algoritmo de planificación 
 local empezará a tener en cuenta el ángulo de evitación o escape, y podrá decidir también la intensidad que debe aplicar 
 a esta acción mediante la puntuación. En las siguientes gráficas de las Figuras~\ref{fig:avoidance_angle},~\ref{fig:avoidance_mag} y \ref{fig:avoidance_flag} se puede observar 
-la salida de estas 3 variables para un camino con 2 obstáculos (el tercer 1 de la bandera booleana corresponde con el 
-aterrizaje del drone en el suelo).
+la salida de estas tres variables para un recorrido con dos obstáculos (la tercera activación de la bandera booleana corresponde al aterrizaje del dron).
 
 \begin{figure}[H]
     \centering

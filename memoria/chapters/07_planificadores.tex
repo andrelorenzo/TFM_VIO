@@ -35,9 +35,9 @@ El algoritmo implementado corresponde a una variante tridimensional de \textit{P
 punto final de la trayectoria, el planificador selecciona un punto adelantado una distancia fija \(L_d\), denominada 
 \textit{lookahead}. Esta estrategia reduce oscilaciones y permite un seguimiento más suave de la trayectoria.
 
-En primer lugar el algoritmo selecciona un punto de la trayectoria a seguir, siendo este siempre uno con índice mayor que el 
-anterioremente seleccionado y que sea el más alejado del UAV pero siempre con una distancia menor a \(L_d\). En la Figura~\ref{fig:lplan_tray} se muestra 
-el camino teorico seguido por un drone en base a los puntos de seguimiento generados por el algoritmo.
+En primer lugar, el algoritmo selecciona un punto de la trayectoria a seguir, siendo este siempre uno con índice mayor que el 
+anteriormente seleccionado y que sea el más alejado del UAV pero siempre con una distancia menor a \(L_d\). En la Figura~\ref{fig:lplan_tray} se muestra 
+el camino teórico seguido por un UAV a partir de los puntos de seguimiento generados por el algoritmo.
 
 
 \begin{figure}[H]
@@ -64,12 +64,12 @@ exista suficiente trayectoria por delante, el punto de referencia se fija como e
 
 \[\mathbf{p}_{ref} = \mathbf{p}_{N-1}.\]
 
-Para el cálculo del comando de velocidad lineal se cálcula el error geometrico como
+Para el cálculo del comando de velocidad lineal se calcula el error geométrico como
 
 \[\mathbf{e} =\mathbf{p}_{ref} - \mathbf{p}\]
 
-A partir de este error se genera una velocidad lineal de referencia en base a la distancia del error de posición, una constante de 
-proporcionalidad \(k_{xz}\) y finalmente se satura a unos valores maximos y minimos de manera que la consigna sea fisicamente aceptable:
+A partir de este error se genera una velocidad lineal de referencia a partir de la distancia del error de posición, una constante de 
+proporcionalidad \(k_{xz}\) y finalmente se satura a unos valores máximos y mínimos de manera que la consigna sea físicamente aceptable:
 
 \[d_{xz} =\sqrt{e_x^2 + e_z^2}.\]
 \[v_{xz} =k_{xz} d_{xz}.\]
@@ -215,7 +215,7 @@ De este modo, el planificador global transforma una trayectoria definida por poc
 \right\}.
 \]
 
-En la Figura~\ref{fig:gplan_tray} se muestra la generación lde la trayectoria interpolada en base a un conjunto de waypoints.
+En la Figura~\ref{fig:gplan_tray} se muestra la generación de la trayectoria interpolada a partir de un conjunto de waypoints.
 
 
 \begin{figure}[H]
@@ -279,7 +279,7 @@ x_i[k]
 K_d\left(c\,\dot{r}[k]-\dot{y}[k]\right),
 \]
 
-donde \(x_i[k]\) representa el estado integral y \(u_0\) una posible acción nominal. En la práctica, usar valores reducidos de \(c\) permite evitar picos derivados cuando la referencia cambia rápidamente, algo especialmente importante cuando las referencias proceden de un sistema inestable como es un UAV.
+donde \(x_i[k]\) representa el estado integral y \(u_0\) una posible acción nominal. En la práctica, usar valores reducidos de \(c\) permite evitar picos derivados cuando la referencia cambia rápidamente, algo especialmente importante cuando las referencias proceden de un sistema sensible a cambios bruscos de referencia.
 
 Cuando se activa la acción integral, el integrador se actualiza a partir del error actual:
 

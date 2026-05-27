@@ -16,19 +16,18 @@
     detección y precisión de la medida. Los buenos resultados obtenidos en el citado trabajo de investigación han sido una gran fuente 
     de motivación para la realización de este trabajo.
 
-    A diferencia de otros vehículos autónomos, en los que se dispone de sensórica y de unidades de procesamiento capaces de estimar la 
-    posición con alta precisión, en este entorno la limitada disponibilidad de datos obliga a desarrollar soluciones optimizadas para la 
+    A diferencia de otros vehículos autónomos, en este entorno la limitada disponibilidad de datos obliga a desarrollar soluciones optimizadas para la 
     navegación autónoma. Este condicionante requiere priorizar arquitecturas ligeras y robustas, capaces de operar en tiempo real con 
     recursos computacionales restringidos, sin comprometer los márgenes de seguridad durante el vuelo.
 
     En consecuencia, el planteamiento adoptado en este trabajo se orienta hacia el uso de sensores y métodos de percepción que mantengan 
-    un equilibrio adecuado entre coste computacional, fiabilidad y precisión. En particular, se propone explotar información visual 
+    un equilibrio adecuado entre coste computacional, fiabilidad y precisión. Es por ello que se propone explotar información visual 
     procedente de cámaras monoculares, complementada con modelos de estimación de profundidad eficientes, con el objetivo de generar 
     una representación útil del entorno para la detección de obstáculos y la planificación de trayectorias.
 
 \section{Objetivos del estudio}
-    El objetivo principal de este trabajo es dotar a un UAV de pequeño tamaño, con prestaciones limitadas, de la capacidad de navegar de 
-    forma autónoma en entornos interiores. Para ello, el vehículo deberá ser capaz de desplazarse siguiendo una trayectoria previamente 
+    El objetivo principal de este trabajo es dotar a un UAV de pequeño tamaño, de la capacidad de navegar de 
+    forma autónoma en interiores. Para ello, el vehículo deberá ser capaz de desplazarse siguiendo una trayectoria previamente 
     definida por el usuario, a la vez que evita los obstáculos presentes en su recorrido. A continuación, se enumeran los requisitos 
     fundamentales cuya consecución permitirá considerar satisfactoria la finalización del trabajo.
 
@@ -69,16 +68,15 @@
     En el tercer capítulo se define la arquitectura técnica del sistema, incorporando las principales decisiones de diseño, el esquema de 
     comunicaciones y las distintas etapas de procesado, tanto a nivel de sistema como en el procesamiento de imágenes.
     
-    El cuarto capítulo se centra en el estudio de viabilidad del uso de modelos de estimación de profundidad~\cite{estudio-nav2D}, 
-    describiendo los modelos seleccionados, su arquitectura, las optimizaciones aplicadas y las métricas empleadas para su evaluación.
+    El cuarto capítulo se centra en el estudio e implementación de las comuniaciones y preparación de recepción y envío de datos.
     
-    El quinto capítulo aborda la implementación del controlador de navegación basado en el estimador de profundidad.
+    El quinto capítulo describe el desarrollo e integración de una solución VIO optimizada para el contexto del proyecto, detallando 
+    su utilización estimador de posición.
+
+    El sexto capítulo describe la de viabilidad del uso de modelos de estimación de profundidad~\cite{estudio-nav2D}, 
+    describiendo los modelos seleccionados, su arquitectura, las optimizaciones aplicadas y las métricas empleadas para la implementación.
     
-    El sexto capítulo describe el desarrollo e integración de una solución VIO optimizada para el contexto del proyecto, detallando 
-    su utilización como planificador global y/o local.
-    
-    El séptimo capítulo recoge las principales dificultades encontradas durante el desarrollo, así como las decisiones de diseño revisadas 
-    para alcanzar una solución viable.
+    El séptimo capítulo decribe las implementaciones de los planfiicadores locales y globales, además del desarrollo del controlador.
     
     El octavo capítulo presenta los ensayos y pruebas realizados para validar la solución propuesta.
     
