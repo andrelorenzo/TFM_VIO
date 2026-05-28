@@ -4,3 +4,17 @@
 
 
 \section{Líneas futuras}
+
+A partir de los resultados obtenidos en este trabajo, se identifican varias líneas de mejora que podrían abordarse en desarrollos futuros. 
+Aunque la solución propuesta permite avanzar hacia una navegación segura de un UAV en entornos interiores, todavía presenta ciertas 
+limitaciones. Por ello, a continuación se recogen algunos puntos de mejora que, por cuestiones de tiempo o por quedar fuera del alcance 
+definido para este proyecto, no se han desarrollado en profundidad, pero que podrían aportar un valor significativo a la solución propuesta:
+
+\begin{itemize}
+    \item Desarrollar un sistema VI-SLAM completo, incorporando la generación de un mapa del entorno y técnicas de \textit{loop closure}.
+    \item Implementar un planificador global que tenga en cuenta el mapa del entorno y genere una trayectoria en función de la construcción del mapa en línea.
+    \item Aumentar el tiempo de calibración mediante varianza de Allan hasta, al menos, 24 a 48 horas, con el objetivo de obtener una caracterización más precisa de la IMU.
+    \item Implementar una interfaz gráfica de control que permita utilizar el algoritmo de forma más visual e intuitiva.
+    \item Explorar e investigar algoritmos de planificación más avanzados para UAV en entornos interiores.
+    \item Validación experimental en escenarios interiores más complejos.
+\end{itemize}

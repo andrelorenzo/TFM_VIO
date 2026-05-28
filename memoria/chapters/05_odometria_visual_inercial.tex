@@ -100,8 +100,8 @@ medidas, $g_0$ es el módulo de la gravedad y $\mathbf{g}$ es la dirección esti
 comience ya en movimiento y no exista un intervalo inicial en reposo, el sistema utiliza la última muestra disponible como estimación 
 inicial.
 
-Una vez calculadas estas magnitudes, se inicializa el vector de estado local del estimador. Este vector contiene la orientación (q) y 
-posición, la dirección de la gravedad, la velocidad y los sesgos de la IMU:
+Una vez calculadas estas magnitudes, se inicializa el vector de estado local del estimador. Este vector contiene la posición (p), 
+orientación (q), la dirección de la gravedad (g), la velocidad (v) y los sesgos de la IMU (\(b_g y b_a\)):
 
 \begin{equation}
     \mathbf{x}_0
@@ -117,7 +117,7 @@ posición, la dirección de la gravedad, la velocidad y los sesgos de la IMU:
 \end{equation}
 
 
-El vector se inicializa de la siguiente manera, con la inicialización se establece la orientación, vector de gravedad y sesgos. La 
+Con la inicialización se establece la orientación, vector de gravedad y sesgos. La 
 velocidad y posición se inicializan a 0.
 
 Además del vector de estado, se inicializa la matriz de información local del estimador. Esta matriz introduce la confianza inicial 
@@ -135,7 +135,7 @@ La preintegración inercial permite condensar un conjunto de medidas IMU de alta
 consecutivos, en una única restricción de movimiento. Esta técnica es especialmente útil en sistemas visual-inerciales, ya 
 que evita tener que actualizar el estado completo del estimador con cada muestra de la IMU. En su lugar, las medidas 
 inerciales se acumulan localmente y se incorporan posteriormente al sistema como un único factor entre dos instantes 
-visuales~\cite{morris2024imu_preintegration}.
+visuales. La implementación del presente algoritmo se basa en el articulo sobre preintegración en~\cite{morris2024imu_preintegration}.
 
 El punto de partida es el modelo de medida de una IMU. El giróscopo mide la velocidad angular afectada por un sesgo y por 
 ruido blanco:
@@ -572,8 +572,7 @@ refinadas a precisión subpíxel, y se incorpora una estrategia de reposición b
 rejilla regular sobre la imagen.
 
 Sea $I_k$ la imagen recibida en el instante $k$. En primer lugar, la imagen se transforma
-a escala de grises y, opcionalmente, se aplica filtrado o ecualización local de contraste,
-obteniendo una imagen procesada.
+a escala de grises y, se aplica un filtrado obteniendo una imagen procesada.
 
 Para cada píxel candidato $\mathbf{u} = (u,v)^\top$, se calcula la matriz de segundo
 momento de los gradientes de intensidad en una ventana local:
@@ -696,10 +695,7 @@ de pose, o si debe descartarse por pérdida de seguimiento.
 
 Para facilitar la interpretación del proceso descrito, se generaron varias imágenes de
 depuración correspondientes a las distintas etapas de extracción y selección de
-características. Estas visualizaciones permiten comprobar de forma cualitativa que los
-puntos detectados presentan una respuesta visual adecuada, que la distribución espacial es
-homogénea y que la reposición de características respeta las restricciones impuestas por
-la rejilla.
+características.
 
 En primer lugar, se visualiza la respuesta del detector Shi--Tomasi sobre la imagen
 procesada. En esta representación, las zonas con mayor intensidad corresponden a píxeles
@@ -711,9 +707,7 @@ bordes o regiones de textura uniforme.
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.95\textwidth]{images/feature_shi_tomasi.png}
-    \caption{Respuesta del detector Shi--Tomasi sobre la imagen procesada. Las regiones
-    de mayor respuesta indican zonas con estructura local suficientemente rica para ser
-    seleccionadas como posibles características visuales.}
+    \caption{Respuesta del detector Shi--Tomasi sobre la imagen procesada.}
     \label{fig:feature_shi_tomasi}
 \end{figure}
 
@@ -728,25 +722,20 @@ residuos geométricos utilizados en la actualización.
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.95\textwidth]{images/feature_subpixel.png}
-    \caption{Detección inicial de esquinas y refinamiento subpíxel. Los marcadores iniciales
-    representan las esquinas detectadas, mientras que los puntos refinados muestran la
-    posición final empleada como medida visual.}
+    \caption{Detección inicial de esquinas y refinamiento subpíxel.}
     \label{fig:feature_subpixel}
 \end{figure}
 
 También se visualiza la rejilla utilizada para distribuir las características sobre la
 imagen. Cada celda limita el número de puntos que pueden ser aceptados en su interior,
 evitando que la mayoría de características se concentren en regiones con mucha textura.
-Esta estrategia resulta importante para mejorar el condicionamiento geométrico del sistema,
-ya que favorece que las observaciones cubran distintas zonas del plano imagen.
+Esta estrategia resulta importante para mejorar el correcto funcionamiento del algoritmo ante 
+oclusiones totales o parciales de zonas específicas.
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.95\textwidth]{images/feature_grid.png}
-    \caption{Rejilla empleada para distribuir espacialmente las características visuales.
-    La imagen se divide en bloques de tamaño $b_x \times b_y$, centrados mediante los
-    desplazamientos $o_x$ y $o_y$. Cada celda controla localmente la densidad de puntos
-    aceptados.}
+    \caption{Rejilla empleada para distribuir espacialmente las características visuales.}
     \label{fig:feature_grid}
 \end{figure}
 
@@ -762,18 +751,12 @@ distribuidas.
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.95\textwidth]{images/feature_selection.png}
-    \caption{Selección y reposición de características visuales. Las características activas
-    se mantienen como referencia para imponer la distancia mínima $d_{\min}$, mientras que
-    los nuevos candidatos sólo se aceptan si cumplen las restricciones de celda, ocupación
-    y separación espacial.}
+    \caption{Selección y reposición de características visuales. En azul las texturas detectadas, en verde las aceptadas y en rojo las descartadas.}
     \label{fig:feature_selection}
 \end{figure}
 
-La secuencia completa de visualizaciones permite verificar que la extracción no se basa
-únicamente en maximizar el número de puntos detectados, sino en obtener un conjunto de
-medidas visuales robustas, refinadas y distribuidas homogéneamente. Este criterio es
-fundamental para las etapas posteriores de seguimiento por flujo óptico, rechazo de
-correspondencias erróneas, triangulación y construcción de factores visuales.
+La secuencia de selección de características permite no solo extraer las texturas suficientes para el funcionamiento del algoritmo, sino 
+que las texturas seleccionadas sean robustas ante cambios de escena, iluminación, rotación o traslación.
 
 
 \section{Seguimiento visual y rechazo de correspondencias erróneas}
@@ -1431,7 +1414,7 @@ mientras que \(K_g\) y \(K_a\) modelan la evolución temporal de sus respectivos
 A partir de estos valores, el estimador dispone de una caracterización experimental del
 ruido de la IMU utilizada. Esta calibración es necesaria para que la propagación inercial
 y la actualización visual tengan una ponderación coherente: si el ruido de la IMU se
-subestima, el sistema confiará en exceso en la predicción inercial; si se sobreestima, las
+subestima, el sistema confiará en exceso en la predicción inercial, en cambio si se sobreestima, las
 medidas visuales dominarán la estimación y pueden aparecer correcciones demasiado
 agresivas. Por tanto, la calibración mediante varianza de Allan permite ajustar el balance
 entre la información visual e inercial dentro del sistema VIO.

@@ -75,8 +75,7 @@ inercial proporcionada por la cámara embarcada.
 
 Para ello, la plataforma aérea incorpora una cámara Intel RealSense D435i, mostrada en la Figura \ref{fig:rs_435i}, una cámara RGB-D basada en visión estéreo que integra 
 una unidad de medida inercial. Este sensor permite obtener simultáneamente imágenes RGB, información de profundidad y medidas 
-inerciales, lo que resulta especialmente adecuado para tareas de odometría visual-inercial, percepción tridimensional del entorno 
-y evitación de obstáculos.
+inerciales, lo que resulta especialmente adecuado para tareas de odometría visual-inercial y evitación de obstáculos.
 
 Las principales características de la Intel RealSense D435i son:
 
@@ -95,15 +94,21 @@ Las principales características de la Intel RealSense D435i son:
     \item Rango ideal de operación entre $0.3~\mathrm{m}$ y $3~\mathrm{m}$.
     \item Cámara RGB de $2~\mathrm{MP}$ con resolución de hasta $1920 \times 1080$ píxeles a $30~\mathrm{fps}$.
     \item Campo de visión del canal RGB de $69^\circ \times 42^\circ$.
-    \item IMU Bosch BMI055 de 6 ejes, compuesta por acelerómetro a 200 Hz y un giroscopio a 100 Hz.
-    \item Sincronización temporal de las muestras inerciales con los datos de profundidad mediante marcas de tiempo proporcionadas por el hardware.
+    \item IMU Bosch BMI055 de 6 ejes, compuesta por acelerómetro y un giroscopio.
     \item Conexión mediante USB-C 3.1 Gen 1.
     \item Dimensiones aproximadas de $90~\mathrm{mm} \times 25~\mathrm{mm} \times 25~\mathrm{mm}$.
 \end{itemize}
 
 La estación de tierra consta de un ordenador HP Probook, con un procesador intel core ULTRA 7, 32 GB de RAM y una gráfica 
-NVIDIA GeForce RTX 2050 donde se ejecuta el programa de navegación autónoma.
+NVIDIA GeForce RTX 2050 donde se ejecuta el programa de navegación autónoma. El portatil se muestra en la Figura~\ref{fig:pc_est}
 
+\begin{figure}[H]
+    \ffigbox[\FBwidth] {
+        \caption[Portatil usado como estación de tierra]{Portatil usado como estación de tierra.}
+        \label{fig:pc_est}
+    }
+    {\includegraphics[scale=0.15]{images/estacion_tierra_pc.png}}
+\end{figure}
 
 \section{Resumen de algoritmia utilizada}
 
@@ -112,7 +117,7 @@ autónoma. El objetivo es describir de forma resumida el flujo completo de proce
 sensoriales hasta el envío de comandos de velocidad al UAV. Cada uno de estos bloques se desarrollará con mayor detalle en los 
 apartados posteriores.
 
-La recepción del canal visual se realiza mediante un flujo RTSP, lo que permite transmitir vídeo en tiempo real desde la 
+La transmisión del canal visual se realiza mediante un flujo RTSP, lo que permite transmitir vídeo en tiempo real desde la 
 plataforma aérea hasta la estación de tierra a través de Wi-Fi. Esta solución se ha seleccionado por su baja latencia, su 
 compatibilidad con herramientas estándar de procesamiento de vídeo y su capacidad para mantener un flujo continuo de imágenes 
 sin necesidad de almacenar todos los datos en memoria.
@@ -134,4 +139,4 @@ la dirección de avance del UAV en función de la trayectoria global y de la inf
 
 Finalmente, las referencias generadas por el planificador local se introducen en un controlador PID, encargado de calcular los 
 comandos de velocidad lineal y angular necesarios para guiar el UAV. Estos comandos se envían posteriormente al controlador de 
-vuelo mediante comunicación UDP, cerrando así el ciclo de navegación.
+vuelo mediante una comunicación UDP, cerrando así el ciclo de navegación.

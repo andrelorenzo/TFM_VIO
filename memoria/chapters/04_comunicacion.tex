@@ -17,8 +17,8 @@ cámara física antes de iniciar la adquisición. En modo depuración, los datos
 permite reproducir capturas previas sin necesidad de disponer de la cámara conectada.
 
 Una vez iniciada la adquisición, cada paquete recibido desde la RealSense se clasifica según su tipo de flujo. Las muestras del giroscopio 
-y del acelerómetro se escalan y almacenan en la estructura compartida \texttt{rs\_data}. Las imágenes RGB se encapsulan en buffers de 
-GStreamer y se introducen en el elemento \texttt{appsrc}, desde donde son codificadas en H.264 y publicadas mediante RTSP. Por otro lado, 
+y del acelerómetro se envían mediante un socket UDP junto con sus respectivos timestamps. Las imágenes RGB se encapsulan en buffers de 
+GStreamer, desde donde son codificadas en H.264 y publicadas mediante RTSP. Por otro lado, 
 el canal de profundidad se almacena en el archivo de registro para su posterior comparación con los resultados obtenidos por el algoritmo 
 de navegación.
 
@@ -53,11 +53,8 @@ Una vez inicializado el sistema, se lanza un hilo de adquisición. Este hilo se 
 inerciales se almacenan en un buffer independiente, uno para el acelerómetro y otro para el giróscopo. Cada muestra queda asociada a una 
 marca temporal.
 
-Cuando se recibe una imagen RGB válida, el algoritmo comprueba que existan suficientes muestras de IMU antes y después del instante de 
-captura de la imagen. A continuación, se seleccionan los instantes de integración comprendidos entre la imagen anterior y la imagen actual. Para 
-cada uno de estos instantes se interpolan las medidas del acelerómetro y del giróscopo, generando así una secuencia de muestras 
+Cuando se recibe una imagen RGB válida, el algoritmo selecciona e interpolá las medidas del acelerometro y giroscopio, generando así una secuencia de muestras 
 inerciales sincronizadas con el intervalo visual.
-
 
 Finalmente, se construye un paquete, que contiene la imagen RGB y el conjunto de 
 muestras IMU interpoladas. Este paquete se introduce en una cola de salida, desde donde puede ser 
