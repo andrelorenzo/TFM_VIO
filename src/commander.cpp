@@ -4,8 +4,8 @@
 
 #include <atomic>
 #include <cmath>
-#include <cstring>
 #include <chrono>
+#include <cstring>
 
 static SOCKET hsocket = INVALID_SOCKET;
 
@@ -94,7 +94,7 @@ static uint64_t commandTsUs(double ts_ms){
     return nowUs();
 }
 
-void initCommander(Config * config){
+static void configureCommander(Config * config){
     closeCommanderSocket();
 
     if(!initCommanderSocket()){
@@ -122,7 +122,11 @@ void initCommander(Config * config){
     }
 }
 
-void updateCommander(const Command cmd){
+void commanderInit(Config * config){
+    configureCommander(config);
+}
+
+void commanderSend(const Command& cmd){
     if(hsocket == INVALID_SOCKET) return;
 
     twist_cmd_t twist = {};
@@ -148,7 +152,18 @@ void updateCommander(const Command cmd){
     uint8_t frame[BUFFER_DEFAULT_SIZE + 64] = {};
     int frame_len = EncodeFrame(&payload, frame);
 
-    if(frame_len <= 0) return;
+    if(frame_len <= 0){
+        Logger(WARN, "Commander: EncodeFrame fallo msg_id=0x%04X payload_size=%u", payload.msg_id, payload.data_size);
+        return;
+    }
 
-    UDPSend(hsocket, commander_ip, commander_port, frame, static_cast<size_t>(frame_len));
+
+    const int sent = UDPSend(hsocket, commander_ip, commander_port, frame, static_cast<size_t>(frame_len));
+    if(sent < 0){
+        Logger(WARN, "Commander TX fallo -> %S:%u err=%d", commander_ip.c_str(), commander_port, sent);
+    }
+}
+
+void commanderClose(){
+    closeCommanderSocket();
 }

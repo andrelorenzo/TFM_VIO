@@ -1,4 +1,7 @@
+#include <windows.h>
+#undef ERROR
 #define LOGGER_IMP
+#define NOMINMAX
 #include "plotter.hpp"
 #include "source_man2.hpp"
 #include "csv_logger.hpp"
@@ -6,14 +9,17 @@
 #include "gt_est.hpp"
 #include "vio_est.hpp"
 #include "controller.hpp"
+#include "commander.hpp"
 #include "global_planner.hpp"
 #include "local_planner.hpp"
 
 #include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <limits>
 #include <string>
 #include <thread>
+
 
 extern "C" {
 __declspec(dllexport) unsigned long NvOptimusEnablement = 0x00000001;
@@ -25,6 +31,20 @@ static SourceIn source;
 static StateOut state;
 static Command cmd;
 static Waypoints path;
+static std::atomic<bool> stop_requested{false};
+
+static BOOL WINAPI handleConsoleSignal(DWORD signal){
+    switch(signal){
+        case CTRL_C_EVENT:
+        case CTRL_BREAK_EVENT:
+        case CTRL_CLOSE_EVENT:
+        case CTRL_SHUTDOWN_EVENT:
+            stop_requested.store(true);
+            return TRUE;
+        default:
+            return FALSE;
+    }
+}
 
 void projectInit(int argc, char ** argv){
     LoggerSetVerbsity(DEBUG);
@@ -42,18 +62,9 @@ void projectInit(int argc, char ** argv){
     config.print();
 }
 
-
-void exitProgram(){
-    int c = getc(stdin);
-    exit(-1);
-}
-
 int main(int argc, char ** argv){
     projectInit(argc, argv);
-    
-
-    std::thread exitTh(exitProgram);
-    exitTh.detach();
+    SetConsoleCtrlHandler(handleConsoleSignal, TRUE);
 
     // Init Logger
     std::vector<std::string> header(std::begin(DEBUG_HEADER), std::end(DEBUG_HEADER));
@@ -79,7 +90,7 @@ int main(int argc, char ** argv){
         cv::resizeWindow("da3", config.da3.input_width * 2, config.da3.input_height * 2);
     }
     
-    while(1){
+    while(!stop_requested.load()){
         int ret = getSource2(&source);
 
         if (ret <= 0) {
@@ -100,7 +111,7 @@ int main(int argc, char ** argv){
         globalPlanUpdate(state, path);
         localPlannerUpdate(state.da3, state, path, &cmd);
         controllerUpdate(state, &cmd);
-        // commanderSend(cmd);              // Send command to drone
+        commanderSend(cmd);
 
         if(config.gen.show){
             cv::Mat vio_debug = source.frame.clone();
@@ -115,16 +126,20 @@ int main(int argc, char ** argv){
             }
         }
         const int key = cv::waitKey(1);
-        if (key == 27 || key == 'q' || key == 'Q') break;
+        if (key == 27 || key == 'q' || key == 'Q') {
+            stop_requested.store(true);
+        }
 
 
         updatePlots(&state);
         if(!config.gen.output.empty())logger.addRow(state.toVector(config.gen.debug));    // Log
     }
 
+    commanderClose();
     closePlotters();
     da3Close();
     vioClose();
+    SetConsoleCtrlHandler(handleConsoleSignal, FALSE);
     Logger(INFO, "Exiting succesfully, bye..");
     return 0;
 }
