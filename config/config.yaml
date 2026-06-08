@@ -1,8 +1,8 @@
 %YAML:1.0
 ---
 
-# gen.input: ""
-gen.input: "../../bags/SlowWithEvitation_Full.bag"
+gen.input: "rtsp://192.168.1.145:8554/realsense"
+# gen.input: "../../bags/SlowWithEvitation_Full.bag"
 # gen.input: "../../bags/OnlyIMU_Still_11min.bag"
 # gen.input: "../../bags/synz/custom_demo.csv"
 # gen.input: "COM6"

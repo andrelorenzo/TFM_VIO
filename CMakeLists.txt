@@ -23,6 +23,23 @@ find_package(OpenCV REQUIRED CONFIG)
 find_package(Python3 REQUIRED COMPONENTS Interpreter Development.Embed NumPy)
 
 
+# Dynamic Gstreamer
+set(GSTREAMER_DIR "C:/Program Files/gstreamer/1.0/msvc_x86_64" CACHE PATH "GStreamer MSVC root")
+
+set(GSTREAMER_INCLUDE_DIRS "${GSTREAMER_DIR}/include/gstreamer-1.0" "${GSTREAMER_DIR}/include/glib-2.0" "${GSTREAMER_DIR}/lib/glib-2.0/include")
+set(GSTREAMER_LIB_DIR "${GSTREAMER_DIR}/lib")
+set(GSTREAMER_BIN_DIR "${GSTREAMER_DIR}/bin")
+set(GSTREAMER_PLUGIN_DIR "${GSTREAMER_DIR}/lib/gstreamer-1.0")
+set(GSTREAMER_PLUGIN_SCANNER "${GSTREAMER_DIR}/libexec/gstreamer-1.0/gst-plugin-scanner.exe")
+
+set(GSTREAMER_LIBRARIES "${GSTREAMER_LIB_DIR}/gstreamer-1.0.lib" "${GSTREAMER_LIB_DIR}/gstapp-1.0.lib" "${GSTREAMER_LIB_DIR}/gstbase-1.0.lib" "${GSTREAMER_LIB_DIR}/gstvideo-1.0.lib" "${GSTREAMER_LIB_DIR}/gobject-2.0.lib" "${GSTREAMER_LIB_DIR}/glib-2.0.lib" "${GSTREAMER_LIB_DIR}/gio-2.0.lib" "${GSTREAMER_LIB_DIR}/gmodule-2.0.lib")
+
+if(EXISTS "${GSTREAMER_LIB_DIR}/intl.lib")
+  list(APPEND GSTREAMER_LIBRARIES "${GSTREAMER_LIB_DIR}/intl.lib")
+elseif(EXISTS "${GSTREAMER_LIB_DIR}/libintl.lib")
+  list(APPEND GSTREAMER_LIBRARIES "${GSTREAMER_LIB_DIR}/libintl.lib")
+endif()
+
 
 file(GLOB VIO_PLOTTER_SRC CONFIGURE_DEPENDS
     "${CMAKE_SOURCE_DIR}/src/plotter/*.cpp"
@@ -48,21 +65,23 @@ add_executable(vio
     src/preprocess.cu
 )
 target_include_directories(vio PRIVATE 
-    include
-    "${CMAKE_SOURCE_DIR}/src/plotter"
-    "${CMAKE_SOURCE_DIR}/thirds/realsense/include" 
-    ${OpenCV_INCLUDE_DIRS}
-    "${CMAKE_SOURCE_DIR}/thirds/onnxruntime/include"
-    "${CMAKE_SOURCE_DIR}/thirds/Eigen/eigen-3.4.0/"
-    thirds/imgui
-    thirds/imgui/backends
-    thirds/implot
+  include 
+  "${CMAKE_SOURCE_DIR}/src/plotter" 
+  "${CMAKE_SOURCE_DIR}/thirds/realsense/include" 
+  ${OpenCV_INCLUDE_DIRS} 
+  ${GSTREAMER_INCLUDE_DIRS} 
+  "${CMAKE_SOURCE_DIR}/thirds/onnxruntime/include" 
+  "${CMAKE_SOURCE_DIR}/thirds/Eigen/eigen-3.4.0/" 
+  thirds/imgui 
+  thirds/imgui/backends 
+  thirds/implot
 )
 target_link_libraries(vio PRIVATE 
     opencv_world 
     "${CMAKE_SOURCE_DIR}/thirds/realsense/lib/x64/realsense2.lib"
     "${CMAKE_SOURCE_DIR}/thirds/seconds/Project_commons.lib"
     "${CMAKE_SOURCE_DIR}/thirds/onnxruntime/lib/onnxruntime.lib"
+    ${GSTREAMER_LIBRARIES}
     d3d11
     dxgi
     d3dcompiler
@@ -111,5 +130,24 @@ if(WIN32)
       )
     endif()
   endforeach()
+
+  file(GLOB GSTREAMER_RUNTIME_DLLS "${GSTREAMER_BIN_DIR}/*.dll")
+
+  foreach(GSTREAMER_DLL IN LISTS GSTREAMER_RUNTIME_DLLS)
+    if(EXISTS "${GSTREAMER_DLL}")
+      add_custom_command(TARGET vio POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_if_different "${GSTREAMER_DLL}" "$<TARGET_FILE_DIR:vio>")
+    endif()
+  endforeach()
+
+  if(EXISTS "${GSTREAMER_PLUGIN_DIR}")
+    add_custom_command(TARGET vio POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_directory "${GSTREAMER_PLUGIN_DIR}" "$<TARGET_FILE_DIR:vio>/gstreamer-1.0")
+  endif()
+
+  if(EXISTS "${GSTREAMER_PLUGIN_SCANNER}")
+    add_custom_command(TARGET vio POST_BUILD COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:vio>/libexec/gstreamer-1.0")
+    add_custom_command(TARGET vio POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_if_different "${GSTREAMER_PLUGIN_SCANNER}" "$<TARGET_FILE_DIR:vio>/libexec/gstreamer-1.0/gst-plugin-scanner.exe")
+  endif()
+
+  set_property(TARGET vio PROPERTY VS_DEBUGGER_ENVIRONMENT "PATH=${GSTREAMER_BIN_DIR}$<SEMICOLON>%PATH%\nGST_PLUGIN_PATH=${GSTREAMER_PLUGIN_DIR}\nGST_PLUGIN_SCANNER=${GSTREAMER_PLUGIN_SCANNER}")
 endif()
 

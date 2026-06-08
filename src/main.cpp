@@ -67,7 +67,7 @@ int main(int argc, char ** argv){
     globalPlanInit(&config);
     localPlannerInit(&config);
     controllerInit(&config);
-    // commanderInit(&config);
+    commanderInit(&config);
     initPlotters(&config);
 
     if(config.gen.show && config.gen.color_on){

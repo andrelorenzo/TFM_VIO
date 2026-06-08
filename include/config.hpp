@@ -33,7 +33,8 @@ const double null = std::numeric_limits<double>::quiet_NaN();
 
 
 #define UDP_SEND_PORT 5001
-#define UDP_RECV_PORT 5002
+#define UDP_RECV_PORT 5005
+#define UDP_CTRL_PORT 5003
 #define UDP_IP L"192.168.1.145"
 #define RTSP_PORT 8554
 #define RTSP_IP "192.168.1.145"
