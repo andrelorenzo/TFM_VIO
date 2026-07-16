@@ -1,6 +1,7 @@
 // #include "source_man.hpp"
 #include "config.hpp"
 #include "csv_logger.hpp"
+#include "runtime_control.hpp"
 
 // seconds
 #include "seconds/comms_common.h"
@@ -13,9 +14,12 @@
 
 #include <thread>
 #include <climits>
+#include <condition_variable>
 #include <deque>
+#include <fstream>
 #include <vector>
 #include <map>
+#include <memory>
 #include <string>
 #include <cmath>
 #include <utility>
@@ -25,6 +29,7 @@
 #include <cstring>
 #include <cstdint>
 #include <algorithm>
+#include <sstream>
 
 #define MAX_HIST 5000
 #define MAX_RTSP_IMU_BUF 5000
@@ -38,6 +43,7 @@
 static rs2::pipeline pipe;
 static rs2::frame_queue queue(MAX_HIST * 2);
 static rs2::align* g_align_to_color = nullptr;
+static std::unique_ptr<rs2::playback> g_bag_playback;
 static std::thread poll_thread;
 static HANDLE husb = INVALID_HANDLE_VALUE;
 
@@ -45,9 +51,17 @@ static std::mutex dout_mutex;
 static std::deque<SourceIn> vout;
 
 static Config source_config;
+static bool source_open = false;
+static std::atomic<bool> source_finished(false);
+static std::atomic<bool> source_stop_requested(false);
+static std::vector<ImuSample> csv_imu_samples;
+static size_t csv_next_sample = 0;
 
 static void updateSource2(Config * config);
 static void recvRtspImu(uint8_t *msg, size_t len, const char *ip, uint16_t port, uint16_t cid);
+static bool loadCsvImuSamples(const std::string& path, Config * config);
+static bool pollCsv();
+void closeSource2();
 
 #pragma pack(push, 1)
 struct RtspAccelMsg {
@@ -805,6 +819,8 @@ static bool checkRtspBus() {
 }
 
 static bool pullRtspFrame(cv::Mat& frame, double& frame_ts_ms) {
+    if (source_stop_requested.load()) return false;
+
     GstElement *appsink = nullptr;
 
     {
@@ -871,6 +887,8 @@ static bool pollRealSense(double * init_ts) {
     rs2::frame fframe;
 
     while (queue.poll_for_frame(&fframe)) {
+        if (source_stop_requested.load() || runtimeIsPaused()) break;
+
         rs2::frameset fs = fframe.as<rs2::frameset>();
 
         if (!fs) {
@@ -926,45 +944,46 @@ static bool pollRealSense(double * init_ts) {
             if ((frame_ts - last_frame_ts) + EPS_MS < min_frame_dt) continue;
         }
 
-        if (acc_buf.size() < 2 || gyr_buf.size() < 2) continue;
-        if (frame_ts > acc_buf.back().first || frame_ts > gyr_buf.back().first) continue;
-
-        std::vector<double> target_ts;
-
-        for (const auto& g : gyr_buf) {
-            if (g.first > last_frame_ts + EPS_MS && g.first < frame_ts - EPS_MS) target_ts.emplace_back(g.first);
-        }
-
-        if (target_ts.empty() || std::abs(target_ts.back() - frame_ts) > EPS_MS) target_ts.emplace_back(frame_ts);
-
         SourceIn packet;
         packet.frame_dtms = frame_ts - last_frame_ts;
         packet.frame_tsms = frame_ts;
+        if (source_config.gen.imu_on) {
+            if (acc_buf.size() < 2 || gyr_buf.size() < 2) continue;
+            if (frame_ts > acc_buf.back().first || frame_ts > gyr_buf.back().first) continue;
 
-        double prev_t = last_frame_ts;
+            std::vector<double> target_ts;
 
-        for (double t : target_ts) {
-            vec3 acc_i;
-            vec3 gyr_i;
+            for (const auto& g : gyr_buf) {
+                if (g.first > last_frame_ts + EPS_MS && g.first < frame_ts - EPS_MS) target_ts.emplace_back(g.first);
+            }
 
-            bool ok_acc = interpolateImu(acc_buf, t, acc_i);
-            bool ok_gyr = interpolateImu(gyr_buf, t, gyr_i);
+            if (target_ts.empty() || std::abs(target_ts.back() - frame_ts) > EPS_MS) target_ts.emplace_back(frame_ts);
 
-            if (!ok_acc || !ok_gyr) continue;
-            if (t <= prev_t + EPS_MS) continue;
+            double prev_t = last_frame_ts;
 
-            ImuSample s;
-            s.ts = t;
-            s.dt = (t - prev_t);
-            s.vgyr = gyr_i;
-            s.vacc = acc_i;
+            for (double t : target_ts) {
+                vec3 acc_i;
+                vec3 gyr_i;
 
-            packet.imu.emplace_back(s);
+                bool ok_acc = interpolateImu(acc_buf, t, acc_i);
+                bool ok_gyr = interpolateImu(gyr_buf, t, gyr_i);
 
-            prev_t = t;
+                if (!ok_acc || !ok_gyr) continue;
+                if (t <= prev_t + EPS_MS) continue;
+
+                ImuSample s;
+                s.ts = t;
+                s.dt = (t - prev_t);
+                s.vgyr = gyr_i;
+                s.vacc = acc_i;
+
+                packet.imu.emplace_back(s);
+
+                prev_t = t;
+            }
+
+            if (packet.imu.empty()) continue;
         }
-
-        if (packet.imu.empty()) continue;
 
         cv::Mat out;
         const rs2_format color_fmt = vf.get_profile().format();
@@ -1017,8 +1036,10 @@ static bool pollRealSense(double * init_ts) {
             packet.depth_tsms = 0.0;
         }
 
-        trimImuBuffer(acc_buf, frame_ts);
-        trimImuBuffer(gyr_buf, frame_ts);
+        if (source_config.gen.imu_on) {
+            trimImuBuffer(acc_buf, frame_ts);
+            trimImuBuffer(gyr_buf, frame_ts);
+        }
 
         {
             std::lock_guard<std::mutex> lock(dout_mutex);
@@ -1035,6 +1056,8 @@ static bool pollRealSense(double * init_ts) {
 }
 
 static bool pollRtsp() {
+    if (source_stop_requested.load()) return false;
+
     static double last_frame_ts = -1.0;
 
     const double EPS_MS = 1e-6;
@@ -1076,52 +1099,53 @@ static bool pollRtsp() {
         gyr_buf = rtsp_gyr_buf;
     }
 
-    if (acc_buf.size() < 2 || gyr_buf.size() < 2) return false;
-    if (frame_ts > acc_buf.back().first || frame_ts > gyr_buf.back().first) return false;
-
-    std::vector<double> target_ts;
-
-    for (const auto& g : gyr_buf) {
-        if (g.first > last_frame_ts + EPS_MS && g.first < frame_ts - EPS_MS) target_ts.emplace_back(g.first);
-    }
-
-    if (target_ts.empty() || std::abs(target_ts.back() - frame_ts) > EPS_MS) target_ts.emplace_back(frame_ts);
-
     SourceIn packet;
     packet.frame_dtms = frame_ts - last_frame_ts;
     packet.frame_tsms = frame_ts;
     packet.frame = frame;
     packet.depth.release();
     packet.depth_tsms = 0.0;
+    if (source_config.gen.imu_on) {
+        if (acc_buf.size() < 2 || gyr_buf.size() < 2) return false;
+        if (frame_ts > acc_buf.back().first || frame_ts > gyr_buf.back().first) return false;
 
-    double prev_t = last_frame_ts;
+        std::vector<double> target_ts;
 
-    for (double t : target_ts) {
-        vec3 acc_i;
-        vec3 gyr_i;
+        for (const auto& g : gyr_buf) {
+            if (g.first > last_frame_ts + EPS_MS && g.first < frame_ts - EPS_MS) target_ts.emplace_back(g.first);
+        }
 
-        const bool ok_acc = interpolateImu(acc_buf, t, acc_i);
-        const bool ok_gyr = interpolateImu(gyr_buf, t, gyr_i);
+        if (target_ts.empty() || std::abs(target_ts.back() - frame_ts) > EPS_MS) target_ts.emplace_back(frame_ts);
 
-        if (!ok_acc || !ok_gyr) continue;
-        if (t <= prev_t + EPS_MS) continue;
+        double prev_t = last_frame_ts;
 
-        ImuSample s;
-        s.ts = t;
-        s.dt = t - prev_t;
-        s.vacc = acc_i;
-        s.vgyr = gyr_i;
+        for (double t : target_ts) {
+            vec3 acc_i;
+            vec3 gyr_i;
 
-        packet.imu.emplace_back(s);
-        prev_t = t;
-    }
+            const bool ok_acc = interpolateImu(acc_buf, t, acc_i);
+            const bool ok_gyr = interpolateImu(gyr_buf, t, gyr_i);
 
-    if (packet.imu.empty()) return false;
+            if (!ok_acc || !ok_gyr) continue;
+            if (t <= prev_t + EPS_MS) continue;
 
-    {
-        std::lock_guard<std::mutex> lock(rtsp_imu_mutex);
-        trimImuBuffer(rtsp_acc_buf, frame_ts);
-        trimImuBuffer(rtsp_gyr_buf, frame_ts);
+            ImuSample s;
+            s.ts = t;
+            s.dt = t - prev_t;
+            s.vacc = acc_i;
+            s.vgyr = gyr_i;
+
+            packet.imu.emplace_back(s);
+            prev_t = t;
+        }
+
+        if (packet.imu.empty()) return false;
+
+        {
+            std::lock_guard<std::mutex> lock(rtsp_imu_mutex);
+            trimImuBuffer(rtsp_acc_buf, frame_ts);
+            trimImuBuffer(rtsp_gyr_buf, frame_ts);
+        }
     }
 
     {
@@ -1134,8 +1158,176 @@ static bool pollRtsp() {
     return true;
 }
 
+static std::string trimAscii(const std::string& value) {
+    const size_t begin = value.find_first_not_of(" \t\r\n");
+    if (begin == std::string::npos) return "";
+
+    const size_t end = value.find_last_not_of(" \t\r\n");
+    return value.substr(begin, end - begin + 1);
+}
+
+static std::string lowerAscii(std::string value) {
+    std::transform(value.begin(), value.end(), value.begin(), [](unsigned char c) {
+        return static_cast<char>(std::tolower(c));
+    });
+    return value;
+}
+
+static std::vector<std::string> splitCsvLine(const std::string& line) {
+    std::vector<std::string> tokens;
+    std::stringstream ss(line);
+    std::string token;
+
+    while (std::getline(ss, token, ',')) {
+        tokens.emplace_back(trimAscii(token));
+    }
+
+    return tokens;
+}
+
+static int findHeaderIndex(const std::vector<std::string>& header, std::initializer_list<const char*> names) {
+    for (size_t i = 0; i < header.size(); ++i) {
+        const std::string key = lowerAscii(trimAscii(header[i]));
+        for (const char* name : names) {
+            if (key == name) return static_cast<int>(i);
+        }
+    }
+    return -1;
+}
+
+static bool loadCsvImuSamples(const std::string& path, Config * config) {
+    std::ifstream file(path);
+    if (!file.is_open()) {
+        Logger(ERROR, "initSource2: CSV file could not be opened: %s", path.c_str());
+        return false;
+    }
+
+    csv_imu_samples.clear();
+    csv_next_sample = 0;
+
+    std::string line;
+    if (!std::getline(file, line)) {
+        Logger(ERROR, "initSource2: CSV file is empty: %s", path.c_str());
+        return false;
+    }
+
+    const std::vector<std::string> header = splitCsvLine(line);
+    const int ts_idx = findHeaderIndex(header, {"ts", "time", "timestamp", "t"});
+    const int gx_idx = findHeaderIndex(header, {"gx", "wx", "gyrox", "gyrx"});
+    const int gy_idx = findHeaderIndex(header, {"gy", "wy", "gyroy", "gyry"});
+    const int gz_idx = findHeaderIndex(header, {"gz", "wz", "gyroz", "gyrz"});
+    const int ax_idx = findHeaderIndex(header, {"ax", "accx"});
+    const int ay_idx = findHeaderIndex(header, {"ay", "accy"});
+    const int az_idx = findHeaderIndex(header, {"az", "accz"});
+
+    if (ts_idx < 0 || gx_idx < 0 || gy_idx < 0 || gz_idx < 0 || ax_idx < 0 || ay_idx < 0 || az_idx < 0) {
+        Logger(ERROR, "initSource2: CSV header must contain ts,gx,gy,gz,ax,ay,az");
+        return false;
+    }
+
+    double last_ts_ms = 0.0;
+    bool have_last_ts = false;
+    double dt_sum_ms = 0.0;
+    size_t dt_count = 0;
+
+    while (std::getline(file, line)) {
+        const std::string clean = trimAscii(line);
+        if (clean.empty()) continue;
+
+        const std::vector<std::string> cols = splitCsvLine(clean);
+        const int max_idx = std::max({ts_idx, gx_idx, gy_idx, gz_idx, ax_idx, ay_idx, az_idx});
+        if (static_cast<int>(cols.size()) <= max_idx) continue;
+
+        try {
+            const double ts_ms = std::stod(cols[ts_idx]);
+            const double gx = std::stod(cols[gx_idx]);
+            const double gy = std::stod(cols[gy_idx]);
+            const double gz = std::stod(cols[gz_idx]);
+            const double ax = std::stod(cols[ax_idx]);
+            const double ay = std::stod(cols[ay_idx]);
+            const double az = std::stod(cols[az_idx]);
+
+            ImuSample sample;
+            sample.ts = ts_ms;
+            sample.dt = 0.0;
+            if (have_last_ts) {
+                sample.dt = ts_ms - last_ts_ms;
+                if (sample.dt <= 0.0) continue;
+                dt_sum_ms += sample.dt;
+                ++dt_count;
+            }
+
+            sample.vgyr = vec3(gx, gy, gz);
+            sample.vacc = vec3(ax, ay, az);
+            csv_imu_samples.emplace_back(sample);
+
+            last_ts_ms = ts_ms;
+            have_last_ts = true;
+        }
+        catch (const std::exception&) {
+            continue;
+        }
+    }
+
+    if (csv_imu_samples.empty()) {
+        Logger(ERROR, "initSource2: no valid IMU rows were found in CSV: %s", path.c_str());
+        return false;
+    }
+
+    if (dt_count > 0 && config != nullptr) {
+        const double mean_dt_ms = dt_sum_ms / static_cast<double>(dt_count);
+        if (mean_dt_ms > 1e-9) config->imu.fps = 1000.0 / mean_dt_ms;
+    }
+
+    Logger(INFO,
+           "initSource2: SOURCE_CSV loaded %zu IMU samples from %s at %.3f Hz",
+           csv_imu_samples.size(),
+           path.c_str(),
+           config ? config->imu.fps : 0.0);
+    return true;
+}
+
+static bool pollCsv() {
+    {
+        std::lock_guard<std::mutex> lock(dout_mutex);
+        if (vout.size() >= MAX_HIST / 2) return false;
+    }
+
+    if (csv_next_sample >= csv_imu_samples.size()) {
+        source_finished.store(true);
+        return false;
+    }
+
+    SourceIn packet;
+    packet.imu.emplace_back(csv_imu_samples[csv_next_sample++]);
+    packet.frame_tsms = packet.imu.back().ts;
+    packet.frame_dtms = packet.imu.back().dt;
+    packet.depth.release();
+    packet.depth_tsms = 0.0;
+
+    {
+        std::lock_guard<std::mutex> lock(dout_mutex);
+        vout.emplace_back(packet);
+        while (vout.size() > MAX_HIST) vout.pop_front();
+    }
+
+    if (csv_next_sample >= csv_imu_samples.size()) source_finished.store(true);
+    return true;
+}
+
 bool initSource2(Config * config) {
+    closeSource2();
+
     source_config = *config;
+    source_finished.store(false);
+    source_stop_requested.store(false);
+    csv_imu_samples.clear();
+    csv_next_sample = 0;
+
+    {
+        std::lock_guard<std::mutex> lock(dout_mutex);
+        vout.clear();
+    }
 
     rs2::config bag_config;
 
@@ -1152,6 +1344,16 @@ bool initSource2(Config * config) {
         }
 
         rs2::pipeline_profile profile = pipe.start(bag_config, [&](const rs2::frame& f) { queue.enqueue(f); });
+
+        try {
+            rs2::device bag_device = profile.get_device();
+            if (bag_device.is<rs2::playback>()) {
+                g_bag_playback = std::make_unique<rs2::playback>(bag_device.as<rs2::playback>());
+            }
+        }
+        catch (const rs2::error&) {
+            g_bag_playback.reset();
+        }
 
         if (source_config.gen.color_on) {
             if (g_align_to_color != nullptr) delete g_align_to_color;
@@ -1248,11 +1450,17 @@ bool initSource2(Config * config) {
             return false;
         }
     }
+    else if (source_config.gen.type == SOURCE_CSV) {
+        if (!loadCsvImuSamples(source_config.gen.input, config)) {
+            return false;
+        }
+    }
     else {
         Logger(ERROR, "Unreachable: Source not available on init");
         return false;
     }
 
+    source_open = true;
     poll_thread = std::thread(updateSource2, &source_config);
     return true;
 }
@@ -1260,10 +1468,35 @@ bool initSource2(Config * config) {
 static void updateSource2(Config * config) {
     static double init_ts = 0.0;
 
-    while (true) {
+    while (!source_stop_requested.load()) {
+        if (runtimeIsPaused()) {
+            if (g_bag_playback) {
+                try {
+                    g_bag_playback->pause();
+                }
+                catch (const rs2::error&) {
+                }
+            }
+
+            if (runtimeWaitIfPaused()) break;
+
+            if (g_bag_playback) {
+                try {
+                    g_bag_playback->resume();
+                }
+                catch (const rs2::error&) {
+                }
+            }
+        }
+        if (source_stop_requested.load()) break;
+
         bool did_work = false;
         if (config->gen.type == SOURCE_BAG) did_work = pollRealSense(&init_ts);
         else if (config->gen.type == SOURCE_RTSP) did_work = pollRtsp();
+        else if (config->gen.type == SOURCE_CSV) {
+            did_work = pollCsv();
+            if (!did_work && source_finished.load()) break;
+        }
         else if (config->gen.type == SOURCE_PORT) {}
         else {
             Logger(ERROR, "Unreachable: Source not available while polling");
@@ -1277,9 +1510,13 @@ static void updateSource2(Config * config) {
 int getSource2(SourceIn * out) {
     if (!out) return -1;
 
-    if (source_config.gen.type == SOURCE_BAG || source_config.gen.type == SOURCE_RTSP) {
+    if (source_config.gen.type == SOURCE_BAG || source_config.gen.type == SOURCE_RTSP || source_config.gen.type == SOURCE_CSV) {
         std::lock_guard<std::mutex> lock(dout_mutex);
         if (vout.empty()) {
+            if (source_config.gen.type == SOURCE_CSV && source_finished.load()) {
+                *out = SourceIn{};
+                return -1;
+            }
             *out = SourceIn{};
             return 0;
         }
@@ -1290,4 +1527,54 @@ int getSource2(SourceIn * out) {
 
     *out = SourceIn{};
     return 0;
+}
+
+void closeSource2() {
+    if (!source_open && !poll_thread.joinable()) {
+        source_stop_requested.store(false);
+        source_finished.store(false);
+        csv_imu_samples.clear();
+        csv_next_sample = 0;
+        return;
+    }
+
+    source_stop_requested.store(true);
+    runtimeSetPaused(false);
+
+    if (poll_thread.joinable()) {
+        poll_thread.join();
+    }
+
+    if (source_config.gen.type == SOURCE_BAG) {
+        try {
+            pipe.stop();
+        }
+        catch (const rs2::error&) {
+        }
+
+        if (g_align_to_color != nullptr) {
+            delete g_align_to_color;
+            g_align_to_color = nullptr;
+        }
+
+        g_bag_playback.reset();
+    }
+    else if (source_config.gen.type == SOURCE_RTSP) {
+        closeRtspPipeline();
+        closeRtspUdp();
+    }
+    else if (source_config.gen.type == SOURCE_PORT && husb != INVALID_HANDLE_VALUE) {
+        COMDeInit(husb);
+        husb = INVALID_HANDLE_VALUE;
+    }
+
+    {
+        std::lock_guard<std::mutex> lock(dout_mutex);
+        vout.clear();
+    }
+
+    source_finished.store(false);
+    csv_imu_samples.clear();
+    csv_next_sample = 0;
+    source_open = false;
 }

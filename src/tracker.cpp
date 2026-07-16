@@ -1,6 +1,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <numeric>
+#include <algorithm>
 
 #include <opencv2/opencv.hpp>
 
@@ -22,7 +23,10 @@ Tracker::Tracker(Config config)
     mnMaxTrackingLength = config.vio.track_maxlength;
     mnMinTrackingLength = config.vio.track_minlength;
     mbEnableSlam        = config.vio.slam_pts > 0 ? true : false;
+    mbVisualOnlyMode    = !config.gen.imu_on && config.gen.color_on;
     mnGoodParallax      = config.vio.good_para;
+    mnVisualRansacThreshold = std::max(1e-3, 3.0 * std::max(config.cam.spx, config.cam.spy));
+    mnVisualMinParallax = std::max(1e-4, 2.0 * std::max(config.cam.spx, config.cam.spy));
 
     mLastImage = cv::Mat();
 
@@ -45,6 +49,14 @@ Tracker::~Tracker()
 {
     delete mpRansac;
     delete mpFeatureDetector;
+}
+
+bool Tracker::getVisualOnlyMotion(mat3& R_rel, vec3& t_rel, int& inliers, double& mean_parallax) const {
+    R_rel = mLastVisualRelR;
+    t_rel = mLastVisualRelT;
+    inliers = mnLastVisualInliers;
+    mean_parallax = mnLastVisualMeanParallax;
+    return mbHasVisualMotion;
 }
 
 
@@ -117,6 +129,96 @@ void Tracker::undistort(const std::vector<cv::Point2f>& src, std::vector<cv::Poi
     }
 }
 
+bool Tracker::EstimateVisualOnlyMotion(const std::vector<cv::Point2f>& vCurrFeatUN, std::vector<unsigned char>& vInlierFlags, int& nInliers) {
+    mbHasVisualMotion = false;
+    mnLastVisualInliers = 0;
+    mnLastVisualMeanParallax = 0.0;
+    mLastVisualRelR.setIdentity();
+    mLastVisualRelT.setZero();
+
+    std::vector<cv::Point2f> vPrevNorm;
+    std::vector<cv::Point2f> vCurrNorm;
+    std::vector<int> vIndices;
+
+    const int N = std::min({static_cast<int>(vInlierFlags.size()), static_cast<int>(vCurrFeatUN.size()), static_cast<int>(PointsForRansac.cols())});
+    vPrevNorm.reserve(N);
+    vCurrNorm.reserve(N);
+    vIndices.reserve(N);
+
+    for (int i = 0; i < N; ++i) {
+        if (!vInlierFlags.at(i)) continue;
+
+        const vec3 ray_prev = PointsForRansac.col(i);
+        if (std::abs(ray_prev.z()) < 1e-9) continue;
+
+        vPrevNorm.emplace_back(static_cast<float>(ray_prev.x() / ray_prev.z()),
+                               static_cast<float>(ray_prev.y() / ray_prev.z()));
+        vCurrNorm.emplace_back(vCurrFeatUN.at(i));
+        vIndices.push_back(i);
+    }
+
+    if (vPrevNorm.size() < 8) {
+        nInliers = static_cast<int>(vPrevNorm.size());
+        return false;
+    }
+
+    cv::Mat mask;
+    cv::Mat E = cv::findEssentialMat(vPrevNorm, vCurrNorm, 1.0, cv::Point2d(0.0, 0.0), cv::RANSAC, 0.999, mnVisualRansacThreshold, mask);
+    if (E.empty()) {
+        nInliers = static_cast<int>(vPrevNorm.size());
+        return false;
+    }
+
+    cv::Mat R_cv;
+    cv::Mat t_cv;
+    const int pose_inliers = cv::recoverPose(E, vPrevNorm, vCurrNorm, R_cv, t_cv, 1.0, cv::Point2d(0.0, 0.0), mask);
+    if (pose_inliers <= 0) {
+        nInliers = static_cast<int>(vPrevNorm.size());
+        return false;
+    }
+
+    std::fill(vInlierFlags.begin(), vInlierFlags.end(), 0);
+
+    double parallax_sum = 0.0;
+    int accepted = 0;
+    for (int j = 0; j < static_cast<int>(vIndices.size()); ++j) {
+        const bool inlier = mask.at<unsigned char>(j) != 0;
+        if (!inlier) continue;
+
+        const int idx = vIndices.at(j);
+        vInlierFlags.at(idx) = 1;
+        parallax_sum += cv::norm(vCurrNorm.at(j) - vPrevNorm.at(j));
+        accepted++;
+    }
+
+    nInliers = accepted;
+    mnLastVisualInliers = accepted;
+    mnLastVisualMeanParallax = accepted > 0 ? parallax_sum / static_cast<double>(accepted) : 0.0;
+
+    if (accepted < 5) {
+        return false;
+    }
+
+    for (int r = 0; r < 3; ++r) {
+        for (int c = 0; c < 3; ++c) {
+            mLastVisualRelR(r, c) = R_cv.at<double>(r, c);
+        }
+    }
+    mLastVisualRelT = vec3(t_cv.at<double>(0), t_cv.at<double>(1), t_cv.at<double>(2));
+
+    const double t_norm = mLastVisualRelT.norm();
+    if (t_norm > 1e-9) {
+        mLastVisualRelT /= t_norm;
+    }
+
+    if (mnLastVisualMeanParallax < mnVisualMinParallax) {
+        mLastVisualRelT.setZero();
+    }
+
+    mbHasVisualMotion = true;
+    return true;
+}
+
 
 void Tracker::DisplayTrack(const int nImageId, const cv::Mat& image, const std::vector<cv::Point2f>& vPrevFeatUVs, const std::vector<cv::Point2f>& vCurrFeatUVs, const std::vector<unsigned char>& vInlierFlags, cv::Mat& imOut){
     cv::cvtColor(image, imOut, cv::COLOR_GRAY2BGR);
@@ -148,6 +250,12 @@ void Tracker::DisplayNewer(const int nImageId, const cv::Mat& image, const std::
 
 
 void Tracker::VisualTracking(const int nImageId, const cv::Mat& image, int nMapPtsNeeded, std::unordered_map<int,Feature*>& mFeatures, cv::Mat &imOut){
+    mbHasVisualMotion = false;
+    mnLastVisualInliers = 0;
+    mnLastVisualMeanParallax = 0.0;
+    mLastVisualRelR.setIdentity();
+    mLastVisualRelT.setZero();
+
     std::vector<cv::Point2f> vFeatPts, vFeatPtsUN;
     std::vector<unsigned char> vInlierFlags;
     std::vector<float> vErrors;
@@ -175,7 +283,13 @@ void Tracker::VisualTracking(const int nImageId, const cv::Mat& image, int nMapP
             MatchesForRansac.col(i).normalize();
         }
 
-        mpRansac->FindInliers(PointsForRansac, MatchesForRansac, mRr, nInliers, vInlierFlags);
+        if (mbVisualOnlyMode) {
+            if (!EstimateVisualOnlyMotion(vFeatPtsUN, vInlierFlags, nInliers)) {
+                nInliers = lkInliers;
+            }
+        } else {
+            mpRansac->FindInliers(PointsForRansac, MatchesForRansac, mRr, nInliers, vInlierFlags);
+        }
 
         if (nInliers==0)
         {

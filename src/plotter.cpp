@@ -1,5 +1,6 @@
 #include "plotter.hpp"
 
+#include "runtime_control.hpp"
 #include "vio_plots.hpp"
 #include "seconds/logger.h"
 
@@ -128,6 +129,17 @@ LRESULT WINAPI PlotWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     }
 
     switch (msg) {
+    case WM_KEYDOWN:
+        if (wParam == 'P' || wParam == 'p' || wParam == VK_SPACE) {
+            runtimeTogglePaused();
+            return 0;
+        }
+        if (wParam == 'Q' || wParam == 'q' || wParam == VK_ESCAPE) {
+            runtimeRequestStop();
+            return 0;
+        }
+        break;
+
     case WM_SIZE:
         if (g_pd3dDevice != nullptr && wParam != SIZE_MINIMIZED) {
             CleanupRenderTarget();
@@ -151,9 +163,26 @@ LRESULT WINAPI PlotWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     default:
         return DefWindowProc(hWnd, msg, wParam, lParam);
     }
+
+    return DefWindowProc(hWnd, msg, wParam, lParam);
 }
 
 void renderPlotsUi() {
+    if (runtimeIsPaused()) {
+        ImGui::SetNextWindowBgAlpha(0.75f);
+        if (ImGui::Begin("Runtime", nullptr,
+                         ImGuiWindowFlags_NoDecoration |
+                         ImGuiWindowFlags_AlwaysAutoResize |
+                         ImGuiWindowFlags_NoSavedSettings |
+                         ImGuiWindowFlags_NoFocusOnAppearing |
+                         ImGuiWindowFlags_NoNav)) {
+            ImGui::Text("PAUSADO");
+            ImGui::Text("P o ESPACIO reanuda");
+            ImGui::Text("Q o ESC sale");
+        }
+        ImGui::End();
+    }
+
     if (g_vio_plotter != nullptr) {
         g_vio_plotter->render();
     }

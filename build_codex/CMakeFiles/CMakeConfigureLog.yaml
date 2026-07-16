@@ -1,0 +1,167 @@
+
+---
+events:
+  -
+    kind: "message-v1"
+    backtrace:
+      - "C:/Program Files/CMakev3/share/cmake-3.31/Modules/CMakeDetermineSystem.cmake:205 (message)"
+      - "CMakeLists.txt:3 (project)"
+    message: |
+      The system is: Windows - 10.0.26200 - AMD64
+  -
+    kind: "message-v1"
+    backtrace:
+      - "C:/Program Files/CMakev3/share/cmake-3.31/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "C:/Program Files/CMakev3/share/cmake-3.31/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "C:/Program Files/CMakev3/share/cmake-3.31/Modules/CMakeDetermineCXXCompiler.cmake:126 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:3 (project)"
+    message: |
+      Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" failed.
+      Compiler:  
+      Build flags: 
+      Id flags:  
+      
+      The output was:
+      1
+      Versi├│n de MSBuild 17.14.10+8b8e13593 para .NET Framework
+      Compilaci├│n iniciada a las 07/07/2026 20:16:01.
+      
+      Proyecto "C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj" en nodo 1 (destinos predeterminados).
+      PrepareForBuild:
+        Creando directorio "Debug\\".
+        La salida estructurada est├í habilitada. El formato del diagn├│stico del compilador reflejar├í la jerarqu├¡a de errores. Consulte https://aka.ms/cpp/structured-output para obtener m├ís detalles.
+        Creando directorio "Debug\\CompilerIdCXX.tlog\\".
+      InitializeBuildStatus:
+        Se crear├í "Debug\\CompilerIdCXX.tlog\\unsuccessfulbuild" porque se especific├│ "AlwaysCreate".
+        Aplicando tarea Touch a "Debug\\CompilerIdCXX.tlog\\unsuccessfulbuild".
+      ClCompile:
+        C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\CL.exe /c /nologo /W0 /WX- /diagnostics:column /Od /D _MBCS /Gm- /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /Fo"Debug\\\\" /Fd"Debug\\vc143.pdb" /external:W0 /Gd /TP /FC /errorReport:queue CMakeCXXCompilerId.cpp
+        CMakeCXXCompilerId.cpp
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018: Error inesperado en la tarea "CL". [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018: System.TypeInitializationException: Se produjo una excepci├│n en el inicializador de tipo de 'Microsoft.Build.Utilities.FileTracker'. ---> System.UnauthorizedAccessException: Acceso denegado. (Excepci├│n de HRESULT: 0x80070005 (E_ACCESSDENIED)) [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018:    en System.Runtime.InteropServices.Marshal.ThrowExceptionForHRInternal(Int32 errorCode, IntPtr errorInfo) [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018:    en Microsoft.Build.Framework.NativeMethods.GetLongFilePath(String path) [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018:    en Microsoft.Build.Utilities.FileTracker..cctor() [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018:    --- Fin del seguimiento de la pila de la excepci├│n interna --- [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018:    en Microsoft.Build.Utilities.FileTracker.FileIsExcludedFromDependencies(String fileName) [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018:    en Microsoft.Build.Utilities.CanonicalTrackedInputFiles.ConstructDependencyTable() [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018:    en Microsoft.Build.Utilities.CanonicalTrackedInputFiles.InternalConstruct(ITask ownerTask, ITaskItem[] tlogFiles, ITaskItem[] sourceFiles, ITaskItem[] outputFiles, ITaskItem[] excludedInputPaths, CanonicalTrackedOutputFiles outputs, Boolean useMinimalRebuildOptimization, Boolean maintainCompositeRootingMarkers) [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018:    en Microsoft.Build.Utilities.CanonicalTrackedInputFiles..ctor(ITaskItem[] tlogFiles, ITaskItem[] sourceFiles, ITaskItem[] excludedInputPaths, CanonicalTrackedOutputFiles outputs, Boolean useMinimalRebuildOptimization, Boolean maintainCompositeRootingMarkers) [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018:    en Microsoft.Build.CPPTasks.CL.PostExecuteTool(Int32 exitCode) [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018:    en Microsoft.Build.CPPTasks.TrackedVCToolTask.ExecuteTool(String pathToTool, String responseFileCommands, String commandLineCommands) [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018:    en Microsoft.Build.CPPTasks.CL.ExecuteTool(String pathToTool, String responseFileCommands, String commandLineCommands) [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018:    en Microsoft.Build.Utilities.ToolTask.Execute() [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018:    en Microsoft.Build.CPPTasks.VCToolTask.Execute() [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018:    en Microsoft.Build.CPPTasks.TrackedVCToolTask.Execute() [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018:    en Microsoft.Build.BackEnd.TaskExecutionHost.Execute() [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018:    en Microsoft.Build.BackEnd.TaskBuilder.<ExecuteInstantiatedTask>d__26.MoveNext() [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      Compilaci├│n del proyecto terminada "C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj" (destinos predeterminados) -- ERROR.
+      
+      ERROR al compilar.
+      
+      "C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj" (destino predeterminado) (1) ->
+      (ClCompile destino) -> 
+        C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018: Error inesperado en la tarea "CL". [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018: System.TypeInitializationException: Se produjo una excepci├│n en el inicializador de tipo de 'Microsoft.Build.Utilities.FileTracker'. ---> System.UnauthorizedAccessException: Acceso denegado. (Excepci├│n de HRESULT: 0x80070005 (E_ACCESSDENIED)) [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018:    en System.Runtime.InteropServices.Marshal.ThrowExceptionForHRInternal(Int32 errorCode, IntPtr errorInfo) [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018:    en Microsoft.Build.Framework.NativeMethods.GetLongFilePath(String path) [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018:    en Microsoft.Build.Utilities.FileTracker..cctor() [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018:    --- Fin del seguimiento de la pila de la excepci├│n interna --- [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018:    en Microsoft.Build.Utilities.FileTracker.FileIsExcludedFromDependencies(String fileName) [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018:    en Microsoft.Build.Utilities.CanonicalTrackedInputFiles.ConstructDependencyTable() [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018:    en Microsoft.Build.Utilities.CanonicalTrackedInputFiles.InternalConstruct(ITask ownerTask, ITaskItem[] tlogFiles, ITaskItem[] sourceFiles, ITaskItem[] outputFiles, ITaskItem[] excludedInputPaths, CanonicalTrackedOutputFiles outputs, Boolean useMinimalRebuildOptimization, Boolean maintainCompositeRootingMarkers) [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018:    en Microsoft.Build.Utilities.CanonicalTrackedInputFiles..ctor(ITaskItem[] tlogFiles, ITaskItem[] sourceFiles, ITaskItem[] excludedInputPaths, CanonicalTrackedOutputFiles outputs, Boolean useMinimalRebuildOptimization, Boolean maintainCompositeRootingMarkers) [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018:    en Microsoft.Build.CPPTasks.CL.PostExecuteTool(Int32 exitCode) [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018:    en Microsoft.Build.CPPTasks.TrackedVCToolTask.ExecuteTool(String pathToTool, String responseFileCommands, String commandLineCommands) [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018:    en Microsoft.Build.CPPTasks.CL.ExecuteTool(String pathToTool, String responseFileCommands, String commandLineCommands) [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018:    en Microsoft.Build.Utilities.ToolTask.Execute() [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018:    en Microsoft.Build.CPPTasks.VCToolTask.Execute() [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018:    en Microsoft.Build.CPPTasks.TrackedVCToolTask.Execute() [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018:    en Microsoft.Build.BackEnd.TaskExecutionHost.Execute() [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018:    en Microsoft.Build.BackEnd.TaskBuilder.<ExecuteInstantiatedTask>d__26.MoveNext() [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      
+          0 Advertencia(s)
+          1 Errores
+      
+      Tiempo transcurrido 00:00:00.87
+      
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "C:/Program Files/CMakev3/share/cmake-3.31/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "C:/Program Files/CMakev3/share/cmake-3.31/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "C:/Program Files/CMakev3/share/cmake-3.31/Modules/CMakeDetermineCXXCompiler.cmake:126 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:3 (project)"
+    message: |
+      Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" failed.
+      Compiler:  
+      Build flags: 
+      Id flags:  
+      
+      The output was:
+      1
+      Versi├│n de MSBuild 17.14.10+8b8e13593 para .NET Framework
+      Compilaci├│n iniciada a las 07/07/2026 20:16:02.
+      
+      Proyecto "C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj" en nodo 1 (destinos predeterminados).
+      PrepareForBuild:
+        Creando directorio "Debug\\".
+        La salida estructurada est├í habilitada. El formato del diagn├│stico del compilador reflejar├í la jerarqu├¡a de errores. Consulte https://aka.ms/cpp/structured-output para obtener m├ís detalles.
+        Creando directorio "Debug\\CompilerIdCXX.tlog\\".
+      InitializeBuildStatus:
+        Se crear├í "Debug\\CompilerIdCXX.tlog\\unsuccessfulbuild" porque se especific├│ "AlwaysCreate".
+        Aplicando tarea Touch a "Debug\\CompilerIdCXX.tlog\\unsuccessfulbuild".
+      ClCompile:
+        C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\CL.exe /c /nologo /W0 /WX- /diagnostics:column /Od /D _MBCS /Gm- /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /Fo"Debug\\\\" /Fd"Debug\\vc143.pdb" /external:W0 /Gd /TP /FC /errorReport:queue CMakeCXXCompilerId.cpp
+        CMakeCXXCompilerId.cpp
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018: Error inesperado en la tarea "CL". [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018: System.TypeInitializationException: Se produjo una excepci├│n en el inicializador de tipo de 'Microsoft.Build.Utilities.FileTracker'. ---> System.UnauthorizedAccessException: Acceso denegado. (Excepci├│n de HRESULT: 0x80070005 (E_ACCESSDENIED)) [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018:    en System.Runtime.InteropServices.Marshal.ThrowExceptionForHRInternal(Int32 errorCode, IntPtr errorInfo) [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018:    en Microsoft.Build.Framework.NativeMethods.GetLongFilePath(String path) [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018:    en Microsoft.Build.Utilities.FileTracker..cctor() [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018:    --- Fin del seguimiento de la pila de la excepci├│n interna --- [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018:    en Microsoft.Build.Utilities.FileTracker.FileIsExcludedFromDependencies(String fileName) [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018:    en Microsoft.Build.Utilities.CanonicalTrackedInputFiles.ConstructDependencyTable() [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018:    en Microsoft.Build.Utilities.CanonicalTrackedInputFiles.InternalConstruct(ITask ownerTask, ITaskItem[] tlogFiles, ITaskItem[] sourceFiles, ITaskItem[] outputFiles, ITaskItem[] excludedInputPaths, CanonicalTrackedOutputFiles outputs, Boolean useMinimalRebuildOptimization, Boolean maintainCompositeRootingMarkers) [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018:    en Microsoft.Build.Utilities.CanonicalTrackedInputFiles..ctor(ITaskItem[] tlogFiles, ITaskItem[] sourceFiles, ITaskItem[] excludedInputPaths, CanonicalTrackedOutputFiles outputs, Boolean useMinimalRebuildOptimization, Boolean maintainCompositeRootingMarkers) [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018:    en Microsoft.Build.CPPTasks.CL.PostExecuteTool(Int32 exitCode) [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018:    en Microsoft.Build.CPPTasks.TrackedVCToolTask.ExecuteTool(String pathToTool, String responseFileCommands, String commandLineCommands) [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018:    en Microsoft.Build.CPPTasks.CL.ExecuteTool(String pathToTool, String responseFileCommands, String commandLineCommands) [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018:    en Microsoft.Build.Utilities.ToolTask.Execute() [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018:    en Microsoft.Build.CPPTasks.VCToolTask.Execute() [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018:    en Microsoft.Build.CPPTasks.TrackedVCToolTask.Execute() [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018:    en Microsoft.Build.BackEnd.TaskExecutionHost.Execute() [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018:    en Microsoft.Build.BackEnd.TaskBuilder.<ExecuteInstantiatedTask>d__26.MoveNext() [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      Compilaci├│n del proyecto terminada "C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj" (destinos predeterminados) -- ERROR.
+      
+      ERROR al compilar.
+      
+      "C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj" (destino predeterminado) (1) ->
+      (ClCompile destino) -> 
+        C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018: Error inesperado en la tarea "CL". [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018: System.TypeInitializationException: Se produjo una excepci├│n en el inicializador de tipo de 'Microsoft.Build.Utilities.FileTracker'. ---> System.UnauthorizedAccessException: Acceso denegado. (Excepci├│n de HRESULT: 0x80070005 (E_ACCESSDENIED)) [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018:    en System.Runtime.InteropServices.Marshal.ThrowExceptionForHRInternal(Int32 errorCode, IntPtr errorInfo) [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018:    en Microsoft.Build.Framework.NativeMethods.GetLongFilePath(String path) [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018:    en Microsoft.Build.Utilities.FileTracker..cctor() [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018:    --- Fin del seguimiento de la pila de la excepci├│n interna --- [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018:    en Microsoft.Build.Utilities.FileTracker.FileIsExcludedFromDependencies(String fileName) [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018:    en Microsoft.Build.Utilities.CanonicalTrackedInputFiles.ConstructDependencyTable() [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018:    en Microsoft.Build.Utilities.CanonicalTrackedInputFiles.InternalConstruct(ITask ownerTask, ITaskItem[] tlogFiles, ITaskItem[] sourceFiles, ITaskItem[] outputFiles, ITaskItem[] excludedInputPaths, CanonicalTrackedOutputFiles outputs, Boolean useMinimalRebuildOptimization, Boolean maintainCompositeRootingMarkers) [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018:    en Microsoft.Build.Utilities.CanonicalTrackedInputFiles..ctor(ITaskItem[] tlogFiles, ITaskItem[] sourceFiles, ITaskItem[] excludedInputPaths, CanonicalTrackedOutputFiles outputs, Boolean useMinimalRebuildOptimization, Boolean maintainCompositeRootingMarkers) [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018:    en Microsoft.Build.CPPTasks.CL.PostExecuteTool(Int32 exitCode) [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018:    en Microsoft.Build.CPPTasks.TrackedVCToolTask.ExecuteTool(String pathToTool, String responseFileCommands, String commandLineCommands) [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018:    en Microsoft.Build.CPPTasks.CL.ExecuteTool(String pathToTool, String responseFileCommands, String commandLineCommands) [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018:    en Microsoft.Build.Utilities.ToolTask.Execute() [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018:    en Microsoft.Build.CPPTasks.VCToolTask.Execute() [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018:    en Microsoft.Build.CPPTasks.TrackedVCToolTask.Execute() [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018:    en Microsoft.Build.BackEnd.TaskExecutionHost.Execute() [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Microsoft\\VC\\v170\\Microsoft.CppCommon.targets(787,5): error MSB4018:    en Microsoft.Build.BackEnd.TaskBuilder.<ExecuteInstantiatedTask>d__26.MoveNext() [C:\\Users\\ajlorenzo\\Documents\\AAS_projects\\VISLAM\\build_codex\\CMakeFiles\\3.31.11\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      
+          0 Advertencia(s)
+          1 Errores
+      
+      Tiempo transcurrido 00:00:00.50
+      
+      
+...

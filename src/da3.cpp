@@ -1,6 +1,7 @@
 #include "da3.h"
 
 #include "preprocess.h"
+#include "runtime_control.hpp"
 
 #include <cuda_runtime.h>
 #include <onnxruntime_cxx_api.h>
@@ -21,6 +22,7 @@
 #include <string>
 #include <thread>
 #include <vector>
+#include "csignal"
 
 namespace {
 
@@ -569,7 +571,12 @@ bool RunInference(const cv::Mat& frame_cpu)
 
 void WorkerLoop()
 {
+    signal(SIGINT, signalHandler);
     while (true) {
+        if (runtimeWaitIfPaused()) {
+            break;
+        }
+
         cv::Mat frame_cpu;
 
         {
@@ -583,6 +590,10 @@ void WorkerLoop()
             frame_cpu = g_da3.pending_frame;
             g_da3.pending_frame.release();
             g_da3.has_pending = false;
+        }
+
+        if (runtimeWaitIfPaused()) {
+            break;
         }
 
         try {

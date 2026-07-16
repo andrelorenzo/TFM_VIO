@@ -1,6 +1,39 @@
 \chapter{Conclusiones y líneas futuras}
 
 \section{Conclusiones}
+\par
+Este trabajo ha permitido desarrollar e integrar un sistema completo de navegaci\'on para un UAV en entornos interiores, 
+combinando percepci\'on, estimaci\'on, planificaci\'on y control dentro de una misma arquitectura funcional. El resultado 
+final no debe entenderse como una suma de bloques aislados, sino como una soluci\'on conjunta en la que cada m\'odulo aporta 
+una parte necesaria para conseguir un comportamiento global coherente.
+
+Desde el punto de vista de la arquitectura del sistema, se ha definido una separaci\'on adecuada entre la plataforma a\'erea 
+y la estaci\'on de tierra, lo que ha permitido aprovechar mejor los recursos de c\'omputo disponibles y simplificar el 
+desarrollo experimental. De forma complementaria, el sistema de comunicaciones implementado ha permitido transportar de 
+manera estable la informaci\'on visual, inercial y de control, resolviendo de forma pr\'actica las necesidades del proyecto.
+
+En la parte de estimaci\'on, el sistema de odometr\'ia visual-inercial desarrollado ha demostrado ser capaz de proporcionar 
+una estimaci\'on de pose utilizable para navegaci\'on. Los ensayos realizados han mostrado tanto las ventajas de la fusi\'on 
+visual-inercial en el sistema completo como las limitaciones de una soluci\'on puramente visual, especialmente en escala y 
+en maniobras con giro. Esto confirma que la integraci\'on de la IMU aporta una mejora real en robustez y consistencia.
+
+En paralelo, el estimador de profundidad y el sistema de evitaci\'on de obst\'aculos han permitido dotar al dron de una 
+capacidad reactiva frente a obst\'aculos cercanos. Los resultados obtenidos muestran que la direcci\'on de evitaci\'on y los 
+comandos generados son coherentes con la escena observada, lo que valida el enfoque adoptado para esta parte del problema.
+
+Por otro lado, la capa de planificaci\'on y control ha permitido transformar una trayectoria global en referencias locales y, 
+a partir de ellas, en comandos de velocidad ejecutables por el veh\'iculo. La validaci\'on experimental ha mostrado que el 
+planificador local selecciona puntos de seguimiento coherentes con la trayectoria y que esta decisi\'on se refleja 
+correctamente en los comandos de gui\~nada y movimiento.
+
+Finalmente, el conjunto de ensayos realizados ha permitido validar de forma progresiva los distintos bloques del sistema, 
+desde pruebas sint\'eticas de preintegraci\'on IMU hasta evaluaciones del sistema completo. En conjunto, puede concluirse 
+que se han cumplido los objetivos principales del proyecto: disponer de una base funcional de navegaci\'on aut\'onoma para un 
+UAV, integrar los distintos subsistemas en una \'unica cadena de funcionamiento y demostrar experimentalmente que el sistema 
+responde de forma coherente en los escenarios evaluados.
+No obstante, los ensayos temporales tambi\'en muestran que la frecuencia global de funcionamiento todav\'ia no es tan alta 
+como ser\'ia deseable, especialmente por la carga computacional asociada al bloque VIO, por lo que el sistema a\'un presenta 
+un margen claro de mejora en rendimiento.
 
 
 \section{Líneas futuras}
@@ -11,6 +44,7 @@ limitaciones. Por ello, a continuación se recogen algunos puntos de mejora que,
 definido para este proyecto, no se han desarrollado en profundidad, pero que podrían aportar un valor significativo a la solución propuesta:
 
 \begin{itemize}
+    \item Optimizar computacionalmente el sistema, en especial el bloque de odometr\'ia visual-inercial y el c\'alculo de referencia, para aumentar la frecuencia global de funcionamiento y acercar la soluci\'on a un comportamiento m\'as pr\'oximo a tiempo real.
     \item Desarrollar un sistema VI-SLAM completo, incorporando la generación de un mapa del entorno y técnicas de \textit{loop closure}.
     \item Implementar un planificador global que tenga en cuenta el mapa del entorno y genere una trayectoria en función de la construcción del mapa en línea.
     \item Aumentar el tiempo de calibración mediante varianza de Allan hasta, al menos, 24 a 48 horas, con el objetivo de obtener una caracterización más precisa de la IMU.

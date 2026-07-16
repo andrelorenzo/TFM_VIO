@@ -87,6 +87,8 @@ struct General{
     bool imu_on;                // Turn on/off inertial stream
     bool show;                  // Show image
     bool debug;                 // Turn on/off debug info
+    bool fps_stats_on = false;  // Measure and report end-to-end FPS stats
+    double fps_stats_period_s = 1.0; // Live reporting period in seconds
 
     bool plot_imu;              // Plot Accel and Gyro calibrated and raw 
 
@@ -245,6 +247,8 @@ public:
         os << "  IMU           : " << std::string(this->gen.imu_on ? "ON" : "OFF") << "\n";
         os << "  Show          : " << std::string(this->gen.show ? "ON" : "OFF") << "\n";
         os << "  Debug         : " << std::string(this->gen.debug ? "ON" : "OFF") << "\n";
+        os << "  FPS stats     : " << std::string(this->gen.fps_stats_on ? "ON" : "OFF") << "\n";
+        os << "  FPS period [s]: " << this->gen.fps_stats_period_s << "\n";
 
         os << "\n[CAMERA]\n";
         os << "  Width         : " << this->cam.width << "\n";
@@ -358,6 +362,8 @@ public:
         this->gen.color_on              = this->yamlReadBool(fs, "gen.color_on", true);
         this->gen.imu_on                = this->yamlReadBool(fs, "gen.imu_on", true);
         this->gen.debug                 = this->yamlReadBool(fs, "gen.debug", false);
+        this->gen.fps_stats_on          = this->yamlReadBool(fs, "gen.fps_stats_on", this->gen.fps_stats_on);
+        this->gen.fps_stats_period_s    = std::max(0.1, this->yamlReadDouble(fs, "gen.fps_stats_period_s", this->gen.fps_stats_period_s));
 
         this->gen.plot_imu          = this->yamlReadBool(fs, "gen.plot_imu", false);
         this->gen.plot_tray         = this->yamlReadBool(fs, "gen.plot_tray", false);
@@ -919,3 +925,5 @@ struct Command{
 struct Waypoints{
     std::vector<vec3> p;
 };
+
+void signalHandler(int sig);

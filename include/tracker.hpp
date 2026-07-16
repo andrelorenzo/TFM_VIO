@@ -45,6 +45,7 @@ public:
     ~Tracker();
 
     void track(const int nImageId, const cv::Mat& image, const mat3& RcG, const vec3& tcG, int nMapPtsNeeded, std::unordered_map<int,Feature*>& mFeatures, cv::Mat &imOut);
+    bool getVisualOnlyMotion(mat3& R_rel, vec3& t_rel, int& inliers, double& mean_parallax) const;
 
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
@@ -55,6 +56,7 @@ private:
     void preprocess(const int nImageId, cv::Mat& image, const mat3& RcG, const vec3& tcG);
     void undistort(const std::vector<cv::Point2f>& src, std::vector<cv::Point2f>& dst);
     void VisualTracking(const int nImageId, const cv::Mat& image, int nMapPtsNeeded, std::unordered_map<int,Feature*>& mFeatures, cv::Mat &imOut);
+    bool EstimateVisualOnlyMotion(const std::vector<cv::Point2f>& vCurrFeatUN, std::vector<unsigned char>& vInlierFlags, int& nInliers);
     void DisplayTrack(const int nImageId, const cv::Mat& image, const std::vector<cv::Point2f>& vPrevFeatUVs, const std::vector<cv::Point2f>& vCurrFeatUVs, const std::vector<unsigned char>& vInlierFlags, cv::Mat& imOut);
     void DisplayNewer(const int nImageId, const cv::Mat& image, const std::vector<cv::Point2f>& vRefFeatUVs, const std::vector<cv::Point2f>& vNewFeatUVs, cv::Mat& imOut);
 
@@ -103,6 +105,7 @@ private:
     bool mbEnableSlam;
     bool mbEnableFilter;
     bool mbEnableEqualizer;
+    bool mbVisualOnlyMode;
 
     int mnMaxFeatsPerImage;
 
@@ -110,6 +113,8 @@ private:
     int mnMaxTrackingLength;
 
     double mnGoodParallax;
+    double mnVisualRansacThreshold;
+    double mnVisualMinParallax;
 
     cv::Mat mLastImage;
 
@@ -137,4 +142,10 @@ private:
 
     bool mbShowTrack;
     bool mbShowNewer;
+
+    mat3 mLastVisualRelR = mat3::Identity();
+    vec3 mLastVisualRelT = vec3::Zero();
+    bool mbHasVisualMotion = false;
+    int mnLastVisualInliers = 0;
+    double mnLastVisualMeanParallax = 0.0;
 };

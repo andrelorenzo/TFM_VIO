@@ -1,10 +1,10 @@
 %YAML:1.0
 ---
 
-gen.input: "rtsp://192.168.1.145:8554/realsense"
-# gen.input: "../../bags/SlowWithEvitation_Full.bag"
+# gen.input: "rtsp://192.168.1.145:8554/realsense"
+gen.input: "../../bags/SlowWithEvitation_Full.bag"
 # gen.input: "../../bags/OnlyIMU_Still_11min.bag"
-# gen.input: "../../bags/synz/custom_demo.csv"
+# gen.input: "../../bags/synz/case1_zero.csv"
 # gen.input: "COM6"
 gen.output: "../../output/traynn.csv"
 
@@ -13,6 +13,8 @@ gen.color_on: true
 gen.imu_on: true
 gen.show: true
 gen.debug: true
+gen.fps_stats_on: true
+gen.fps_stats_period_s: 1.0
 
 da3.enabled: true
 da3.show_window: true
