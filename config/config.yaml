@@ -8,16 +8,16 @@ gen.input: "../../bags/SlowWithEvitation_Full.bag"
 # gen.input: "COM6"
 gen.output: "../../output/traynn.csv"
 
-gen.depth_on: true
+gen.depth_on: false
 gen.color_on: true
 gen.imu_on: true
-gen.show: true
+gen.show: false
 gen.debug: true
 gen.fps_stats_on: true
 gen.fps_stats_period_s: 1.0
 
 da3.enabled: true
-da3.show_window: true
+da3.show_window: false
 da3.model: "small"
 da3.model_path: "../../model/DA3METRIC-SMALL.onnx"
 da3.input_width: 504
@@ -51,20 +51,17 @@ da3.peak_score_threshold: 0.92
 da3.sector_close_penalty: 0.75
 da3.free_space_power: 2.0
 
-gen.plot_imu: true
-
-gen.plot_tray: true
-gen.plot_vis_tray: true
-gen.plot_imu_tray: true
-gen.plot_height: true
-
-gen.plot_rpy: true
-gen.plot_vis_rpy: true
-gen.plot_imu_rpy: true
-
-gen.plot_dpos: true
-gen.plot_dvel: true
-gen.plot_da3: true
+gen.plot_imu: false
+gen.plot_tray: false
+gen.plot_vis_tray: false
+gen.plot_imu_tray: false
+gen.plot_height: false
+gen.plot_rpy: false
+gen.plot_vis_rpy: false
+gen.plot_imu_rpy: false
+gen.plot_dpos: false
+gen.plot_dvel: false
+gen.plot_da3: false
 
 gplan.waypoints_file: "../../config/waypoints.txt"
 gplan.resolution: 0.25
@@ -202,7 +199,7 @@ feat.mindist: 8
 feat.quat: 1e-2
 feat.bsizex: 150
 feat.bsizey: 120
-feat.max: 1200
+feat.max: 500
 
 # VIO parameters
 vio.rsac_it: 16

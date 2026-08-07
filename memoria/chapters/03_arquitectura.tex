@@ -14,7 +14,7 @@ En la Figura \ref{fig:plataforma_aerea} se muestra la arquitectura general de la
 
 \begin{figure}[H]
     \ffigbox[\FBwidth] {
-        \caption[Arquitectura de la plataforma aérea]{Arquitectura de la plataforma aérea.}
+        \caption[Arquitectura de la plataforma aérea]{Arquitectura de la plataforma aérea. Fuente: elaboración propia}
         \label{fig:plataforma_aerea}
     }
     {\includegraphics[scale=0.7]{images/plataforma_aerea.png}}
@@ -29,7 +29,7 @@ En primer lugar, los canales visual e inercial se procesan mediante un sistema d
 la pose del UAV respecto al punto de inicio del algoritmo. De forma paralela, el canal visual se introduce en un estimador de 
 profundidad que, junto con un algoritmo de evitación de obstáculos, proporciona una dirección de movimiento segura.
 
-Toda esta información, junto con la trayectoria generada por el planificador global, se introduce en un planificador local. Este 
+    Toda esta información, junto con la trayectoria generada por el generador de trayectoria de referencia, se introduce en un planificador local. Este 
 genera las referencias necesarias para un controlador PID, encargado de obtener el control en velocidad del dron. Finalmente, el 
 comando de velocidad, compuesto por sus componentes lineal y angular, se envía mediante UDP de vuelta al dron para su ejecución.
 
@@ -38,7 +38,7 @@ En la Figura \ref{fig:estacion_tierra} se muestra la arquitectura general de la 
 
 \begin{figure}[H]
     \ffigbox[\FBwidth] {
-        \caption[Arquitectura de la estación de tierra]{Arquitectura de la estación de tierra.}
+        \caption[Arquitectura de la estación de tierra]{Arquitectura de la estación de tierra. Fuente: elaboración propia}
         \label{fig:estacion_tierra}
     }
     {\includegraphics[scale=0.55]{images/estacion_tierra.png}}
@@ -52,7 +52,7 @@ características principales son:
 
 \begin{figure}[H]
     \ffigbox[\FBwidth] {
-        \caption[Controlador Orange Cube]{Controlador Orange Cube.}
+        \caption[Controlador Orange Cube]{Controlador Orange Cube. Fuente: elaboración propia}
         \label{fig:orange_cube}
     }
     {\includegraphics[scale=0.45]{images/orange_cube.png}}
@@ -82,7 +82,7 @@ Las principales características de la Intel RealSense D435i son:
 
 \begin{figure}[H]
     \ffigbox[\FBwidth] {
-        \caption[Cámara RealSense 435i]{Cámara RealSense 435i.}
+        \caption[Cámara Intel RealSense D435i]{Cámara Intel RealSense D435i. Fuente:~\cite{zu2025d435i_figure}.}
         \label{fig:rs_435i}
     }
     {\includegraphics[scale=0.35]{images/rs_435i.png}}
@@ -92,19 +92,19 @@ Las principales características de la Intel RealSense D435i son:
 \begin{itemize}[nosep]
     \item Resolución de profundidad de hasta $1280 \times 720$ píxeles.
     \item Rango ideal de operación entre $0.3~\mathrm{m}$ y $3~\mathrm{m}$.
-    \item Cámara RGB de $2~\mathrm{MP}$ con resolución de hasta $1920 \times 1080$ píxeles a $30~\mathrm{fps}$.
+    \item Cámara RGB de $2~\mathrm{MP}$ con resolución de hasta $1920 \times 1080$ píxeles a $30~\text{FPS}$.
     \item Campo de visión del canal RGB de $69^\circ \times 42^\circ$.
     \item IMU Bosch BMI055 de 6 ejes, compuesta por acelerómetro y un giroscopio.
     \item Conexión mediante USB-C 3.1 Gen 1.
     \item Dimensiones aproximadas de $90~\mathrm{mm} \times 25~\mathrm{mm} \times 25~\mathrm{mm}$.
 \end{itemize}
 
-La estación de tierra consta de un ordenador HP Probook, con un procesador intel core ULTRA 7, 32 GB de RAM y una gráfica 
-NVIDIA GeForce RTX 2050 donde se ejecuta el programa de navegación autónoma. El portatil se muestra en la Figura~\ref{fig:pc_est}
+La estación de tierra consta de un ordenador HP ProBook, con un procesador Intel Core Ultra 7, 32 GB de RAM y una gráfica 
+NVIDIA GeForce RTX 2050 donde se ejecuta el programa de navegación autónoma. El portátil se muestra en la Figura~\ref{fig:pc_est}.
 
 \begin{figure}[H]
     \ffigbox[\FBwidth] {
-        \caption[Portatil usado como estación de tierra]{Portatil usado como estación de tierra.}
+        \caption[Portátil usado como estación de tierra]{Portátil usado como estación de tierra. Fuente:~\cite{hp_probook_440_g11}.}
         \label{fig:pc_est}
     }
     {\includegraphics[scale=0.15]{images/estacion_tierra_pc.png}}
@@ -123,7 +123,7 @@ compatibilidad con herramientas estándar de procesamiento de vídeo y su capaci
 sin necesidad de almacenar todos los datos en memoria.
 
 A partir de la información visual e inercial recibida, se implementa un sistema de odometría visual-inercial, basado 
-conceptualmente en el enfoque propuesto en RVIO2~\cite{huai2022square} y ~\cite{huai2024consistent}. Este módulo estima la pose relativa del UAV respecto al instante 
+conceptualmente en el enfoque propuesto en R-VIO2~\cite{huai2022square} y~\cite{huai2024consistent}. Este módulo estima la pose relativa del UAV respecto al instante 
 inicial mediante la combinación de imágenes y medidas de la IMU. Aunque la arquitectura y algunos fundamentos teóricos se inspiran 
 en dicho trabajo, el código empleado en este proyecto ha sido desarrollado de forma propia y adaptado a las necesidades 
 específicas del sistema.
@@ -132,8 +132,8 @@ De forma complementaria, el canal visual se procesa mediante Depth Anything 3~\c
 monocular. La información de profundidad obtenida permite generar una representación aproximada del entorno, que posteriormente 
 se emplea en el módulo de evitación de obstáculos.
 
-El sistema de planificación se divide en dos niveles. En primer lugar, el planificador global implementa una estrategia básica de 
-tipo \textit{go-to}, encargada de generar una trayectoria de referencia hacia los \textit{waypoints} definidos por el usuario. En 
+El sistema de planificación se divide en dos niveles. En primer lugar, un generador de trayectoria de referencia implementa una estrategia básica de 
+tipo \textit{go-to}, encargada de interpolar una trayectoria de referencia a partir de los \textit{waypoints} definidos por el usuario. En 
 segundo lugar, el planificador local utiliza una variante tridimensional del algoritmo \textit{Pure Pursuit}, basado en~\cite{pp3d}, que permite adaptar 
 la dirección de avance del UAV en función de la trayectoria global y de la información local del entorno.
 

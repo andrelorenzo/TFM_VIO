@@ -31,7 +31,7 @@ La arquitectura de funcionamiento se muestra en la Figura~\ref{fig:threads_comms
 
 \begin{figure}[H]
     \ffigbox[\FBwidth] {
-        \caption[Arquitectura de funcionamiento de la pasarela.]{Arquitectura de funcionamiento de la pasarela.}
+        \caption[Arquitectura de funcionamiento de la pasarela.]{Arquitectura de funcionamiento de la pasarela. Fuente: Elaboración propia}
         \label{fig:threads_comms}
     }
     {\includegraphics[scale=0.55]{images/threads_pasarela.png}}
@@ -53,7 +53,11 @@ Una vez inicializado el sistema, se lanza un hilo de adquisición. Este hilo se 
 inerciales se almacenan en un buffer independiente, uno para el acelerómetro y otro para el giróscopo. Cada muestra queda asociada a una 
 marca temporal.
 
-Cuando se recibe una imagen RGB válida, el algoritmo selecciona e interpolá las medidas del acelerometro y giroscopio, generando así una secuencia de muestras 
+Es importante destacar que la sincronización entre vídeo e IMU no se realiza a partir del instante de llegada de los datos a la estación de tierra. Este criterio no resultaría válido, ya que el canal visual y el canal inercial recorren rutas de comunicación distintas y pueden sufrir retardos variables. En su lugar, el sistema conserva las marcas temporales de captura generadas por la propia cámara Intel RealSense D435i. En adquisición local, dichas marcas se obtienen directamente tanto de los fotogramas RGB como de las muestras del acelerómetro y del giróscopo. En adquisición remota mediante RTSP, la marca temporal original del fotograma visual se inserta en el flujo de vídeo codificado y se recupera en recepción, mientras que las muestras IMU se transmiten por UDP manteniendo igualmente su timestamp de captura. De este modo, las imágenes y las medidas inerciales quedan referidas a una misma base temporal asociada al propio sensor.
+
+Con estas marcas temporales, cada imagen se asocia al intervalo inercial comprendido entre el fotograma anterior y el fotograma actual. Para ello, el sistema selecciona las muestras del giróscopo incluidas en ese intervalo y utiliza interpolación lineal para reconstruir valores coherentes de acelerómetro y giróscopo en los instantes temporales necesarios. Además, se fuerza que la última muestra inercial del paquete coincida exactamente con la marca temporal del fotograma actual. Así, el paquete entregado al estimador queda compuesto por una imagen RGB, su timestamp de captura y la secuencia IMU sincronizada correspondiente, evitando depender del jitter de red o del orden de llegada de los mensajes.
+
+Cuando se recibe una imagen RGB válida, el algoritmo selecciona e interpola las medidas del acelerómetro y del giróscopo, generando así una secuencia de muestras 
 inerciales sincronizadas con el intervalo visual.
 
 Finalmente, se construye un paquete, que contiene la imagen RGB y el conjunto de 
@@ -62,7 +66,7 @@ consumido posteriormente por el algoritmo de navegación. Este proceso se muestr
 
 \begin{figure}[H]
     \ffigbox[\FBwidth] {
-        \caption[Esquema de adquisición de datos.]{Esquema de adquisición de datos.}
+        \caption[Esquema de adquisición de datos.]{Esquema de adquisición de datos. Fuente: Elaboración propia}
         \label{fig:frame_imu}
     }
     {\includegraphics[scale=0.55]{images/frame_imu_arq.png}}
@@ -103,7 +107,7 @@ instante. Si $t$ queda fuera del intervalo temporal disponible, la interpolació
 \end{aligned}
 \end{equation}
 
-Una vez localizado el intervalo, se calculaa el factor de interpolación lineal $\alpha$ y se obtiene la medida interpolada 
+Una vez localizado el intervalo, se calcula el factor de interpolación lineal $\alpha$ y se obtiene la medida interpolada 
 $\mathbf{v}(t)$ como combinación lineal entre las dos muestras consecutivas:
 
 \begin{equation}
@@ -202,7 +206,7 @@ Un ejemplo de sincronización se muestra en la Figura~\ref{fig:sinc_source_man}.
 
 \begin{figure}[H]
     \ffigbox[\FBwidth] {
-        \caption[Ejemplo de sincronización de datos.]{Ejemplo de sincronización de datos.}
+        \caption[Ejemplo de sincronización de datos.]{Ejemplo de sincronización de datos. Fuente: Elaboración propia}
         \label{fig:sinc_source_man}
     }
     {\includegraphics[scale=0.3]{images/source_manager_sync.png}}
@@ -221,12 +225,12 @@ algoritmo de navegación:
         v_x &
         v_y &
         v_z &
-        \omega_y
+        \omega_z
     \end{bmatrix}^{T},
 \end{equation}
 
-donde $v_x$, $v_y$ y $v_z$ representan las componentes de velocidad lineal, y $\omega_y$ corresponde a la velocidad angular 
-alrededor del eje vertical del UAV.
+donde $v_x$, $v_y$ y $v_z$ representan las componentes de velocidad lineal, y $\omega_z$ corresponde a la velocidad angular 
+de guiñada alrededor del eje vertical del marco del vehículo.
 
 El envío de comandos se realiza desde la estación de tierra hacia la plataforma aérea mediante comunicación UDP. Esta 
 solución permite transmitir consignas de control con baja latencia, lo cual resulta fundamental en aplicaciones de 
@@ -258,21 +262,21 @@ velocidad. Esta saturación puede expresarse como
     \qquad
     i \in \{x,y,z\},
     \\[2mm]
-    \bar{\omega}_y
+    \bar{\omega}_z
     &=
     \operatorname{sat}
     \left(
-        \omega_y,
-        \omega_{y,\max}
+        \omega_z,
+        \omega_{z,\max}
     \right)
     =
     \max
     \left(
-        -\omega_{y,\max},
+        -\omega_{z,\max},
         \min
         \left(
-            \omega_y,
-            \omega_{y,\max}
+            \omega_z,
+            \omega_{z,\max}
         \right)
     \right).
 \end{aligned}
@@ -287,9 +291,9 @@ Por tanto, el comando finalmente enviado al UAV queda definido como
         \bar{v}_x &
         \bar{v}_y &
         \bar{v}_z &
-        \bar{\omega}_y
+        \bar{\omega}_z
     \end{bmatrix}^{T}.
 \end{equation}
 
-De esta forma, el sistema garantiza que las consignas enviadas al UAV se mantienen dentro de los límites dinámicos 
-definidos para la plataforma. 
+De esta forma, el sistema garantiza únicamente que las consignas enviadas al UAV se mantienen dentro de los límites por componente 
+definidos para la plataforma. La factibilidad dinámica completa depende además de la aceleración, el \textit{jerk} y la respuesta del controlador de vuelo. 

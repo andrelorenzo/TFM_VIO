@@ -3,7 +3,6 @@
 %	PORTADA
 %----------	
 \begin{titlepage}
-	\begin{sffamily}
 	\color{azulUC3M}
 	\begin{center}
 		\begin{figure}[H] %incluimos el logotipo de la Universidad
@@ -11,7 +10,7 @@
 		\end{figure}
 		\vspace{2.5cm}
 		\begin{Large}
-			Máster Universitario en robótica y automatización\\			
+			Máster Universitario en Robótica y Automatización\\			
 			 2024-2025\\ %Indica el curso académico
 			\vspace{2cm}		
 			\textsl{Trabajo Fin de Máster}
@@ -25,7 +24,7 @@
 			{\LARGE André José Lorenzo Torres}\\ 
 			\vspace*{1cm}
 		\begin{Large}
-			Tutor/es\\
+			Tutor\\
 			David Martin Gómez\\
 			Universidad Carlos III de Madrid: Campus de Leganés. 27 de mayo de 2026\\
 		\end{Large}
@@ -46,8 +45,6 @@
 	% SI NUESTRO TRABAJO SE VA A PUBLICAR CON UNA LICENCIA CREATIVE COMMONS, INCLUIR ESTAS LÍNEAS. ES LA OPCIÓN RECOMENDADA.
 	\noindent\includegraphics[width=4.2cm]{images/creativecommons.png}\\ %incluimos el logotipo de Creative Commons
 	\footnotesize{Esta obra se encuentra sujeta a la licencia Creative Commons \textbf{Reconocimiento - No Comercial - Sin Obra Derivada}}
-	
-	\end{sffamily}
 \end{titlepage}
 
 \newpage %página en blanco o de cortesía
@@ -66,14 +63,14 @@
 	La navegación autónoma de robots ha cobrado gran relevancia en los últimos años y promete tener un impacto significativo en el futuro de 
 	diversas industrias, como la logística, la agricultura o la exploración espacial. Dada su complejidad computacional y su elevada 
 	dependencia de la sensórica, nace este proyecto, que pretende reducir tanto la carga de cómputo como los requisitos de sensores en la 
-	navegación autónoma y la evitación de obstáculos, limitando la captación de datos a un sensor monocular y una unidad de medida inercial 
+	navegación autónoma y la evitación de obstáculos, limitando la captación de datos a una cámara monocular y una unidad de medida inercial 
 	(IMU).
 
 	El enfoque se plantea en el contexto de vehículos aéreos no tripulados (UAV), donde el espacio, el peso y el consumo energético están 
 	extremadamente restringidos. Para ello, se propone una arquitectura distribuida en la que un miniordenador embarcado se encarga de la 
 	adquisición y preprocesado del vídeo, así como de su reenvío mediante una comunicación inalámbrica hacia un ordenador central. 
 	En este nodo central se realiza la inferencia de un estimador de profundidad y la fusión con la información inercial, con el objetivo 
-	de obtener una estimación robusta del estado del dron y del entorno. Finalmente, la posición se calcula mediante un enfoque estadístico 
+	de obtener una estimación robusta del estado del dron y del entorno. Finalmente, la pose del vehículo se estima mediante un enfoque estadístico 
 	basado en una versión simplificada y optimizada del algoritmo VIO (Visual-Inertial Odometry), 
 	orientada a maximizar la eficiencia computacional sin comprometer la utilidad para tareas de navegación y evitación de obstáculos.
 	
@@ -93,9 +90,9 @@
 	(Visual-Inertial Odometry), tailored to maximize computational efficiency without compromising its 
 	usefulness for navigation and obstacle avoidance tasks.
 
-	\textbf{KeyWords:}
+	\textbf{Palabras clave / Keywords:}
 	% Escribir las palabras clave aquí
-	Monocular vision, OpenCV, onnx, Depth Anything v3, orangeCube, cuda, autonomous navigation, obstacle avoidance, VIO, IMU
+	Monocular vision, OpenCV, ONNX, Depth Anything 3, Orange Cube, CUDA, autonomous navigation, obstacle avoidance, VIO, IMU
 	
 	\vfill
 \end{abstract}

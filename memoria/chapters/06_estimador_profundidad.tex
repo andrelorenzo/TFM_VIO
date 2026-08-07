@@ -1,6 +1,6 @@
 \chapter{Evitación de obstáculos}
 
-La evitación de obstáculos desarrollada en este proyecto se plantea como la continuación natural del 
+La evitación de obstáculos desarrollada en este proyecto se apoya en el 
 trabajo realizado previamente en el proyecto de investigación tutelado~\cite{estudio-nav2D}. En dicho 
 estudio se analizó la viabilidad de implementar un sistema de evitación visual de obstáculos para drones de bajo 
 coste empleando únicamente una cámara monocular RGB. Esta restricción imponía dos requisitos fundamentales: extraer información geométrica 
@@ -27,14 +27,14 @@ de evitación más robusta. En lugar de basarse únicamente en el gradiente glob
 se emplea un estimador más avanzado, \textit{Depth Anything 3}~\cite{overview-da}, y se añade una etapa 
 específica de postprocesado orientada a la toma de decisiones. Esta etapa analiza la distribución de 
 profundidad mediante segmentación y regiones de interés. De esta forma, el sistema no solo estima hacia 
-dónde existe más espacio libre, sino que también determina si la situación requiere realmente una 
+dónde conviene desplazar la referencia lateral de evasión, sino que también determina si la situación requiere realmente una 
 maniobra de evasión.
 
 \section{Arquitectura}
 \begin{figure}[H]
     \centering
     \includegraphics[width=1\textwidth]{images/depth_arq.png}
-    \caption{Arquitectura del evitador de obstáculos.}
+    \caption{Arquitectura del evitador de obstáculos. Fuente: Elaboración propia}
     \label{fig:evit_obs_arq}
 \end{figure}
 
@@ -46,9 +46,9 @@ En este módulo se distingue una primera etapa de inicialización, encargada de 
 utilizado y lanzar el hilo responsable de gestionar la comunicación con la GPU y calcular las diferentes métricas 
 empleadas para la detección y evitación de obstáculos.
 
-El funcionamiento general es sencillo: el \textit{worker thread} se encarga de realizar todo el proceso capturando 
+El funcionamiento general es sencillo: el hilo de trabajo (\textit{worker thread}) se encarga de realizar todo el proceso capturando 
 siempre la imagen más reciente disponible en una cola interna. Dicha cola se actualiza cada vez que se recibe un nuevo 
-\textit{frame} procedente de la cámara del UAV.
+\textit{fotograma} procedente de la cámara del UAV.
 
 La salida principal del módulo se compone de tres parámetros:
 
@@ -67,7 +67,7 @@ La salida principal del módulo se compone de tres parámetros:
 Existen múltiples modelos de estimación de profundidad monocular, aunque no todos son adecuados para una arquitectura en 
 tiempo real. Muchos de ellos presentan una elevada carga computacional. Por este motivo, en el proyecto 
 previo~\cite{estudio-nav2D} se realizó un primer descarte de alternativas, atendiendo principalmente a la calidad de la 
-profundidad estimada, la estabilidad visual entre frames y la viabilidad de ejecución en tiempo real.
+profundidad estimada, la estabilidad visual entre fotogramas y la viabilidad de ejecución en tiempo real.
 
 Tras dicho estudio inicial, las familias de modelos más prometedoras fueron MiDaS~\cite{Ranftl2020} y 
 Depth Anything~\cite{cheng2024depthanything}. MiDaS destacaba por su robustez y por disponer de versiones relativamente 
@@ -82,7 +82,7 @@ evitación de obstáculos. Para ello se evaluaron principalmente dos motores de 
 ONNX Runtime~\cite{onnx_repo}. Además, se comparó la ejecución sobre CPU y sobre GPU, ya que la arquitectura final del 
 sistema debía aprovechar la aceleración por hardware disponible.
 
-Las pruebas se realizaron sobre secuencias de 400 frames, midiendo el tiempo medio, mínimo y fps de inferencia. La 
+Las pruebas se realizaron sobre secuencias de 400 fotogramas, midiendo el tiempo medio, mínimo y la frecuencia de inferencia en fotogramas/s. La 
 Tabla~\ref{tab:depth_models_efficiency} resume los resultados más relevantes obtenidos.
 
 \begin{table}[H]
@@ -92,36 +92,36 @@ Tabla~\ref{tab:depth_models_efficiency} resume los resultados más relevantes ob
     \resizebox{\textwidth}{!}{
     \begin{tabular}{llcccc}
         \hline
-        \textbf{Modelo} & \textbf{Motor} & \textbf{Dispositivo} & \textbf{Tiempo medio [ms]} & \textbf{Tiempo mín. [ms]} & \textbf{FPS} \\
+        \textbf{Modelo} & \textbf{Motor} & \textbf{Dispositivo} & \textbf{Tiempo medio [ms]} & \textbf{Tiempo mín. [ms]} & \textbf{Fotogramas/s} \\
         \hline
-        \texttt{model-small.onnx} & OpenCV & GPU & 13.337 & 10.876 & 74.98 \\
-        \texttt{model-small.onnx} & ORT & GPU & 11.242 & 10.984 & 88.95 \\
-        \texttt{model-small.onnx} & OpenCV & CPU & 85.849 & 67.114 & 11.65 \\
-        \texttt{model-small.onnx} & ORT & CPU & 20.011 & 16.870 & 49.97 \\
+        \texttt{model-small.onnx} & OpenCV & GPU & 13,337 & 10,876 & 74,98 \\
+        \texttt{model-small.onnx} & ORT & GPU & 11,242 & 10,984 & 88,95 \\
+        \texttt{model-small.onnx} & OpenCV & CPU & 85,849 & 67,114 & 11,65 \\
+        \texttt{model-small.onnx} & ORT & CPU & 20,011 & 16,870 & 49,97 \\
         \hline
-        \texttt{model-f6b98070.onnx} & OpenCV & GPU & 137.412 & 115.193 & 7.28 \\
-        \texttt{model-f6b98070.onnx} & ORT & GPU & 112.439 & 96.194 & 8.89 \\
-        \texttt{Depth-Anything-V2.onnx} & OpenCV & GPU & 116.233 & 109.870 & 8.60 \\
-        \texttt{Depth-Anything-V2.onnx} & ORT & GPU & 116.149 & 101.537 & 8.61 \\
-        \texttt{depth\_anything\_v2\_vits.onnx} & ORT & GPU & 95.016 & 86.731 & 10.52 \\
-        \texttt{DA3METRIC-LARGE.onnx} & ORT & GPU & 303.545 & 215.126 & 3.29 \\
+        \texttt{model-f6b98070.onnx} & OpenCV & GPU & 137,412 & 115,193 & 7,28 \\
+        \texttt{model-f6b98070.onnx} & ORT & GPU & 112,439 & 96,194 & 8,89 \\
+        \texttt{Depth-Anything-V2.onnx} & OpenCV & GPU & 116,233 & 109,870 & 8,60 \\
+        \texttt{Depth-Anything-V2.onnx} & ORT & GPU & 116,149 & 101,537 & 8,61 \\
+        \texttt{depth\_anything\_v2\_vits.onnx} & ORT & GPU & 95,016 & 86,731 & 10,52 \\
+        \texttt{DA3METRIC-LARGE.onnx} & ORT & GPU & 303,545 & 215,126 & 3,29 \\
         \hline
-        \texttt{DA3METRIC-SMALL.onnx} & ORT-DA3 & GPU & 56.765 & 43.850 & 17.62 \\
-        \texttt{DA3METRIC-SMALL.onnx} & ORT-DA3 & GPU, sin vídeo & 51.283 & 42.439 & 19.50 \\
+        \texttt{DA3METRIC-SMALL.onnx} & ORT-DA3 & GPU & 56,765 & 43,850 & 17,62 \\
+        \texttt{DA3METRIC-SMALL.onnx} & ORT-DA3 & GPU, sin vídeo & 51,283 & 42,439 & 19,50 \\
         \hline
     \end{tabular}
     }
 \end{table}
 
-Los resultados muestran varias conclusiones relevantes. En primer lugar, ONNX Runtime ofrece, en general, mejores tiempos de inferencia que OpenCV DNN para los modelos evaluados. Esta diferencia es especialmente visible en el modelo ligero \texttt{model-small.onnx}, donde ONNX Runtime alcanza 88.95 FPS en GPU frente a los 74.98 FPS obtenidos con OpenCV. En CPU, la diferencia también es significativa, pasando de 85.849 ms con OpenCV a 20.011 ms con ONNX Runtime.
+Los resultados muestran varias conclusiones relevantes. En primer lugar, ONNX Runtime ofrece, en general, mejores tiempos de inferencia que OpenCV DNN para los modelos evaluados. Esta diferencia es especialmente visible en el modelo ligero \texttt{model-small.onnx}, donde ONNX Runtime alcanza 88,95 fotogramas/s en GPU frente a los 74,98 fotogramas/s obtenidos con OpenCV. En CPU, la diferencia también es significativa, pasando de 85,849 ms con OpenCV a 20,011 ms con ONNX Runtime.
 
-En segundo lugar, se observa que los modelos de mayor tamaño, aunque pueden proporcionar estimaciones de profundidad más completas o detalladas, presentan tiempos de inferencia demasiado elevados para el sistema propuesto. Por ejemplo, \texttt{DA3METRIC-LARGE.onnx} alcanza únicamente 3.29 FPS, lo que lo hace inviable para una aplicación de evitación de obstáculos en tiempo real. De forma similar, algunas variantes de Depth Anything V2 se sitúan alrededor de 8--10 FPS, valores insuficientes si se considera que el módulo debe ejecutarse junto con el resto de procesos del sistema.
+En segundo lugar, se observa que los modelos de mayor tamaño, aunque pueden proporcionar estimaciones de profundidad más completas o detalladas, presentan tiempos de inferencia demasiado elevados para el sistema propuesto. Por ejemplo, \texttt{DA3METRIC-LARGE.onnx} alcanza únicamente 3,29 fotogramas/s, lo que lo hace inviable para una aplicación de evitación de obstáculos en tiempo real. De forma similar, algunas variantes de Depth Anything V2 se sitúan alrededor de 8--10 fotogramas/s, valores insuficientes si se considera que el módulo debe ejecutarse junto con el resto de procesos del sistema.
 
-Finalmente, la variante seleccionada fue \texttt{DA3METRIC-SMALL.onnx}, ejecutada mediante ONNX Runtime sobre GPU. Esta configuración alcanza un tiempo medio de 56.765 ms por frame, equivalente a 17.62 FPS, y mejora hasta 51.283 ms, es decir, 19.50 FPS, cuando se elimina la carga adicional asociada a la visualización de vídeo. Aunque no es el modelo más rápido en términos absolutos, representa un compromiso adecuado entre calidad de profundidad, estabilidad de la estimación y coste computacional, por lo que se adopta como base para el algoritmo de evitación desarrollado en este trabajo.
+Finalmente, la variante seleccionada fue \texttt{DA3METRIC-SMALL.onnx}, ejecutada mediante ONNX Runtime sobre GPU. Esta configuración alcanza un tiempo medio de 56,765 ms por fotograma, equivalente a 17,62 fotogramas/s, y mejora hasta 51,283 ms, es decir, 19,50 fotogramas/s, cuando se elimina la carga adicional asociada a la visualización de vídeo. Aunque no es el modelo más rápido en términos absolutos, representa un compromiso adecuado entre calidad de la estimación de profundidad, estabilidad temporal y coste computacional, por lo que se adopta como base para el algoritmo de evitación desarrollado en este trabajo. En cualquier caso, el hecho de utilizar una variante denominada \texttt{METRIC} no implica por sí mismo que toda la lógica posterior opere directamente sobre distancias físicas absolutas ya calibradas, ya que en el algoritmo propuesto la decisión de evitación se apoya principalmente en comparaciones relativas, percentiles y medidas de cercanía normalizada.
 
-\subsection{Kernel de pre-procesado}
+\subsection{Kernel de preprocesado}
 
-Además de la selección del modelo y del motor de inferencia, una parte importante de la optimización se encuentra en el preprocesado de la imagen de entrada. Antes de ejecutar el modelo, cada frame capturado por la cámara debe adaptarse al formato esperado por la red neuronal. Este proceso incluye el redimensionado de la imagen, la conversión de formato de color, el cambio de disposición de memoria y la normalización de los valores de intensidad.
+Además de la selección del modelo y del motor de inferencia, una parte importante de la optimización se encuentra en el preprocesado de la imagen de entrada. Antes de ejecutar el modelo, cada fotograma capturado por la cámara debe adaptarse al formato esperado por la red neuronal. Este proceso incluye el redimensionado de la imagen, la conversión de formato de color, el cambio de disposición de memoria y la normalización de los valores de intensidad.
 
 En una implementación directa, estas operaciones podrían realizarse en CPU mediante OpenCV. Sin embargo, esto obliga a copiar datos entre CPU y GPU antes de cada inferencia, aumentando la latencia total del sistema. Para evitar este cuello de botella, en este proyecto se implementó un kernel CUDA específico encargado de realizar el preprocesado directamente en memoria de GPU.
 
@@ -157,35 +157,34 @@ R[H \times W], \quad G[H \times W], \quad B[H \times W].
 
 Cada hilo CUDA procesa un píxel de la imagen. Para cada posición \((x,y)\), el kernel lee los tres canales RGB, los convierte a coma flotante, aplica la normalización y escribe el resultado en la posición correspondiente del tensor de salida. La estructura de ejecución se organiza mediante bloques de \(16 \times 16\) hilos, cubriendo toda la imagen mediante una malla bidimensional.
 
-Esta implementación presenta varias ventajas. En primer lugar, reduce el número de copias entre CPU y GPU, ya que la imagen permanece en memoria de GPU desde el preprocesado hasta la inferencia. En segundo lugar, fusiona en una única operación la conversión de tipo, la normalización y el cambio de disposición de memoria. En tercer lugar, permite ejecutar el preprocesado en el mismo \textit{stream} CUDA que el resto de operaciones, facilitando una integración más eficiente con OpenCV CUDA y ONNX Runtime.
+Esta implementación presenta varias ventajas. En primer lugar, reduce el número de copias entre CPU y GPU dentro de la cadena de procesado, ya que la imagen permanece en memoria de GPU desde el preprocesado hasta la inferencia una vez disponible en dicho entorno de ejecución. En segundo lugar, fusiona en una única operación la conversión de tipo, la normalización y el cambio de disposición de memoria. En tercer lugar, permite ejecutar el preprocesado en el mismo \textit{stream} CUDA que el resto de operaciones, facilitando una integración más eficiente con OpenCV CUDA y ONNX Runtime.
 
 Por tanto, el kernel de preprocesado contribuye a reducir la latencia global del sistema y a mantener una arquitectura coherente con el objetivo de ejecución en tiempo real. En lugar de tratar la inferencia como una operación aislada, se optimiza toda la cadena de procesamiento: captura, transferencia a GPU, preprocesado, inferencia y postprocesado.
 
 \section{Detección de obstáculos y cálculo de la dirección de evitación}
-El módulo de evitación se basa en la salida de un estimador monocular de profundidad relativa DA3. A partir de cada 
+El módulo de evitación se basa en la salida de un estimador monocular de profundidad DA3. A partir de cada 
 imagen RGB se obtiene un mapa de profundidad denso, sobre el que se calcula una señal de 
 \textbf{activación de la evitación} y, una \textbf{dirección angular de escape}.
 
-\subsection{Estimación de profundidad relativa}
+\subsection{Estimación de profundidad}
 Sea \(I\) la imagen RGB. Esta imagen se redimensiona al tamaño de entrada de la red y se normaliza 
-antes de ser inferida mediante el modelo DA3. La salida es un mapa de profundidad relativa
+antes de ser inferida mediante el modelo DA3. La salida es un mapa de profundidad
 \[D(x,y),\]
-donde valores mayores representan regiones más lejanas y valores menores regiones más cercanas. Dado que la profundidad 
-es relativa y no absoluta, es inviable el uso de \(D\) y es por ello que se debe evaluar de otra forma.
+donde valores mayores representan regiones más lejanas y valores menores regiones más cercanas. En la práctica, para el algoritmo desarrollado en este trabajo, este mapa no se emplea directamente como una medida métrica absoluta robusta en metros para toda la lógica de decisión. En su lugar, se utiliza principalmente como una señal de ordenación espacial a partir de la cual se construyen medidas relativas de cercanía y espacio libre.
 
 \subsection{Normalización de la profundidad}
-Para eliminar posibles errores de computo se esocgen los pixeles con valores dentro de un rango configurable \([d_{\min}, d_{\max}]\). Sobre 
-estos pixeles válidos (\(Dv\)) se calcula el \textit{ratio} de pixeles válidos con el cociente entre \(sum(Dv)/sum(D)\) y 
-por otro lado los percentiles \(p_{10}\) y \(p_{90}\) para así, poder realizar el cálculo de normalización:
-\[D_n(x,y) = \mathrm{clamp}\!\left(\frac{D(x,y) - p_{10}}{p_{90} - p_{10}},\, 0,\, 1\right).\]
+Para eliminar posibles errores de cómputo se escogen los píxeles con valores dentro de un rango configurable \([d_{\min}, d_{\max}]\). En este contexto, dichos límites se utilizan como filtro práctico sobre la salida del modelo y no como una garantía de exactitud métrica absoluta en todo el rango. Denotando por \(D\) al mapa de profundidad bruto y por \(D_v\) al conjunto de profundidades válidas dentro de ese rango, primero se calcula la proporción de píxeles válidos y, a continuación, los percentiles \(p_{10}\) y \(p_{90}\) de \(D_v\). Con ellos se obtiene el mapa de profundidad normalizada:
+\[
+D_n(x,y) = \mathrm{clamp}\!\left(\frac{D(x,y) - p_{10}}{p_{90} - p_{10}},\, 0,\, 1\right).
+\]
 
 A continuación se define un mapa de cercanía:
 \[C(x,y) = 1 - D_n(x,y).\]
-De tal modo que \(C\approx 1\) indica proximidad o cercanía y \(C\approx 0\) lejanía.
+De tal modo que \(C\approx 1\) indica proximidad o cercanía y \(C\approx 0\) lejanía. Por tanto, a partir de este punto la mayor parte de las decisiones del módulo se formulan en términos de cercanía normalizada y ocupación relativa, en lugar de depender exclusivamente de la magnitud absoluta de \(D\).
 
 \subsection{Regiones de interés}
 Uno de los principales problemas en el algoritmo primigenio era el uso de toda la imagen para el cálculo del gradiente, esto 
-es un error ya que pueden existir casos donde el algoritmo no funcione, un ejemplo de ello puede ser un frame con una columna central lo 
+es un error ya que pueden existir casos donde el algoritmo no funcione, un ejemplo de ello puede ser un fotograma con una columna central lo 
 suficientemente centrada como para que el gradiente salga 0, otro caso problemático es el caso donde existe demasiado obstáculo y por tanto 
 la magnitud del vector de movimiento es demasiado baja. Es por ello que en el nuevo algoritmo se introduce el uso de regiones de interés:
 
@@ -194,12 +193,13 @@ la magnitud del vector de movimiento es demasiado baja. Es por ello que en el nu
 \item una \textbf{ROI de guiado}, usada para calcular hacia dónde conviene desplazarse.
 \end{itemize}
 
-Como se puede observar en la Figura~\ref{fig:roi_ex} la ROI frontal concentra la detección en la zona relevante para la 
-colisión, mientras que la ROI de guiado analiza un área más ancha para buscar espacio libre lateral.
+Como se puede observar en la Figura~\ref{fig:roi_ex}, la ROI frontal concentra la detección en la zona relevante para la 
+colisión, mientras que la ROI de guiado analiza un área más ancha para identificar una dirección lateral más despejada 
+según los indicadores de cercanía y ocupación definidos.
 \begin{figure}[H]
     \centering
     \includegraphics[width=1\textwidth]{images/roi_examp.png}
-    \caption{ROI central en amarillo, ROI de guiado en azul.}
+    \caption{ROI frontal en amarillo y ROI de guiado en azul. Fuente: Elaboración propia}
     \label{fig:roi_ex}
 \end{figure}
 
@@ -212,7 +212,7 @@ máscara y de la profundidad frontal se calculan las siguientes métricas:
 \begin{figure}[H]
     \centering
     \includegraphics[width=1\textwidth]{images/mask_obj.png}
-    \caption{Máscara M de la ROI Frontal en verde.}
+    \caption{Máscara \(M_F\) de la ROI frontal en verde. Fuente: Elaboración propia}
     \label{fig:mask_obj}
 \end{figure}
 
@@ -223,9 +223,9 @@ máscara y de la profundidad frontal se calculan las siguientes métricas:
 
 \item \textbf{Ratio de mayor área conexa:}\(B_F = \frac{\text{Mayor área conexa en } M_F}{N_F}\)
 
-\item \textbf{Profundidad frontal percentil 20:} \(d_{20} = P_{20}(D_t \text{ en } ROI_F),\)
+\item \textbf{Profundidad frontal percentil 20:} \(d_{20} = P_{20}(D_v \text{ en } ROI_F),\)
 
-\item \textbf{profundidad frontal pico:} \(d_{p} = P_{q}(D_t \text{ en } ROI_F)\)
+\item \textbf{Profundidad frontal pico:} \(d_{p} = P_{q}(D_v \text{ en } ROI_F)\)
 donde \(q\) es un percentil pequeño, típicamente \(q=5\), para detectar obstáculos pequeños pero muy cercanos.
 \end{itemize}
 
@@ -249,20 +249,22 @@ Esta puntuación se filtra temporalmente mediante un suavizado exponencial:
 \begin{figure}[H]
     \centering
     \includegraphics[width=1\textwidth]{images/prop_noevad.png}
-    \caption{Ejemplo de propiedades sin obstáculo presente.}
+    \caption{Ejemplo de propiedades sin obstáculo presente. Fuente: Elaboración propia}
     \label{fig:prop_noevad}
 \end{figure}
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=1\textwidth]{images/prop_evad.png}
-    \caption{Ejemplo de propiedades con obstáculo presente.}
+    \caption{Ejemplo de propiedades con obstáculo presente. Fuente: Elaboración propia}
     \label{fig:prop_evad}
 \end{figure}
 
 
-\[ S_t = \alpha S_{t-1} + (1-\alpha)S_t \]
-donde \(\alpha \in [0,1]\) es el factor de suavizado.
+\[
+\tilde{S}_t = \alpha_S \tilde{S}_{t-1} + (1-\alpha_S)S_t
+\]
+donde \(\alpha_S \in [0,1]\) es el factor de suavizado de la puntuación y \(\tilde{S}_t\) representa la puntuación filtrada.
 
 \subsection{Activación del aviso de evitación}
 
@@ -273,8 +275,7 @@ de obstáculo.
 
 Para ello se definen varios umbrales:
 \begin{itemize}
-    \item El umbral \(d_{\text{evade}}\) representa la profundidad máxima a partir de la cual un obstáculo frontal se 
-    considera relevante para la evasión. 
+    \item El umbral \(d_{\text{evade}}\) representa un umbral operativo aplicado sobre la profundidad frontal estimada por el modelo para decidir si un obstáculo se considera relevante para la evasión. Aunque su valor se expresa en las mismas unidades manejadas por la salida del modelo, en este trabajo su uso debe interpretarse como un criterio práctico de activación dentro de la cadena completa de decisión, no como una medida física absoluta suficiente por sí sola. 
     \item El umbral \(T_p\) define el valor mínimo de cercanía pico (percentil 5\%) necesario para considerar que existe 
     una zona especialmente próxima al vehículo. 
     \item Los umbrales \(A_{\min}\) y \(B_{\min}\) establecen, respectivamente, el porcentaje mínimo de área cercana y el 
@@ -285,7 +286,7 @@ Para ello se definen varios umbrales:
 Las condiciones de activación son las siguientes:
 
 \begin{itemize}
-    \item activación por profundidad frontal, cuando el percentil 20 de profundidad en la región frontal es menor o igual que la distancia de evasión:
+    \item activación por profundidad frontal, cuando el percentil 20 de profundidad en la región frontal es menor o igual que el umbral operativo de evasión:
     \[d_{20} \le d_{\text{evade}}\]
 
     \item activación por cercanía pico, cuando la zona más próxima de la región frontal supera el umbral de cercanía definido:
@@ -295,20 +296,20 @@ Las condiciones de activación son las siguientes:
     \[A_F \ge A_{\min} \quad \text{o} \quad B_F \ge B_{\min}\]
 
     \item activación por puntuación global, cuando la puntuación de obstáculo filtrada supera el umbral de activación:
-    \[S_t \ge T_{\text{on}}\]
+    \[\tilde{S}_t \ge T_{\text{on}}\]
 \end{itemize}
 
-Estas condiciones se combinan en una única señal lógica de activación, de manera que sea suficiente el cumplimiento de una de ellas
+Estas condiciones se combinan en una única señal lógica de activación, denotada por \(\mathrm{threshold\_hit}_t\), de manera que sea suficiente el cumplimiento de una de ellas
 para la activación de la bandera booleana:
 
 \[
-\text{must\_evade} =
-(d_{20} \le d_{\text{evade}}) || (c_p \ge T_p) || (A_F \ge A_{\min}) || (B_F \ge B_{\min}) || (S_t \ge T_{\text{on}}). \]
+\mathrm{threshold\_hit}_t =
+(d_{20} \le d_{\text{evade}}) || (c_p \ge T_p) || (A_F \ge A_{\min}) || (B_F \ge B_{\min}) || (\tilde{S}_t \ge T_{\text{on}}). \]
 
 Una vez activado el aviso de evitación, la desactivación no se realiza con el mismo umbral de activación, sino con un umbral inferior \(T_{\text{off}}\). De este modo, si el sistema ya estaba en estado de evasión, la bandera se mantiene activa mientras la puntuación de obstáculo siga siendo suficientemente alta:
 
 \[
-S_t \ge T_{\text{off}}.
+\tilde{S}_t \ge T_{\text{off}}.
 \]
 
 Por tanto, la actualización final de la bandera de evitación queda definida como:
@@ -317,15 +318,15 @@ Por tanto, la actualización final de la bandera de evitación queda definida co
 \mathrm{must\_evade}_t =
 \begin{cases}
 1, & \text{si } \mathrm{must\_evade}_{t-1}=0 \text{ y } \mathrm{threshold\_hit}_t,\\
-1, & \text{si } \mathrm{must\_evade}_{t-1}=1 \text{ y } S_t \ge T_{\text{off}},\\
+1, & \text{si } \mathrm{must\_evade}_{t-1}=1 \text{ y } \tilde{S}_t \ge T_{\text{off}},\\
 0, & \text{en otro caso.}
 \end{cases}
 \]
 
-Este comportamiento introduce una histéresis en la activación del aviso. De manera que el sistema se activa cuando 
+Este comportamiento introduce una histéresis en la activación del aviso. El sistema se activa cuando 
 alguna condición supera su umbral correspondiente, pero solo se desactiva cuando la puntuación global cae por debajo de 
 \(T_{\text{off}}\). Al ser \(T_{\text{off}}\) menor que \(T_{\text{on}}\), se evita que la bandera \(must\_evade\) conmute 
-rápidamente entre activa e inactiva cuando la escena se encuentra cerca del límite de decisión, todo este comportamiento 
+rápidamente entre activa e inactiva cuando la escena se encuentra cerca del límite de decisión. Todo este comportamiento 
 se puede comprobar en las Figuras~\ref{fig:mustevade_false} y \ref{fig:mustevade_true}.
 
 
@@ -333,36 +334,37 @@ se puede comprobar en las Figuras~\ref{fig:mustevade_false} y \ref{fig:mustevade
 \begin{figure}[H]
     \centering
     \includegraphics[width=1\textwidth]{images/mustevade_false.png}
-    \caption{Ejemplo de condiciones no cumplidas.}
+    \caption{Ejemplo de condiciones no cumplidas. Fuente: Elaboración propia}
     \label{fig:mustevade_false}
 \end{figure}
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=1\textwidth]{images/mustevade_true.png}
-    \caption{Ejemplo de condiciones cumplidas.}
+    \caption{Ejemplo de condiciones cumplidas. Fuente: Elaboración propia}
     \label{fig:mustevade_true}
 \end{figure}
 
 
 \subsection{Cálculo de la dirección de evitación}
 
-La dirección de evitación se calcula buscando la zona de la imagen que presenta mayor espacio libre. Para ello, se 
-utiliza la ROI de guiado, que corresponde a una región amplia de la imagen centrada en la zona de avance del UAV. Esta 
-región se divide en varios sectores verticales, de forma que cada uno de ellos representa una posible dirección lateral 
-de escape como se puede ver en la Figura~\ref{fig:sectors}.
+La dirección de evitación se calcula identificando hacia qué zona de la imagen conviene desplazar la referencia lateral 
+de evasión. Para ello, se utiliza la ROI de guiado, que corresponde a una región amplia de la imagen centrada en la zona 
+de avance del UAV. Esta región se divide en varios sectores verticales, de forma que cada uno de ellos representa una 
+posible dirección lateral de escape como se puede ver en la Figura~\ref{fig:sectors}.
 
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=1\textwidth]{images/sectors_ex.png}
-    \caption{ROI de guiado dividida en 9 sectores verticales, en azul el sector seleccionado.}
+    \caption{ROI de guiado dividida en 9 sectores verticales, en azul el sector seleccionado. Fuente: Elaboración propia}
     \label{fig:sectors}
 \end{figure}
 
 En cada sector se evalúan dos aspectos principales. En primer lugar, se calcula la profundidad normalizada media, que 
-indica si esa zona de la imagen corresponde, en promedio, a una región lejana. Un valor alto implica que el sector 
-contiene más espacio libre. En segundo lugar, se calcula la proporción de píxeles cercanos, es decir, 
+indica si esa zona de la imagen corresponde, en promedio, a una región lejana. Un valor alto indica que el sector 
+corresponde, en promedio, a una zona relativamente más despejada dentro de la imagen. En segundo lugar, se calcula la 
+proporción de píxeles cercanos, es decir, 
 aquellos cuya cercanía supera el umbral definido para detectar ocupación próxima.
 
 A partir de estas dos magnitudes se asigna una puntuación de espacio libre a cada sector:
@@ -382,11 +384,11 @@ Una vez calculada la puntuación de todos los sectores, se selecciona aquel que 
 i^\star = \arg\max_i g_i.
 \]
 
-El sector \(i^\star\) se interpreta como la dirección con mayor espacio libre dentro de la ROI de guiado. Sin embargo, no 
-se toma simplemente el centro geométrico del sector como punto objetivo, sino que se calcula un centroide ponderado hacia 
-las zonas más lejanas. Para ello, cada píxel del sector recibe un peso proporcional a su profundidad normalizada, elevando el peso al cuadrado, de manera que los píxeles 
-correspondientes a regiones lejanas tengan más influencia en el cálculo del punto 
-objetivo que aquellos situados en zonas menos despejadas.
+El sector \(i^\star\) se interpreta como la dirección lateral preferente dentro de la ROI de guiado según la puntuación 
+definida. Sin embargo, no se toma simplemente el centro geométrico del sector como punto objetivo, sino que se calcula un 
+centroide ponderado hacia las zonas más lejanas. Para ello, cada píxel del sector recibe un peso proporcional a su 
+profundidad normalizada, elevando el peso al cuadrado, de manera que los píxeles correspondientes a regiones lejanas 
+tengan más influencia en el cálculo del punto objetivo que aquellos situados en zonas menos despejadas.
 
 \[
 w(x,y)=D_n(x,y)^2.
@@ -413,20 +415,26 @@ donde \(\mathbf{p}_c\) representa el centro de la imagen. Este vector indica hac
 desplazarse el UAV para evitar el obstáculo. En coordenadas de imagen, una componente horizontal positiva indica una 
 dirección hacia la derecha, mientras que una componente horizontal negativa indica una dirección hacia la izquierda.
 
-Para evitar cambios bruscos entre frames consecutivos, la dirección obtenida se suaviza temporalmente mediante un filtro 
+Para evitar cambios bruscos entre fotogramas consecutivos, la dirección obtenida se suaviza temporalmente mediante un filtro 
 exponencial:
 
 \[
 \tilde{\mathbf{u}}_t =
-\alpha \tilde{\mathbf{u}}_{t-1} + (1-\alpha)\mathbf{u}_t.
+\alpha_u \tilde{\mathbf{u}}_{t-1} + (1-\alpha_u)\mathbf{u}_t.
 \]
 
 
 Finalmente, se normaliza para obtener el vector final de evitación:
 
 \[
-\mathbf{v}_t = \frac{\tilde{\mathbf{u}}_t}{\|\tilde{\mathbf{u}}_t\|}.
+\mathbf{v}_t =
+\begin{cases}
+\dfrac{\tilde{\mathbf{u}}_t}{\|\tilde{\mathbf{u}}_t\|}, & \text{si } \|\tilde{\mathbf{u}}_t\| > \varepsilon,\\[2mm]
+\mathbf{0}, & \text{en otro caso,}
+\end{cases}
 \]
+
+donde \(\varepsilon\) es un umbral pequeño positivo que evita la división por valores cercanos a cero cuando la dirección de evasión no queda suficientemente definida.
 
 Por tanto, el vector \(\mathbf{v}_t\) representa la dirección normalizada hacia la zona más segura de la imagen, y posteriormente se convierte en un ángulo de evasión 
 para devolverlo como \textit{evade\_angle}, Figura~\ref{fig:evade_angle}.
@@ -438,7 +446,7 @@ para devolverlo como \textit{evade\_angle}, Figura~\ref{fig:evade_angle}.
 \begin{figure}[H]
     \centering
     \includegraphics[width=1\textwidth]{images/evade_angle.png}
-    \caption{La flecha indica la dirección de evitación decidida por el algoritmo.}
+    \caption{La flecha indica la dirección de evitación decidida por el algoritmo. Fuente: Elaboración propia}
     \label{fig:evade_angle}
 \end{figure}
 
@@ -451,9 +459,10 @@ La filosofía del algoritmo es desacoplar dos problemas distintos:
 \item \textbf{guiado}: decidir hacia qué dirección conviene desplazarse una vez detectado el obstáculo.
 \end{itemize}
 
-La detección se apoya en indicadores de ocupación y cercanía frontal, mientras que la dirección se basa en la búsqueda del sector con mayor espacio libre. Esta 
-separación hace al sistema más robusto que una aproximación basada únicamente en el gradiente medio del mapa de profundidad como se realizó en primera instancia en el 
-proyecto de investigación tutelado~\cite{estudio-nav2D}.
+La detección se apoya en indicadores de ocupación y cercanía frontal, mientras que la dirección se basa en la selección 
+del sector con mejor puntuación de guiado. Esta separación hace al sistema más robusto que una aproximación basada 
+únicamente en el gradiente medio del mapa de profundidad como se realizó en primera instancia en el proyecto de 
+investigación tutelado~\cite{estudio-nav2D}.
 
 El planificador, por tanto, recibirá las tres variables (\textit{must\_evade}, \textit{evade\_angle} y 
 \textit{obstacle\_score}). En el momento en que la bandera de activación se ponga a 1, el algoritmo de planificación 
@@ -464,19 +473,19 @@ la salida de estas tres variables para un recorrido con dos obstáculos (la terc
 \begin{figure}[H]
     \centering
     \includegraphics[width=1\textwidth]{images/avoidance_angle.png}
-    \caption{Ángulo de evitación.}
+    \caption{Ángulo de evitación. Fuente: Elaboración propia}
     \label{fig:avoidance_angle}
 \end{figure}
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=1\textwidth]{images/avoidance_mag.png}
-    \caption{Puntuación de obstáculo.}
+    \caption{Puntuación de obstáculo. Fuente: Elaboración propia}
     \label{fig:avoidance_mag}
 \end{figure}
 \begin{figure}[H]
     \centering
     \includegraphics[width=1\textwidth]{images/avoidance_flag.png}
-    \caption{Bandera de evitación booleana (1 activada, 0 desactivada).}
+    \caption{Bandera de evitación booleana (1 activada, 0 desactivada). Fuente: Elaboración propia}
     \label{fig:avoidance_flag}
 \end{figure}

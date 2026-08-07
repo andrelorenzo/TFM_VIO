@@ -49,10 +49,10 @@ localización.
     en técnicas clásicas de estimación del estado a partir de sensórica embarcada, destacando el uso de unidades de medida inercial (IMU) para 
     la estimación de actitud y estabilidad, así como el empleo de GNSS/GPS para la obtención de posición global cuando la señal se encuentra 
     disponible. Sin embargo, en entornos interiores o en escenarios con degradación de la señal GNSS, resulta necesario recurrir a estrategias 
-    alternativas basadas en percepción, donde adquieren especial relevancia los sensores visuales y los sensores inerciales , así como la 
+    alternativas basadas en percepción, donde adquieren especial relevancia los sensores visuales y los sensores inerciales, así como la 
     fusión multisensor para incrementar la robustez y la precisión del sistema.
 
-    En particular, la odometría visual-inercial (VIO) y otros esquemas de fusión permiten mitigar la deriva inherente de la estimación 
+    En particular, la odometría visual-inercial (VIO) y otros esquemas de fusión permiten reducir la deriva a corto plazo inherente a la estimación 
     puramente inercial, aunque persisten desafíos significativos asociados a la sensibilidad frente a variaciones de iluminación, oclusiones 
     y ambigüedad de escala, además de los requisitos computacionales necesarios para ejecutar métodos de filtrado u optimización en tiempo real. 
     Finalmente, el uso de técnicas de inteligencia artificial ha adquirido una relevancia creciente en este ámbito, al permitir mejorar la 
@@ -62,7 +62,7 @@ localización.
 
 \section{Arquitecturas de control}
     Uno de los avances más relevantes en el ámbito de la navegación autónoma ha sido el desarrollo de nuevas arquitecturas de control, 
-    tanto en términos de planificación de trayectorias como en la incorporación de información sensorial alternativa. En cualquier caso la mayoría de los sistemas de 
+    tanto en términos de planificación de trayectorias como en la incorporación de información sensorial alternativa. En cualquier caso, la mayoría de los sistemas de 
     navegación comparten un marco conceptual común a nivel de sistema.
 
     \subsection{Marco teórico de control en la navegación autónoma}
@@ -70,7 +70,7 @@ localización.
     y desarrollo se organicen en módulos de menor complejidad. Este enfoque modular permite abordar de forma separada los distintos 
     problemas. En términos generales, el objetivo es dotar al sistema de la capacidad de 
     adquirir información procedente de múltiples sensores y fusionarla de manera coherente, de modo que se obtenga una estimación única del 
-    estado del vehículo, reflejando además, las incertidumbres de cada fuente de medida.
+    estado del vehículo, reflejando, además, las incertidumbres de cada fuente de medida.
 
     En este contexto, la \textit{localización} constituye un concepto fundamental. Disponer de una estimación fiable de la posición y 
     orientación del vehículo resulta imprescindible para seguir una trayectoria o para alcanzar un objetivo determinado. 
@@ -83,14 +83,14 @@ localización.
 
     Finalmente, los conceptos de \textit{planificación} y \textit{control} completan el marco teórico. El planificador global suele operar 
     a baja frecuencia y tiene como finalidad calcular una ruta, es decir, una secuencia de puntos o referencias entre el origen y el 
-    destino, teniendo en cuenta la información disponible del entorno. Por el contrario, el planificador local o controlador opera a mayor frecuencia y 
-    transforma dichas referencias en comandos de movimiento adecuados para el vehículo, ajustándolos en tiempo real en función de la 
-    estimación del estado y de la información sensorial disponible. En la Figura~\ref{fig:control_theory_autnav} se representa una 
+    destino, teniendo en cuenta la información disponible del entorno. Por su parte, el planificador local genera referencias de movimiento 
+    factibles a mayor frecuencia, mientras que el controlador transforma dichas referencias en comandos para los actuadores y las ajusta en 
+    tiempo real en función de la estimación del estado y de la información sensorial disponible. En la Figura~\ref{fig:control_theory_autnav} se representa una 
     arquitectura básica que resume estas relaciones funcionales.
 
     \begin{figure}[H]
     	\ffigbox[\FBwidth] {
-            \caption[Arquitectura básica de control en navegación autónoma]{Arquitectura básica de control en navegación autónoma.}
+            \caption[Arquitectura básica de control en navegación autónoma]{Arquitectura básica de control en navegación autónoma. Fuente: elaboración propia}
             \label{fig:control_theory_autnav}
     	}
     	{\includegraphics[scale=0.35]{images/control_theory_autnav.png}}
@@ -100,8 +100,8 @@ localización.
     \subsection{Planificadores globales y controladores}
     En las arquitecturas de navegación autónoma se distingue habitualmente entre \textit{planificación} y \textit{control}, dado que ambos
     procesos operan en escalas temporales distintas y persiguen objetivos complementarios. La planificación se encarga de generar una solución
-    factible que conecte un estado inicial con un objetivo, imponiendo restricciones geométricas y de seguridad. Y por otro lado, el control
-    ejecuta dicha solución en el sistema físico, transformando referencias en comandos actuables y compensando perturbaciones y la presencia de obstáculos.
+    factible que conecte un estado inicial con un objetivo, imponiendo restricciones geométricas y de seguridad. Por otro lado, el control
+    ejecuta dicha solución en el sistema físico, transformando referencias en comandos para los actuadores y compensando perturbaciones y la presencia de obstáculos.
 
     \subsubsection*{Planificadores}
     Los planificadores proporcionan una solución que permite que un vehículo navegue de forma segura en el espacio, dada una \textit{pose}
@@ -140,7 +140,7 @@ localización.
             \hline
             RRT & Eficiente en alta dimensionalidad. & Trayectoria subóptima. \\
             \hline
-            RRT* & Converge asintóticamente. & Mayor tiempo de cómputo. \\
+            RRT* & Es probabilísticamente completo y asintóticamente óptimo. & Mayor tiempo de cómputo. \\
             \hline
             DWA & Respeta restricciones cinemáticas. & Propenso a mínimos locales. \\
             \hline
@@ -159,7 +159,7 @@ localización.
     \subsubsection*{Planificador local}
     El planificador local transforma la referencia (trayectoria, posición o velocidad deseada) en comandos para el sistema de propulsión y los
     actuadores. En robótica móvil se emplean controladores clásicos como PID o LQR, así como métodos específicos para el seguimiento de
-    trayectorias y la evitación local, tales como \textit{Pure Pursuit},Figura~\ref{fig:purepursuit}, o los \textit{campos potenciales}. Asimismo, el control predictivo
+    trayectorias y la evitación local, tales como \textit{Pure Pursuit} (Figura~\ref{fig:purepursuit}) o los \textit{campos potenciales}. Asimismo, el control predictivo
     basado en modelo (MPC) permite incorporar restricciones explícitas y anticipar la evolución del sistema, a costa de un mayor coste de
     cómputo. De forma general, se emplean lazos internos a alta frecuencia para estabilizar la actitud y la dinámica rápida, y lazos externos a
     menor frecuencia para regular la posición y ejecutar la navegación.
@@ -195,13 +195,13 @@ restricciones computacionales y temporales del sistema objetivo.
 
 \begin{figure}[H]
     \ffigbox[\FBwidth] {
-        \caption[Ejemplo de control por Pure Pursuit]{Ejemplo de control mediante Pure Pursuit.}
+        \caption[Ejemplo de control por Pure Pursuit]{Ejemplo de control mediante Pure Pursuit. Fuente:~\cite{mathworks_pure_pursuit}.}
         \label{fig:purepursuit}
     }
     {\includegraphics[scale=0.18]{images/pute_purpursuit.png}}
 \end{figure}
 
-    \subsection{Control mediante fusión visual-inercial(VI)}
+    \subsection{Control mediante fusión visual-inercial (VI)}
     En el control aplicado a la navegación es habitual distinguir dos fuentes de estimación del estado con características complementarias. En
     primer lugar, se dispone de una fuente \textit{global} que proporciona una localización absoluta con alta precisión y sin deriva temporal,
     aunque normalmente a baja frecuencia (típicamente entre 1 y 10~Hz). En segundo lugar, se emplea una fuente \textit{local} u odométrica que,
@@ -212,13 +212,14 @@ restricciones computacionales y temporales del sistema objetivo.
     deriva con disponibilidad continua a alta frecuencia.
 
 
-    Generalmente, esta arquitectura se implementa mediante el uso de GNSS/GPS en exteriores o mediante Lidar y/o camaras 3D en itneriores como fuente global y el uso de
-    encoders o IMUs como fuente odométrica. Estas son combinadas de manera estadisticas con un filtro, como puede ser un filtro de Kalma. En el caso de interés de este 
-    trabajo, el localizador global suele basarse en información visual, mediante la extracción de
-    características de una imagen 2D junto con la medida de una IMU a alta frecuencia para así, mantener una estimación continua del estado.
+    Generalmente, esta arquitectura se implementa mediante el uso de GNSS/GPS en exteriores o mediante LiDAR y/o cámaras 3D en interiores como fuente global, y el uso de
+    encoders o IMUs como fuente odométrica. Estas fuentes se combinan de manera estadística con un filtro, como puede ser un filtro de Kalman. En el caso de interés de este 
+    trabajo no se dispone de una fuente global equivalente: la odometría visual-inercial monocular proporciona una estimación odométrica local de la pose a partir de
+    características de una imagen 2D junto con la medida de una IMU a alta frecuencia para así mantener una estimación continua del estado, aunque con deriva acumulativa
+    si no se incorporan referencias absolutas o cierre de bucle.
     \begin{figure}[H]
         \ffigbox[\FBwidth]{
-            \caption[Esquema teórico de localización mediante odometría y sensor global]{Esquema teórico de localización mediante odometría y sensor global.}
+            \caption[Esquema teórico de localización mediante odometría y sensor global]{Esquema teórico de localización mediante odometría y sensor global. Fuente: elaboración propia}
             \label{fig:loca-glob-loc}
         }{
             \includegraphics[scale=0.4]{images/localizador-global-local.png}
@@ -277,8 +278,8 @@ restricciones computacionales y temporales del sistema objetivo.
     Desde un punto de vista funcional, un sistema VIO suele estar formado por dos bloques principales. El primero es un \textit{front-end}
     visual, encargado de procesar las imágenes, detectar o seguir características y generar correspondencias temporales entre fotogramas. El
     segundo es un estimador de estado, que combina dichas observaciones visuales con las medidas de la IMU mediante técnicas de filtrado u
-    optimización. La IMU permite propagar el estado a alta frecuencia entre imágenes consecutivas, mientras que la información visual corrige la
-    deriva acumulada por la integración inercial.
+    optimización. La IMU permite propagar el estado a alta frecuencia entre imágenes consecutivas, mientras que la información visual reduce la
+    deriva acumulada por la integración inercial a corto plazo, aunque no elimina la deriva global.
 
     A nivel estructural, los sistemas VIO suelen organizarse en etapas de inicialización, propagación inercial, seguimiento visual y actualización
     del estado. La inicialización permite estimar condiciones iniciales como la dirección de la gravedad, los sesgos de la IMU y la primera

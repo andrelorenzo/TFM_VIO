@@ -1,9 +1,9 @@
 \chapter{Planificadores y controladores de trayectoria}
 
-En este capítulo se describe la arquitectura empleada para el seguimiento de trayectoria del vehículo aéreo no tripulado. El sistema 
-se ha dividido en tres bloques principales: un planificador global, un planificador local y un controlador de bajo nivel.
+En este capítulo se describe la arquitectura empleada para el seguimiento de trayectoria del vehículo aéreo no tripulado. El subsistema 
+de seguimiento se ha dividido en tres bloques principales: un generador de trayectoria de referencia, un planificador local y un controlador de bajo nivel.
 
-El planificador global se encarga de transformar una lista de \textit{waypoints} en una trayectoria discretizada. 
+El generador de trayectoria de referencia se encarga de transformar una lista de \textit{waypoints} en una trayectoria discretizada. 
 
 El planificador local toma dicha trayectoria y, a partir de la posición actual del dron, calcula una referencia local mediante una 
 estrategia de tipo \textit{Pure Pursuit} tridimensional. 
@@ -13,21 +13,21 @@ el planificador local y aplica una ley de control PID para obtener los comandos 
 
 
 
-\section{Planificador Local}
+\section{Planificador local}
 La metodología de guiado local se basa en la técnica \textit{Pure Pursuit} aplicada a vehículos aéreos, siguiendo el enfoque presentado 
-en \cite{9828198}. En dicho trabajo, el problema de guiado de un dron en el espacio tridimensional se plantea mediante la generación 
+en \cite{pp3d}. En dicho trabajo, el problema de guiado de un dron en el espacio tridimensional se plantea mediante la generación 
 sucesiva de puntos virtuales que deben ser seguidos por el vehículo. En la implementación desarrollada en este trabajo, esta idea se 
 adapta al seguimiento de una trayectoria 3D previamente discretizada mediante \textit{waypoints}.
 
 El planificador local tiene como objetivo calcular una consigna de velocidad instantánea a partir de la trayectoria generada por el 
-planificador global y del estado actual del dron. Su entrada principal es una secuencia discreta de puntos de trayectoria,
+generador de trayectoria de referencia y del estado actual del dron. Su entrada principal es una secuencia discreta de puntos de trayectoria:
 
-\[\mathcal{P} =\left\{\mathbf{p}_0,\mathbf{p}_1,\dots,\mathbf{p}_{N-1}\right\},\]
+\[\mathcal{P} =\left\{\mathbf{p}_0,\mathbf{p}_1,\dots,\mathbf{p}_{N-1}\right\}.\]
 
 
 El estado de navegación utilizado por el planificador local contiene la pose completa del UAV:
 
-\[\mathbf{x} =\begin{bmatrix}x ,y ,z ,qw,qx,qy,qz\end{bmatrix},\]
+\[\mathbf{x} =\begin{bmatrix}x ,y ,z ,qw,qx,qy,qz\end{bmatrix}.\]
 
 A partir de la orientación se extrae el ángulo de guiñada o \textit{yaw}, necesario para calcular la velocidad angular de orientación 
 hacia el objetivo local.
@@ -35,15 +35,16 @@ El algoritmo implementado corresponde a una variante tridimensional de \textit{P
 punto final de la trayectoria, el planificador selecciona un punto adelantado una distancia fija \(L_d\), denominada 
 \textit{lookahead}. Esta estrategia reduce oscilaciones y permite un seguimiento más suave de la trayectoria.
 
-En primer lugar, el algoritmo selecciona un punto de la trayectoria a seguir, siendo este siempre uno con índice mayor que el 
-anteriormente seleccionado y que sea el más alejado del UAV pero siempre con una distancia menor a \(L_d\). En la Figura~\ref{fig:lplan_tray} se muestra 
-el camino teórico seguido por un UAV a partir de los puntos de seguimiento generados por el algoritmo.
+En primer lugar, el algoritmo selecciona un punto de referencia situado a una distancia de \textit{lookahead} medida sobre la propia 
+trayectoria a partir del progreso actual del UAV. De este modo, el punto de seguimiento no se elige únicamente por distancia euclídea 
+directa al vehículo, sino por avance acumulado a lo largo de los segmentos discretizados del camino. En la Figura~\ref{fig:lplan_tray} 
+se muestra el camino teórico seguido por un UAV a partir de los puntos de seguimiento generados por el algoritmo.
 
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=1\textwidth]{images/lplan_tray.png}
-    \caption{Ejemplo de generación de trayectoria en base al planificador local.}
+    \caption{Ejemplo de generación de trayectoria a partir del planificador local. Fuente: Elaboración propia}
     \label{fig:lplan_tray}
 \end{figure}
 
@@ -68,14 +69,27 @@ Para el cálculo del comando de velocidad lineal se calcula el error geométrico
 
 \[\mathbf{e} =\mathbf{p}_{ref} - \mathbf{p}\]
 
-A partir de este error se genera una velocidad lineal de referencia a partir de la distancia del error de posición, una constante de 
-proporcionalidad \(k_{xz}\) y finalmente se satura a unos valores máximos y mínimos de manera que la consigna sea físicamente aceptable:
+A partir de este error se genera una velocidad lineal de referencia a partir de la distancia del error de posición en el plano \(xz\), una constante de 
+proporcionalidad \(k_{xz}\) y una saturación sobre la magnitud del comando:
 
 \[d_{xz} =\sqrt{e_x^2 + e_z^2}.\]
-\[v_{xz} =k_{xz} d_{xz}.\]
-\[v_{xz} =\operatorname{sat}\left(v_{xz},-v_{xz\max},v_{xz\max}\right).\]
+\[v_{xz}^{mag} = \operatorname{sat}\left(k_{xz} d_{xz},0,v_{xz\max}\right).\]
 
-De igual manera para la altura (\(v_{y}\)) se realiza la misma operación haciendo uso de otra constante de proporcionalidad \(k_{y}\).
+Si \(d_{xz} > \varepsilon\), las componentes horizontal y longitudinal de la referencia se obtienen proyectando dicha magnitud sobre la dirección del error:
+\[
+\begin{bmatrix}
+v_x\\
+v_z
+\end{bmatrix}
+=
+\frac{v_{xz}^{mag}}{d_{xz}}
+\begin{bmatrix}
+e_x\\
+e_z
+\end{bmatrix}.
+\]
+
+En caso contrario, cuando \(d_{xz} \le \varepsilon\), se toma \(v_x = 0\) y \(v_z = 0\). De igual manera, para la altura (\(v_y\)) se realiza una operación análoga haciendo uso de otra constante de proporcionalidad \(k_y\).
 
 Además de la velocidad lineal, el planificador local genera una velocidad angular alrededor del eje vertical. Para ello se calcula el 
 ángulo deseado hacia el punto de referencia:
@@ -96,19 +110,19 @@ e_{\psi} =
 donde \(\psi\) es el ángulo de yaw actual del dron y \(\operatorname{wrap}(\cdot)\) normaliza el ángulo al intervalo \([-\pi,\pi]\). La velocidad angular comandada es
 
 \[
-\omega_y =
+\omega_z =
 k_{\psi} e_{\psi}.
 \]
 
 Al igual que en el caso lineal, esta velocidad se satura para respetar los límites dinámicos del sistema:
 
 \[
-\omega_y =
+\omega_z =
 \operatorname{sat}
 \left(
 k_{\psi} e_{\psi},
--\omega_{y,\max},
-\omega_{y,\max}
+-\omega_{z,\max},
+\omega_{z,\max}
 \right).
 \]
 
@@ -118,7 +132,7 @@ angular como se puede observar en la Figura~\ref{fig:lplan_cmd}:
 \begin{figure}[H]
     \centering
     \includegraphics[width=1\textwidth]{images/lplan_cmd.png}
-    \caption{Ejemplo de generación de comandos de velocidad en base al planficiador local.}
+    \caption{Ejemplo de generación de comandos de velocidad a partir del planificador local. Fuente: Elaboración propia}
     \label{fig:lplan_cmd}
 \end{figure}
 
@@ -138,8 +152,8 @@ v_z
 =
 \begin{bmatrix}
 0 \\
-\omega_y \\
-0 
+0 \\
+\omega_z
 \end{bmatrix}.
 \]
 
@@ -168,9 +182,9 @@ mientras que la velocidad angular queda reducida a:
 \]
 donde \(\alpha = 0.1\). De esta forma, durante la evasión el UAV prioriza la separación respecto al obstáculo, pero conserva un 10\% del comando de avance asociado a la trayectoria global, permitiendo una transición más suave y evitando que el vehículo pierda completamente la dirección de navegación deseada.
 
-\section{Planificador Global}
+\section{Generador de trayectoria de referencia}
 
-El planificador global es el encargado de generar la trayectoria de referencia que posteriormente será seguida por el planificador local. Su entrada es una lista de \textit{waypoints} definidos en el espacio tridimensional:
+El generador de trayectoria de referencia es el encargado de generar la trayectoria que posteriormente será seguida por el planificador local. Su entrada es una lista de \textit{waypoints} definidos en el espacio tridimensional:
 
 \[
 \mathcal{W} =
@@ -182,7 +196,7 @@ El planificador global es el encargado de generar la trayectoria de referencia q
 \right\},
 \]
 
-Estos puntos representan posiciones espaciales por las que debe pasar el dron. Sin embargo, una lista de \textit{waypoints} puede estar demasiado separada para ser utilizada directamente por un planificador local. Por ello, el planificador global interpola linealmente entre cada par de puntos consecutivos, generando una trayectoria más densa y uniforme.
+Estos puntos representan posiciones espaciales por las que debe pasar el dron. Sin embargo, una lista de \textit{waypoints} puede estar demasiado separada para ser utilizada directamente por un planificador local. Por ello, este módulo interpola linealmente entre cada par de puntos consecutivos, generando una trayectoria más densa y uniforme.
 
 Cada punto intermedio se obtiene mediante interpolación lineal:
 
@@ -203,7 +217,7 @@ donde
 j = 0,1,\dots,n_i-1.
 \]
 
-De este modo, el planificador global transforma una trayectoria definida por pocos puntos de paso en una secuencia densa de puntos 3D:
+De este modo, el generador de trayectoria de referencia transforma una trayectoria definida por pocos puntos de paso en una secuencia densa de puntos 3D:
 
 \[
 \mathcal{P} =
@@ -221,7 +235,7 @@ En la Figura~\ref{fig:gplan_tray} se muestra la generación de la trayectoria in
 \begin{figure}[H]
     \centering
     \includegraphics[width=1\textwidth]{images/gplan_tray.png}
-    \caption{Ejemplo de generación de trayectoria interpolada.}
+    \caption{Ejemplo de generación de trayectoria interpolada. Fuente: Elaboración propia}
     \label{fig:gplan_tray}
 \end{figure}
 
@@ -238,23 +252,23 @@ del controlador implementado.
 \begin{figure}[H]
     \centering
     \includegraphics[width=1\textwidth]{images/pid_esq.png}
-    \caption{Arquitectura del PID diferencial.}
+    \caption{Arquitectura del PID diferencial. Fuente: Elaboración propia}
     \label{fig:pid_esq}
 \end{figure}
 
 
 El sistema emplea cuatro controladores independientes: tres para las componentes de velocidad lineal \(v_x\), \(v_y\) y \(v_z\), y uno 
-para la velocidad angular de guiñada \(\omega_y\). De forma compacta, la entrada del controlador puede expresarse como
+para la velocidad angular de guiñada \(\omega_z\). De forma compacta, la entrada del controlador puede expresarse como
 
 \[
 \mathbf{r} =
 \begin{bmatrix}
-v_{x,ref} & v_{y,ref} & v_{z,ref} & \omega_{y,ref}
+v_{x,ref} & v_{y,ref} & v_{z,ref} & \omega_{z,ref}
 \end{bmatrix}^T,
 \qquad
 \mathbf{y} =
 \begin{bmatrix}
-v_x & v_y & v_z & \omega_y
+v_x & v_y & v_z & \omega_z
 \end{bmatrix}^T.
 \]
 
@@ -313,7 +327,7 @@ La salida final del bloque de control queda formada por las tres velocidades lin
 \[
 \mathbf{u}_{cmd} =
 \begin{bmatrix}
-v_x^{cmd} & v_y^{cmd} & v_z^{cmd} & \omega_y^{cmd}
+v_x^{cmd} & v_y^{cmd} & v_z^{cmd} & \omega_z^{cmd}
 \end{bmatrix}^T.
 \]
 
@@ -322,7 +336,7 @@ Las velocidades angulares de roll y pitch no se modifican en este bloque, por lo
 \[
 \omega_x^{cmd}=0,
 \qquad
-\omega_z^{cmd}=0.
+\omega_y^{cmd}=0.
 \]
 
 En la Figura~\ref{fig:pid_salida_comandos} se muestra un ejemplo de la referencia recibida por el controlador y del comando final 
@@ -332,7 +346,7 @@ generado tras aplicar el PID y sus limitaciones. En la Figura~\ref{fig:pid_sim} 
 \begin{figure}[H]
     \centering
     \includegraphics[width=1\textwidth]{images/pid_out.png}
-    \caption{Simulación de control PID diferencial.}
+    \caption{Simulación de control PID diferencial. Fuente: Elaboración propia}
     \label{fig:pid_salida_comandos}
 \end{figure}
 
@@ -340,6 +354,6 @@ generado tras aplicar el PID y sus limitaciones. En la Figura~\ref{fig:pid_sim} 
 \begin{figure}[H]
     \centering
     \includegraphics[width=1\textwidth]{images/sim_tray.png}
-    \caption{Simulación de generación de trayectoria mediante control PID.}
+    \caption{Simulación de generación de trayectoria mediante control PID. Fuente: Elaboración propia}
     \label{fig:pid_sim}
 \end{figure}

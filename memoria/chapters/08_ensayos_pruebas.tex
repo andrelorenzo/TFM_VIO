@@ -1,11 +1,15 @@
 \chapter{Pruebas y ensayos del sistema}
 
 \section{Procedimiento de ensayos}
-Las pruebas se han desarrollado como medida de evaluaci\'on del sistema, referenciadas siempre a un ground truth escogido en funci\'on del tipo de ensayo. Este procedimiento permite detectar errores, cuantificar el rendimiento de cada m\'odulo y comparar los resultados obtenidos con las expectativas te\'oricas del comportamiento del sistema. En todos los casos se han registrado los datos relevantes y se ha realizado un an\'alisis cualitativo y cuantitativo de la respuesta del algoritmo frente a escenarios controlados.
+Las pruebas se han desarrollado como medida de evaluaci\'on del sistema, referenciadas a una referencia de validaci\'on escogida en funci\'on del tipo de ensayo. Este procedimiento permite detectar errores, cuantificar el rendimiento de cada m\'odulo y comparar los resultados obtenidos con las expectativas te\'oricas del comportamiento del sistema. Cuando la referencia no procede de una medida externa exacta, se indica expl\'icitamente para evitar identificarla de forma impropia como \textit{ground truth}.
 
-\section{Test 1: Validaci\'on del c\'alculo de la direcci\'on de evitaci\'on}
-En este ensayo se valida de forma cualitativa que la direcci\'on de evitaci\'on calculada por el sistema sea coherente 
-con la escena observada. Para ello se aproxim\'o manualmente el dron a una pared, simulando el vuelo con la mano.
+No todos los ensayos tienen la misma naturaleza experimental. En particular, algunos se plantean como validaciones cualitativas del signo o la coherencia de la respuesta del sistema, otros utilizan casos sint\'eticos con referencia conocida y otros emplean referencias aproximadas obtenidas a partir de sensores embarcados o del propio monitor temporal. Por ello, en cada ensayo se especifica el alcance real de la validaci\'on realizada y las conclusiones deben interpretarse de acuerdo con ese contexto.
+
+\section{Ensayo 1: Validaci\'on cualitativa del c\'alculo de la direcci\'on de evitaci\'on}
+En este ensayo se comprueba de forma cualitativa que la direcci\'on de evitaci\'on calculada por el sistema sea coherente 
+con la escena observada y con el signo de los comandos generados. Para ello se aproxim\'o manualmente el dron a una pared, simulando 
+el vuelo con la mano. Por tanto, esta prueba no constituye una validaci\'on de la din\'amica completa de evitaci\'on en vuelo cerrado, 
+sino una verificaci\'on visual del comportamiento reactivo esperado ante un obst\'aculo cercano.
 
 Como se observa en la Figura~\ref{fig:test1_evasion}, en la imagen visual se aprecia que el dron se encuentra muy 
 pr\'oximo a una pared situada en la parte izquierda del campo de visi\'on. De forma coherente con esa situaci\'on, el 
@@ -26,7 +30,7 @@ mostrar mejor la evoluci\'on completa del comando.
     \begin{subfigure}{0.95\textwidth}
         \centering
         \includegraphics[width=\textwidth]{images/test1_visual.png}
-        \caption{Imagen visual del ensayo, con la pared cercana en la parte izquierda de la escena.}
+        \caption{Imagen visual del ensayo, con la pared cercana en la parte izquierda de la escena. Fuente: Elaboración propia}
     \end{subfigure}
 
     \vspace{0.5em}
@@ -34,7 +38,7 @@ mostrar mejor la evoluci\'on completa del comando.
     \begin{subfigure}{0.95\textwidth}
         \centering
         \includegraphics[width=\textwidth]{images/test1_prof.png}
-        \caption{Estimaci\'on de profundidad y direcci\'on de evitaci\'on calculada hacia la derecha.}
+        \caption{Estimaci\'on de profundidad y direcci\'on de evitaci\'on calculada hacia la derecha. Fuente: Elaboración propia}
     \end{subfigure}
 
     \vspace{0.5em}
@@ -45,18 +49,18 @@ mostrar mejor la evoluci\'on completa del comando.
         \caption{Comandos de velocidad, con \(x>0\) hacia la derecha y reducci\'on del avance en \(z\).}
     \end{subfigure}
 
-    \caption{Resultados del Test 1. La escena visual, la salida del estimador de profundidad y los comandos de control son coherentes con una maniobra de evitaci\'on hacia la derecha ante la presencia de una pared cercana.}
+    \caption{Resultados del Ensayo 1. La escena visual, la salida del estimador de profundidad y los comandos de control son coherentes con una maniobra de evitaci\'on hacia la derecha ante la presencia de una pared cercana. La prueba debe interpretarse como una validaci\'on cualitativa de signo y coherencia de la respuesta.}
     \label{fig:test1_evasion}
 \end{figure}
 
-\section{Test 2: Validaci\'on de la pre-integraci\'on mediante test sint\'eticos}
-Este ensayo se ha realizado para validar de forma aislada la parte de pre-integraci\'on del estimador inercial. 
-Para ello se a\~nadi\'o al proyecto un modo de funcionamiento en el que se proporciona un archivo csv con datos generados 
+\section{Ensayo 2: Validaci\'on de la preintegraci\'on mediante casos sint\'eticos}
+Este ensayo se ha realizado para validar de forma aislada la parte de preintegraci\'on del estimador inercial. 
+Para ello se a\~nadi\'o al proyecto un modo de funcionamiento en el que se proporciona un archivo CSV con datos generados 
 de manera sintética y donde se bloquea el cálculo visual. De esta forma, el resultado depende \'unicamente del modelo 
 inercial y de su integraci\'on num\'erica.
 
 
-Los ficheros sint\'eticos se generaron mediante un script en python. En dicho script se define 
+Los ficheros sint\'eticos se generaron mediante un script en Python. En dicho script se define 
 una secuencia de aceleraciones lineales y velocidades angulares en el sistema del cuerpo, y a partir de ellas se integra 
 una trayectoria de referencia conocida. Para mejorar la fidelidad de la simulaci\'on, la trayectoria se integra con un 
 esquema de subpasos y usando una orientaci\'on intermedia en cada intervalo, reduciendo as\'i el error num\'erico del 
@@ -68,15 +72,17 @@ propio generador. Finalmente, para cada caso se calculan los incrementos esperad
 \]
 que se comparan con la salida del estimador implementado en el sistema.
 
-Además, las medidas sint\'eticas se generarón mediante la inyección de ruido aleatorio basado en el que se cálculo con el 
-método de Allan variance. El script permite inyectar tres contribuciones: sesgo est\'atico, ruido blanco y 
+Estos casos sintéticos permiten validar la coherencia interna de la implementación de la preintegración y comprobar que la respuesta del estimador es compatible con una referencia generada bajo hipótesis conocidas. No obstante, deben interpretarse como una validación controlada de consistencia del modelo implementado, y no como un sustituto de contrastes independientes de mayor orden o de estudios estadísticos más amplios, por ejemplo mediante múltiples realizaciones aleatorias.
+
+Además, las medidas sint\'eticas se generaron mediante la inyecci\'on de ruido aleatorio basado en el que se calcul\'o con el 
+método de la desviaci\'on de Allan. El script permite inyectar tres contribuciones: sesgo est\'atico, ruido blanco y 
 paseo aleatorio del sesgo. En t\'erminos pr\'acticos, cada muestra generada se modifica como
 \[
 \omega_m = \omega + b_g + b_g^{rw} + n_g,\qquad
 a_m = a + b_a + b_a^{rw} + n_a,
 \]
 donde $b_g$ y $b_a$ son los sesgos constantes, $n_g$ y $n_a$ son ruidos blancos gaussianos y $b_g^{rw}$, $b_a^{rw}$ 
-evolucionan como un random walk discreto. El ruido blanco se escala como $N/\sqrt{\Delta t}$ y el paseo aleatorio 
+evolucionan como un paseo aleatorio (\textit{random walk}) discreto. El ruido blanco se escala como $N/\sqrt{\Delta t}$ y el paseo aleatorio 
 como $K\sqrt{\Delta t}$.
 
 La Tabla~\ref{tab:test2_preintegration_summary} resume los resultados obtenidos para los seis casos sint\'eticos 
@@ -85,7 +91,7 @@ posici\'on y orientaci\'on reportado por el programa de comparaci\'on.
 
 \begin{table}[H]
     \centering
-    \caption{Resumen de resultados del ensayo sint\'etico de pre-integraci\'on IMU.}
+    \caption{Resumen de resultados del ensayo sint\'etico de preintegraci\'on IMU.}
     \label{tab:test2_preintegration_summary}
     \small
     \resizebox{\textwidth}{!}{%
@@ -93,12 +99,12 @@ posici\'on y orientaci\'on reportado por el programa de comparaci\'on.
         \hline
         Caso & Duraci\'on [s] & Muestras & Error pos. [m] & Error rot. [$^\circ$] \\
         \hline
-        \texttt{Caso 1: Movimiento cero} & 0.10 & 21 & $1.44\cdot10^{-5}$ & 0.0057 \\
-        \texttt{Caso 2: Aceleración constante} & 0.10 & 21 & $1.44\cdot10^{-5}$ & 0.0057 \\
-        \texttt{Caso 3: Giro constante} & 0.10 & 21 & $1.43\cdot10^{-5}$ & 0.0056 \\
-        \texttt{Caso 4: Aceleración cte - Giro - Aceleración cte} & 0.10 & 21 & $1.43\cdot10^{-5}$ & 0.0057 \\
-        \texttt{Caso 5: Camino complejo en los 6 GDL} & 2.00 & 401 & $3.34\cdot10^{-2}$ & 0.1861 \\
-        \texttt{Caso 6: Camino complejo y de larga duración} & 69.00 & 13801 & 4.3690 & 0.2378 \\
+        \texttt{Caso 1: Movimiento cero} & 0,10 & 21 & $1,44\cdot10^{-5}$ & 0,0057 \\
+        \texttt{Caso 2: Aceleraci\'on constante} & 0,10 & 21 & $1,44\cdot10^{-5}$ & 0,0057 \\
+        \texttt{Caso 3: Giro constante} & 0,10 & 21 & $1,43\cdot10^{-5}$ & 0,0056 \\
+        \texttt{Caso 4: Aceleraci\'on constante - giro - aceleraci\'on constante} & 0,10 & 21 & $1,43\cdot10^{-5}$ & 0,0057 \\
+        \texttt{Caso 5: Camino complejo en los 6 GDL} & 2,00 & 401 & $3,34\cdot10^{-2}$ & 0,1861 \\
+        \texttt{Caso 6: Camino complejo y de larga duraci\'on} & 69,00 & 13801 & 4,3690 & 0,2378 \\
         \hline
     \end{tabular}}
 \end{table}
@@ -114,7 +120,7 @@ posici\'on y de unas pocas mil\'esimas de grado en rotaci\'on. Este resultado co
 implementaci\'on no introduce deriva apreciable a corto plazo y que la compensaci\'on de gravedad, sesgos y ruido se 
 mantiene coherente.
 
-\paragraph{\texttt{Caso 2: Aceleración constante}}
+\paragraph{\texttt{Caso 2: Aceleraci\'on constante}}
 Se aplica una aceleraci\'on constante hacia delante, de modo que el incremento esperado es puramente traslacional. 
 El error final vuelve a mantenerse en el orden de $10^{-5}\,\mathrm{m}$ y la rotaci\'on residual es pr\'acticamente 
 la misma que en el caso de reposo. Esto indica que la integraci\'on de aceleraciones y la reconstrucci\'on de $\Delta v$ y 
@@ -126,7 +132,7 @@ resultado esperado es una rotaci\'on pura, y la comparaci\'on muestra un error a
 La posici\'on permanece pr\'acticamente nula, con error tambi\'en del orden de $10^{-5}\,\mathrm{m}$. Por tanto, 
 la integraci\'on de la actitud se considera correcta incluso con ruido y sesgos a\~nadidos.
 
-\paragraph{\texttt{Aceleración cte - Giro - Aceleración cte}}
+\paragraph{\texttt{Aceleraci\'on constante - giro - aceleraci\'on constante}}
 Este caso combina un tramo rectil\'ineo, un giro y un segundo tramo rectil\'ineo. Se trata de la primera prueba en la que 
 aparecen simult\'aneamente traslaci\'on y rotaci\'on, aunque todav\'ia en una ventana temporal muy corta. El error se 
 mantiene pr\'acticamente id\'entico al de los casos anteriores, lo que demuestra que el acoplamiento entre cinem\'atica 
@@ -138,33 +144,32 @@ excitaci\'on en varios ejes:
 \paragraph{\texttt{Camino complejo en los 6 GDL}}
 La secuencia dura 2 segundos y encadena varios tramos con aceleraciones y velocidades angulares en distintos ejes. 
 En este caso el error crece hasta aproximadamente $3.3\,\mathrm{cm}$ y $0.19^\circ$, lo cual es razonable al tratarse de 
-una pre-integraci\'on pura sometida a ruido blanco, sesgos constantes y random walk. El resultado muestra que el modelo 
+sometida a una preintegraci\'on pura con ruido blanco, sesgos constantes y paseo aleatorio. El resultado muestra que el modelo 
 sigue siendo consistente cuando la maniobra excita simult\'aneamente varios grados de libertad.
 
 \paragraph{\texttt{Camino complejo y de larga duración}}
 Este es el caso m\'as severo del conjunto: una trayectoria de 69 segundos y 13801 muestras, con excitaci\'on prolongada 
 en los tres ejes lineales y angulares. Como era esperable, aqu\'i se observa el mayor error acumulado, 
-con $4.369\,\mathrm{m}$ en posici\'on y $0.238^\circ$ en orientaci\'on. El crecimiento del error confirma dos ideas 
+con $4,369\,\mathrm{m}$ en posici\'on y $0,238^\circ$ en orientaci\'on. El crecimiento del error confirma dos ideas 
 importantes: por un lado, que la implementaci\'on es estable, ya que la orientaci\'on permanece muy cercana a la 
 referencia incluso tras una secuencia larga; por otro, que una estimaci\'on basada s\'olo en IMU deriva de manera 
 inevitable en posici\'on cuando no existe una observaci\'on externa que corrija los sesgos acumulados.
 
-En conjunto, estos ensayos permiten concluir que la pre-integraci\'on implementada en el sistema reproduce 
-correctamente el comportamiento esperado en maniobras simples y mantiene una consistencia muy alta en orientaci\'on 
-incluso en secuencias largas y complejas. La deriva en posici\'on observada en los casos m\'as largos no debe 
+En conjunto, estos ensayos permiten concluir que la preintegraci\'on implementada en el sistema reproduce 
+correctamente el comportamiento esperado en maniobras simples y mantiene un error angular reducido incluso en secuencias largas y complejas. La deriva en posici\'on observada en los casos m\'as largos no debe 
 interpretarse como un fallo del modelo, sino como el comportamiento esperable de una soluci\'on puramente inercial en 
 presencia de ruido y sesgos. Precisamente por esta raz\'on resulta necesaria, en el sistema final, 
 la correcci\'on peri\'odica aportada por la parte visual del estimador VIO.
 
-\section{Test 3: Validaci\'on de la estimaci\'on solo visual}
+\section{Ensayo 3: Validaci\'on de la estimaci\'on solo visual}
 En este caso se desactiva la parte inercial y se analiza el comportamiento del sistema cuando \'unicamente se emplea la 
 informaci\'on visual. El objetivo principal es comprobar que la forma de la trayectoria estimada sea similar a la 
-trayectoria real, aunque la escala pueda presentar un error residual debido a la ausencia de observaciones de 
-informaci\'on inercial.
+trayectoria de referencia, aunque la escala pueda presentar un error significativo debido a la ausencia de observaciones de 
+informaci\'on inercial. Por tanto, esta comparaci\'on debe interpretarse principalmente en t\'erminos de coherencia geom\'etrica de la forma de la trayectoria y no como una validaci\'on m\'etrica directa.
 
-Como se observa en la Figura~\ref{fig:test3_visual_only}, la forma general de la trayectoria visual es similar a la del 
-ground truth, por lo que el resultado es coherente con lo esperado para una estimaci\'on monocular. Sin embargo, tambi\'en 
-se aprecia un error claro de escala, ya que la trayectoria estimada crece mucho m\'as que la real. Adem\'as, en los tramos 
+Como se observa en la Figura~\ref{fig:test3_visual_only}, la forma general de la trayectoria visual es similar a la de la 
+referencia de validaci\'on, por lo que el resultado es coherente con lo esperado para una estimaci\'on monocular. Sin embargo, tambi\'en 
+se aprecia un error claro de escala, ya que la trayectoria estimada crece mucho m\'as que la referencia. Adem\'as, en los tramos 
 con giro la estimaci\'on empeora m\'as, lo cual tambi\'en es esperable al no disponer de la informaci\'on angular m\'as 
 precisa que aporta la IMU.
 
@@ -174,7 +179,7 @@ precisa que aporta la IMU.
     \begin{subfigure}{0.95\textwidth}
         \centering
         \includegraphics[width=\textwidth]{images/tezt3_gt_vis.png}
-        \caption{Comparaci\'on directa entre la trayectoria visual y el ground truth.}
+        \caption{Comparaci\'on directa entre la trayectoria visual y la referencia de validaci\'on. Fuente: Elaboración propia}
     \end{subfigure}
 
     \vspace{0.5em}
@@ -182,7 +187,7 @@ precisa que aporta la IMU.
     \begin{subfigure}{0.95\textwidth}
         \centering
         \includegraphics[width=\textwidth]{images/test3_solo_gt.png}
-        \caption{Trayectoria de referencia.}
+        \caption{Trayectoria de referencia. Fuente: Elaboración propia}
     \end{subfigure}
 
     \vspace{0.5em}
@@ -190,22 +195,21 @@ precisa que aporta la IMU.
     \begin{subfigure}{0.95\textwidth}
         \centering
         \includegraphics[width=\textwidth]{images/test3_solo_vis.png}
-        \caption{Trayectoria estimada usando s\'olo informaci\'on visual.}
+        \caption{Trayectoria estimada usando s\'olo informaci\'on visual. Fuente: Elaboración propia}
     \end{subfigure}
 
-    \caption{Resultados del Test 3. La estimaci\'on visual reproduce la forma general de la trayectoria, pero presenta un error de escala apreciable y una mayor degradaci\'on en los tramos con giro.}
+    \caption{Resultados del Ensayo 3. La estimaci\'on visual reproduce la forma general de la trayectoria, pero presenta un error de escala apreciable y una mayor degradaci\'on en los tramos con giro. La comparaci\'on debe interpretarse de forma cualitativa en geometr\'ia y no como una medida directa de error m\'etrico absoluto.}
     \label{fig:test3_visual_only}
 \end{figure}
 
 
-\section{Test 4: Validaci\'on completa del sistema VIO}
-En este ensayo se valida el funcionamiento completo del sistema VIO, comparando la trayectoria estimada con una referencia 
+\section{Ensayo 4: Comparación del sistema VIO con una referencia aproximada}
+En este ensayo se analiza el funcionamiento completo del sistema VIO, comparando la trayectoria estimada con una referencia 
 obtenida a partir del c\'alculo de posici\'on basado en el canal de profundidad. Conviene remarcar que esta referencia no 
-es un ground truth exacto de la trayectoria real, sino una estimaci\'on alternativa, por lo que la trayectoria real 
-esperable estar\'ia previsiblemente en un punto intermedio entre ambas.
+constituye una referencia de validaci\'on exacta de la trayectoria seguida por el veh\'iculo, sino una estimaci\'on alternativa utilizada como contraste interno aproximado.
 
-Como se observa en la Figura~\ref{fig:test4_vio_full}, el sistema sigue una trayectoria coherente y cercana a la referencia. 
-Adem\'as, en la Figura~\ref{fig:test4_vio_height} se aprecia que la estimaci\'on VIO mantiene mejor la altura que la 
+Como se observa en la Figura~\ref{fig:test4_vio_full}, el sistema sigue una trayectoria coherente y cercana a la referencia aproximada. 
+Adem\'as, en la Figura~\ref{fig:test4_vio_height} se aprecia una discrepancia en altura entre la estimaci\'on VIO y la 
 referencia basada en profundidad. En esta gr\'afica la altura aparece invertida, por eso los valores se representan 
 negativos.
 
@@ -214,7 +218,7 @@ negativos.
     \begin{subfigure}{0.95\textwidth}
         \centering
         \includegraphics[width=\textwidth]{images/test4_fullvio.png}
-        \caption{Comparaci\'on de la trayectoria estimada por el sistema VIO frente a la referencia basada en profundidad.}
+        \caption{Comparaci\'on de la trayectoria estimada por el sistema VIO frente a la referencia aproximada basada en profundidad. Fuente: Elaboración propia}
     \end{subfigure}
 
     \vspace{0.5em}
@@ -222,60 +226,67 @@ negativos.
     \begin{subfigure}{0.95\textwidth}
         \centering
         \includegraphics[width=\textwidth]{images/test4_altura.png}
-        \caption{Comparaci\'on en altura. El eje aparece invertido, por lo que la altura se representa con valores negativos.}
+        \caption{Comparaci\'on en altura frente a la referencia aproximada basada en profundidad. El eje aparece invertido, por lo que la altura se representa con valores negativos. Fuente: Elaboración propia}
         \label{fig:test4_vio_height}
     \end{subfigure}
 
-    \caption{Resultados del Test 4. El sistema VIO mantiene una trayectoria global coherente y una estimaci\'on de altura m\'as estable, teniendo en cuenta que la referencia usada no constituye un ground truth exacto.}
+    \caption{Resultados del Ensayo 4. El sistema VIO mantiene una trayectoria global coherente, aunque la comparaci\'on debe interpretarse con cautela porque la referencia usada es solo una estimaci\'on aproximada y no una validaci\'on exacta de la trayectoria seguida por el veh\'iculo.}
     \label{fig:test4_vio_full}
 \end{figure}
 
-\section{Test 5: Validaci\'on de la frecuencia de control del sistema}
+\section{Ensayo 5: Validaci\'on de la frecuencia de control del sistema}
 En este ensayo se ha medido la frecuencia de funcionamiento del sistema completo a partir del monitor de rendimiento 
 implementado durante la ejecuci\'on. El objetivo es identificar qu\'e bloques dominan el coste temporal total y comprobar 
 si la cadena de control mantiene una ejecuci\'on razonable para el escenario evaluado.
 
-El resumen final muestra que el sistema completo procesa 289 iteraciones con un tiempo medio total de \(294.31\) ms, lo que 
-equivale a una frecuencia media de \(3.40\) FPS. El cuello de botella principal se encuentra claramente en el bloque VIO, con 
-un tiempo medio de \(186.71\) ms, seguido por el c\'alculo de ground truth, con \(93.26\) ms. En cambio, el m\'odulo DA3 
-presenta un coste medio muy reducido, de \(2.48\) ms, y el bloque de control resulta pr\'acticamente despreciable frente al 
-resto, con solo \(0.19\) ms de media.
+Los nuevos resultados muestran una mejora sustancial del comportamiento temporal del sistema. A partir de varias muestras 
+representativas del monitor de rendimiento, la frecuencia instant\'anea del sistema completo se sit\'ua entre \(10,61\) Hz y 
+\(16,19\) Hz, con un valor medio de \(13,01\) Hz. Esto equivale a un tiempo medio por iteraci\'on de aproximadamente 
+\(78,27\) ms, por debajo del objetivo de \(100\) ms fijado en los requisitos temporales del proyecto.
 
-Por tanto, puede concluirse que la limitaci\'on temporal del sistema no viene de la parte de control ni del estimador de 
-profundidad, sino fundamentalmente del bloque de estimaci\'on VIO. Los valores m\'inimos y m\'aximos observados presentan una 
-dispersi\'on elevada, por lo que resultan m\'as representativos los valores medios del resumen final que los picos instant\'aneos 
-registrados durante la ejecuci\'on.
+El bloque con mayor coste sigue siendo la estimaci\'on VIO, con un tiempo medio de \(38,84\) ms, mientras que el m\'odulo 
+DA3 mantiene un coste reducido de \(1,53\) ms y el bloque de control resulta de nuevo pr\'acticamente despreciable, con 
+\(0,24\) ms de media. La lectura de fuente presenta un coste muy bajo, de \(0,21\) ms. Por tanto, puede concluirse que, 
+aunque el VIO sigue siendo el bloque dominante desde el punto de vista computacional, la optimizaci\'on realizada permite 
+que el sistema completo alcance y supere la frecuencia m\'inima de \(10\) Hz establecida como requisito.
+
+Conviene matizar que la frecuencia indicada para el sistema completo s\'i representa una tasa extremo a extremo de iteraciones 
+procesadas. En cambio, para los bloques internos se reporta principalmente su tiempo medio de c\'omputo por iteraci\'on. La columna 
+de frecuencia asociada a dichos bloques se obtiene como el inverso de ese tiempo medio y debe interpretarse solo como una medida 
+derivada de coste temporal, no como una tasa independiente de producci\'on de resultados equivalente a un \textit{throughput} real del bloque.
+
+Los valores extremos globales reportados por el monitor incluyen transitorios no representativos del r\'egimen estable de 
+funcionamiento. Por ello, para este ensayo se consideran m\'as significativos los valores instant\'aneos medidos en r\'egimen 
+permanente y las medias obtenidas a partir de dichas muestras representativas.
 
 
 \begin{table}[H]
     \centering
-    \caption{Resumen de tiempos y frecuencias medias del Test 5.}
+    \caption{Resumen de tiempos medios de bloque y frecuencia extremo a extremo del Ensayo 5.}
     \label{tab:test5_frequencies}
     \small
     \resizebox{\textwidth}{!}{%
     \begin{tabular}{lcccc}
         \hline
-        Bloque & Tiempo medio [ms] & FPS medio & Tiempo m\'in. [ms] & Tiempo m\'ax. [ms] \\
+        Bloque & Tiempo medio [ms] & Frecuencia derivada [Hz] & Tiempo m\'in. [ms] & Tiempo m\'ax. [ms] \\
         \hline
-        Source & 1.44 & 696.71 & 0.01 & 10.28 \\
-        DA3 & 2.48 & 403.87 & 1.19 & 9.46 \\
-        Ground truth & 93.26 & 10.72 & 5.12 & 300.99 \\
-        VIO & 186.71 & 5.36 & 0.02 & 727.30 \\
-        Control & 0.19 & 5301.89 & 0.08 & 13.15 \\
-        Render & 10.51 & 95.17 & 6.09 & 33.76 \\
-        Sistema completo & 294.31 & 3.40 & 7.43 & 925.43 \\
+        Source & 0,21 & 4761,90 & 0,16 & 0,33 \\
+        DA3 & 1,53 & 653,59 & 1,51 & 1,57 \\
+        VIO & 38,84 & 25,75 & 13,91 & 53,52 \\
+        Control & 0,24 & 4166,67 & 0,16 & 0,49 \\
+        Sistema completo & 78,27 & 13,01 & 61,77 & 94,25 \\
         \hline
     \end{tabular}}
 \end{table}
 
-\section{Test 6: Validaci\'on del funcionamiento del planificador global y local}
-En este ensayo se muestra el funcionamiento conjunto del planificador global y del planificador local durante la 
-ejecuci\'on del sistema. El objetivo es comprobar que el punto de seguimiento seleccionado por el planificador local sea 
-coherente con la trayectoria global y que esa decisi\'on se refleje correctamente en los comandos de control.
+\section{Ensayo 6: Validaci\'on ilustrativa de la coherencia entre referencia local y gui\~nada}
+En este ensayo se muestra una instant\'anea representativa del funcionamiento conjunto del generador de trayectoria de referencia y del planificador local durante la 
+ejecuci\'on del sistema. El objetivo es comprobar de forma ilustrativa que el punto de seguimiento seleccionado por el planificador local sea 
+coherente con la trayectoria global y que esa decisi\'on se refleje con el signo esperado en los comandos de control.
 
 
-Como se observa en la Figura~\ref{fig:test6_planning}, en la trayectoria se muestran en verde los puntos a seguir del 
-planificador global y en morado el punto de seguimiento actual del planificador local. En el instante representado, dicho 
+Como se observa en la Figura~\ref{fig:test6_planning}, en la trayectoria se muestran en verde los puntos generados por el 
+generador de trayectoria de referencia y en morado el punto de seguimiento actual del planificador local. En el instante representado, dicho 
 punto de seguimiento queda a la izquierda de la trayectoria del dron. De forma coherente con ello, en la gr\'afica de 
 \texttt{yaw\_cmd} se aprecia que el comando de gui\~nada toma valores negativos para hacer girar el dron hacia ese lado, 
 validando as\'i el funcionamiento esperado del sistema.
@@ -285,7 +296,7 @@ validando as\'i el funcionamiento esperado del sistema.
     \begin{subfigure}{0.95\textwidth}
         \centering
         \includegraphics[width=\textwidth]{images/test6_planfiicacion.png}
-        \caption{Trayectoria en un instante \(t\), con los puntos globales en verde y el punto de seguimiento local actual en morado.}
+        \caption{Trayectoria en un instante \(t\), con los puntos globales en verde y el punto de seguimiento local actual en morado. Fuente: Elaboración propia}
     \end{subfigure}
 
     \vspace{0.5em}
@@ -293,9 +304,10 @@ validando as\'i el funcionamiento esperado del sistema.
     \begin{subfigure}{0.95\textwidth}
         \centering
         \includegraphics[width=\textwidth]{images/test6_yaw_cmd.png}
-        \caption{Comando de \texttt{yaw}, que se hace negativo para girar hacia la izquierda.}
+        \caption{Comando de \texttt{yaw}, que se hace negativo para girar hacia la izquierda. Fuente: Elaboración propia}
     \end{subfigure}
 
-    \caption{Resultados del Test 6. La selecci\'on del punto de seguimiento por parte del planificador local y la respuesta del comando de gui\~nada son coherentes entre s\'i.}
+    
+    \caption{Resultados del Ensayo 6. La selecci\'on del punto de seguimiento por parte del planificador local y la respuesta del comando de gui\~nada son coherentes entre s\'i. La prueba debe interpretarse como una validaci\'on ilustrativa de coherencia local, no como una validaci\'on completa del seguimiento global de trayectoria.}
     \label{fig:test6_planning}
 \end{figure}

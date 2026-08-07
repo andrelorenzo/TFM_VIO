@@ -5,14 +5,14 @@
 El algoritmo de odometría visual-inercial implementado sigue una formulación robocéntrica basada conceptualmente en 
 R-VIO2~\cite{huai2022square}. En este enfoque, la estimación no se realiza directamente respecto a un marco global fijo, 
 sino respecto a un marco local asociado al movimiento del propio sensor. Esta elección permite mantener una ventana 
-deslizante de estados relativos y actualizar el sistema mediante una matriz de información en forma \textit{square-root}. 
+deslizante de estados relativos y actualizar el sistema mediante una matriz de información en forma de raíz cuadrada (\textit{square-root}). 
 Aunque el diseño general se inspira en dicho trabajo, la implementación utilizada en este proyecto ha sido desarrollada 
 de forma propia. La arquitectura del sistema se muestra en la Figura~\ref{fig:vio_arq}.
 
 
 \begin{figure}[H]
     \ffigbox[\FBwidth] {
-        \caption[Arquitectura del sistema de odometría visual-inercial.]{Arquitectura del sistema de odometría visual-inercial.}
+        \caption[Arquitectura del sistema de odometría visual-inercial.]{Arquitectura del sistema de odometría visual-inercial. Fuente: Elaboración propia}
         \label{fig:vio_arq}
     }
     {\includegraphics[scale=0.38]{images/vio_arquitecture.png}}
@@ -25,10 +25,10 @@ El flujo principal del algoritmo se puede resumir en los siguientes pasos:
 \begin{enumerate}[nosep]
     \item Se recibe un paquete, compuesto por una imagen RGB y una secuencia de medidas IMU sincronizadas con el intervalo de dos imágenes consecutivas.
     \item Si el sistema aún no ha sido inicializado, se estima la dirección de la gravedad y los sesgos iniciales de la IMU a partir de un intervalo en reposo.
-    \item Se propaga el estado mediante preintegracion inercial, generando un nuevo factor IMU y actualizando la matriz de información \textit{square-root}.
+    \item Se propaga el estado mediante preintegración inercial, generando un nuevo factor IMU y actualizando la matriz de información en forma de raíz cuadrada.
     \item Se predice la pose de la cámara a partir del estado propagado.
     \item Se realiza el seguimiento visual de características mediante flujo óptico KLT y se rechazan correspondencias erróneas mediante RANSAC.
-    \item Se triangulan nuevas features usando parametrización de profundidad inversa.
+    \item Se triangulan nuevas características visuales (\textit{features}) usando parametrización de profundidad inversa.
     \item Se construyen los factores visuales y se incorporan al sistema mediante actualizaciones QR.
     \item Se aplica la corrección estimada al estado y se realiza la composición robocéntrica, cambiando el marco local de referencia al instante actual.
 \end{enumerate}
@@ -36,9 +36,9 @@ El flujo principal del algoritmo se puede resumir en los siguientes pasos:
 \section{Inicialización del sistema}
 
 La inicialización del sistema tiene como objetivo estimar las condiciones iniciales necesarias para comenzar la odometría 
-visual-inercial. En concreto, se calculan tres magnitudes principales: la dirección inicial de la gravedad, el sesgo inicial del 
-giróscopo y el sesgo inicial del acelerómetro. Estas variables son fundamentales, ya que el estimador necesita partir de una 
-orientación coherente y de unas medidas inerciales corregidas antes de iniciar la propagación del estado.
+visual-inercial. En concreto, se obtiene una dirección inicial de la gravedad y una estimación práctica de los sesgos iniciales 
+del giróscopo y del acelerómetro. Estas variables son fundamentales, ya que el estimador necesita partir de una orientación 
+coherente y de unas medidas inerciales razonablemente compensadas antes de iniciar la propagación del estado.
 
 El procedimiento se basa en detectar un intervalo inicial en el que la plataforma permanezca aproximadamente en reposo. Para ello, 
 se analizan las muestras IMU recibidas y se estima el movimiento angular y el desplazamiento aproximado durante dicho intervalo. En 
@@ -70,11 +70,13 @@ orientación, velocidad y posición:
 \end{equation}
 
 Si la variación angular y el desplazamiento estimado son inferiores a los umbrales configurados, el sistema considera que el 
-UAV todavía no se ha movido. En ese caso, las medidas de acelerómetro y giróscopo se acumulan para calcular una media más 
-robusta.
+UAV permanece en un régimen aproximadamente estático. En ese caso, las medidas de acelerómetro y giróscopo se acumulan para 
+calcular una media más robusta.
 
-Cuando se detecta movimiento, el sistema deja de acumular medidas y calcula las condiciones iniciales. A partir de esta media se 
-estima la dirección de la gravedad, el sesgo del giróscopo y el sesgo del acelerómetro:
+Cuando se detecta movimiento, el sistema deja de acumular medidas y calcula las condiciones iniciales. Bajo la hipótesis de que 
+durante el intervalo previo la aceleración lineal media es despreciable y que el vehículo se encuentra aproximadamente en reposo, 
+la media del acelerómetro permite estimar la dirección de la gravedad, mientras que la media del giróscopo se utiliza como 
+aproximación inicial de su sesgo. En el caso del acelerómetro, la cantidad
 
 \begin{equation}
 \begin{aligned}
@@ -95,13 +97,15 @@ estima la dirección de la gravedad, el sesgo del giróscopo y el sesgo del acel
 \end{aligned}
 \end{equation}
 
-donde $\bar{\boldsymbol{\omega}}$ es la media de las velocidades angulares, $\bar{\mathbf{a}}$ es la media de las aceleraciones 
-medidas, $g_0$ es el módulo de la gravedad y $\mathbf{g}$ es la dirección estimada de la gravedad. En caso de que la plataforma 
-comience ya en movimiento y no exista un intervalo inicial en reposo, el sistema utiliza la última muestra disponible como estimación 
-inicial.
+se interpreta como una compensación inicial práctica compatible con la hipótesis cuasiestática adoptada, pero no como una 
+calibración completa ni como una separación plenamente observable entre gravedad y sesgo acelerométrico. En estas expresiones, 
+$\bar{\boldsymbol{\omega}}$ es la media de las velocidades angulares, $\bar{\mathbf{a}}$ es la media de las aceleraciones 
+medidas, $g_0$ es el módulo de la gravedad y $\mathbf{g}$ es la dirección estimada de la gravedad.
+
+Por tanto, esta estrategia de inicialización requiere disponer de un intervalo inicial suficientemente próximo al reposo. Si dicha condición no se cumple, la calidad de la estimación inicial se degrada y el resultado debe interpretarse únicamente como una aproximación operativa de la implementación, no como un procedimiento robusto de inicialización.
 
 Una vez calculadas estas magnitudes, se inicializa el vector de estado local del estimador. Este vector contiene la posición (p), 
-orientación (q), la dirección de la gravedad (g), la velocidad (v) y los sesgos de la IMU (\(b_g y b_a\)):
+    orientación (q), la dirección de la gravedad (g), la velocidad (v) y los sesgos de la IMU (\(b_g\) y \(b_a\)):
 
 \begin{equation}
     \mathbf{x}_0
@@ -121,8 +125,10 @@ Con la inicialización se establece la orientación, vector de gravedad y sesgos
 velocidad y posición se inicializan a 0.
 
 Además del vector de estado, se inicializa la matriz de información local del estimador. Esta matriz introduce la confianza inicial 
-sobre cada una de las variables del estado. Se utilizan las constantes de Allan N y K para inicializar las covarianzas del vector de 
-gravedad y los sesgos del acelerómetro y giroscopio.
+sobre cada una de las variables del estado. Para ello se emplean los parámetros obtenidos mediante desviación de Allan, en particular 
+\(N\) y \(K\), como caracterización práctica del ruido blanco de medida y de la deriva lenta de sesgo. Su contribución a las 
+covarianzas del estimador depende del periodo de muestreo y del modelo discreto adoptado para la IMU, por lo que no deben 
+interpretarse como covarianzas discretas directas por sí mismos.
 
 Finalmente, se inicializa el módulo de seguimiento visual utilizando la última imagen almacenada durante la fase de reposo. Con ello se 
 detectan las primeras características visuales y se fija la primera pose válida del sistema. A partir de este momento, el estimador 
@@ -135,7 +141,7 @@ La preintegración inercial permite condensar un conjunto de medidas IMU de alta
 consecutivos, en una única restricción de movimiento. Esta técnica es especialmente útil en sistemas visual-inerciales, ya 
 que evita tener que actualizar el estado completo del estimador con cada muestra de la IMU. En su lugar, las medidas 
 inerciales se acumulan localmente y se incorporan posteriormente al sistema como un único factor entre dos instantes 
-visuales. La implementación del presente algoritmo se basa en el articulo sobre preintegración en~\cite{morris2024imu_preintegration}.
+visuales. La implementación del presente algoritmo se basa en el artículo de Forster et al. sobre preintegración en~\cite{forster2017preintegration}.
 
 El punto de partida es el modelo de medida de una IMU. El giróscopo mide la velocidad angular afectada por un sesgo y por 
 ruido blanco:
@@ -487,7 +493,7 @@ medidas inerciales como restricciones dentro del problema de optimización visua
 
 \section{Propagación de incertidumbre}
 
-La covarianza asociada a la propagación inercial se actualiza mediante el modelo linealizado
+La covarianza asociada a la propagación inercial se actualiza mediante el modelo linealizado discreto empleado en la implementación del estimador. En este contexto, \(\boldsymbol{\Phi}_i\) representa la matriz de transición del error y \(\mathbf{Q}_i\) la contribución discreta del ruido inercial en el intervalo \(\Delta t_i\):
 
 \begin{equation}
     \boldsymbol{\Phi}_i
@@ -507,6 +513,8 @@ La covarianza asociada a la propagación inercial se actualiza mediante el model
     \mathbf{G}_i^{T},
 \end{equation}
 
+donde \(\mathbf{Q}_i\) se obtiene mediante una discretización de primer orden del ruido continuo, coherente con el modelo linealizado implementado en el estimador. Por tanto, esta expresión debe interpretarse como una aproximación práctica válida para pasos de integración pequeños, y no como una discretización exacta del proceso continuo.
+
 \begin{equation}
     \mathbf{P}_i
     =
@@ -517,7 +525,7 @@ La covarianza asociada a la propagación inercial se actualiza mediante el model
     \mathbf{Q}_i.
 \end{equation}
 
-La matriz de ruido de la IMU se define como
+En esta implementación, la matriz de ruido de la IMU se modela como
 
 \begin{equation}
     \boldsymbol{\Sigma}_{imu}
@@ -572,7 +580,7 @@ refinadas a precisión subpíxel, y se incorpora una estrategia de reposición b
 rejilla regular sobre la imagen.
 
 Sea $I_k$ la imagen recibida en el instante $k$. En primer lugar, la imagen se transforma
-a escala de grises y, se aplica un filtrado obteniendo una imagen procesada.
+a escala de grises y se aplica un filtrado, obteniendo una imagen procesada.
 
 Para cada píxel candidato $\mathbf{u} = (u,v)^\top$, se calcula la matriz de segundo
 momento de los gradientes de intensidad en una ventana local:
@@ -707,7 +715,7 @@ bordes o regiones de textura uniforme.
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.95\textwidth]{images/feature_shi_tomasi.png}
-    \caption{Respuesta del detector Shi--Tomasi sobre la imagen procesada.}
+    \caption{Respuesta del detector Shi--Tomasi sobre la imagen procesada. Fuente: Elaboración propia}
     \label{fig:feature_shi_tomasi}
 \end{figure}
 
@@ -722,20 +730,19 @@ residuos geométricos utilizados en la actualización.
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.95\textwidth]{images/feature_subpixel.png}
-    \caption{Detección inicial de esquinas y refinamiento subpíxel.}
+    \caption{Detección inicial de esquinas y refinamiento subpíxel. Fuente: Elaboración propia}
     \label{fig:feature_subpixel}
 \end{figure}
 
 También se visualiza la rejilla utilizada para distribuir las características sobre la
 imagen. Cada celda limita el número de puntos que pueden ser aceptados en su interior,
 evitando que la mayoría de características se concentren en regiones con mucha textura.
-Esta estrategia resulta importante para mejorar el correcto funcionamiento del algoritmo ante 
-oclusiones totales o parciales de zonas específicas.
+Esta estrategia resulta importante para obtener una cobertura espacial más uniforme y evitar que la mayoría de características se concentren en regiones con mucha textura. En este trabajo no se evalúa de forma específica su robustez frente a cambios de iluminación, rotación o traslación.
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.95\textwidth]{images/feature_grid.png}
-    \caption{Rejilla empleada para distribuir espacialmente las características visuales.}
+    \caption{Rejilla empleada para distribuir espacialmente las características visuales. Fuente: Elaboración propia}
     \label{fig:feature_grid}
 \end{figure}
 
@@ -751,12 +758,12 @@ distribuidas.
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.95\textwidth]{images/feature_selection.png}
-    \caption{Selección y reposición de características visuales. En azul las texturas detectadas, en verde las aceptadas y en rojo las descartadas.}
+    \caption{Selección y reposición de características visuales. En azul las texturas detectadas, en verde las aceptadas y en rojo las descartadas. Fuente: Elaboración propia}
     \label{fig:feature_selection}
 \end{figure}
 
 La secuencia de selección de características permite no solo extraer las texturas suficientes para el funcionamiento del algoritmo, sino 
-que las texturas seleccionadas sean robustas ante cambios de escena, iluminación, rotación o traslación.
+mantener una distribución espacial más uniforme de las medidas visuales disponibles.
 
 
 \section{Seguimiento visual y rechazo de correspondencias erróneas}
@@ -818,7 +825,7 @@ segunda etapa de rechazo de outliers basada en RANSAC.
     \includegraphics[width=0.95\textwidth]{images/tracking_klt.png}
     \caption{Seguimiento de características mediante flujo óptico KLT. Las líneas unen la
     posición de cada característica en la imagen anterior con su posición estimada en la
-    imagen actual.}
+    imagen actual. Fuente: Elaboración propia}
     \label{fig:tracking_klt}
 \end{figure}
 
@@ -890,22 +897,22 @@ donde $\tau_S$ es el umbral de aceptación configurado para RANSAC.
 Tras el rechazo de outliers, sólo las correspondencias aceptadas se mantienen activas y se
 incorporan al historial de observaciones de cada característica. Si una característica no
 ha sido inicializada todavía, su historial se va acumulando hasta alcanzar una longitud
-mínima o máxima de seguimiento. Cuando se dispone de suficiente trayectoria y de una
-paralaje adecuada, la característica puede utilizarse para inicializar un punto del mapa.
+mínima o máxima de seguimiento. Cuando se dispone de suficiente trayectoria y de un
+paralaje adecuado, la característica puede utilizarse para inicializar un punto del mapa.
 En caso contrario, puede emplearse únicamente como restricción de pose o descartarse si se
 pierde el seguimiento.
 
-La paralaje entre dos observaciones se evalúa comparando la dirección desde la que se observa una misma característica en dos 
+El paralaje entre dos observaciones se evalúa comparando la dirección desde la que se observa una misma característica en dos 
 instantes distintos. Para ello, se toman la primera observación de la trayectoria, correspondiente a la imagen raíz de la 
 característica, y la última observación disponible en la imagen actual.
 
-Si la cámara apenas se ha desplazado, ambas observaciones verán el punto prácticamente desde la misma dirección. En ese caso, la 
-paralaje será pequeña y la profundidad del punto no podrá estimarse de forma fiable. Por el contrario, si entre ambas imágenes existe 
+Si la cámara apenas se ha desplazado, ambas observaciones verán el punto prácticamente desde la misma dirección. En ese caso, el 
+paralaje será pequeño y la profundidad del punto no podrá estimarse de forma fiable. Por el contrario, si entre ambas imágenes existe 
 suficiente cambio de punto de vista, la característica se habrá observado desde direcciones claramente distintas, lo que permite 
 triangular su posición con mayor estabilidad.
 
-Por este motivo, antes de usar una característica para inicializar un punto del mapa, se comprueba que la paralaje acumulada durante 
-su seguimiento sea superior a un umbral mínimo. Si la paralaje no alcanza dicho umbral, la característica no se triangula, 
+Por este motivo, antes de usar una característica para inicializar un punto del mapa, se comprueba que el paralaje acumulado durante 
+su seguimiento sea superior a un umbral mínimo. Si el paralaje no alcanza dicho umbral, la característica no se triangula, 
 ya que su estimación de profundidad estaría mal condicionada.
 
 En resumen, esta etapa transforma un conjunto de características detectadas en un conjunto
@@ -919,7 +926,7 @@ actualización de pose o descarte.
     \includegraphics[width=0.95\textwidth]{images/tracking_summary.png}
     \caption{Resumen del seguimiento visual en un instante de la secuencia. La proporción
     entre inliers y outliers permite evaluar la calidad de las correspondencias disponibles
-    para la actualización visual.}
+    para la actualización visual. Fuente: Elaboración propia}
     \label{fig:tracking_summary}
 \end{figure}
 
@@ -935,10 +942,10 @@ En esta etapa se distinguen tres tipos principales de características. En prime
 encuentran las características ya inicializadas, cuya posición 3D forma parte del estado y
 que se utilizan como puntos activos del mapa. En segundo lugar, aparecen nuevas
 características que han sido seguidas durante un número suficiente de imágenes y presentan
-una paralaje adecuada, por lo que pueden triangularse para inicializar nuevos puntos. Por
+un paralaje adecuado, por lo que pueden triangularse para inicializar nuevos puntos. Por
 último, algunas características no tienen suficiente información para ser trianguladas de
 forma fiable, pero todavía pueden aportar restricciones sobre la pose. Estas últimas se
-emplean como medidas \textit{pose-only}.
+emplean como medidas de solo pose (\textit{pose-only}).
 
 \subsection{Parametrización de nuevas características}
 
@@ -1012,14 +1019,14 @@ se descarta o se reclasifica como una medida que sólo puede aportar informació
 pose.
 
 Esta comprobación es importante porque no todas las trayectorias visuales permiten obtener
-una profundidad fiable. Si la cámara apenas se ha desplazado, o si la paralaje entre
+una profundidad fiable. Si la cámara apenas se ha desplazado, o si el paralaje entre
 observaciones es reducida, el punto puede quedar mal condicionado. Introducir este tipo de
 puntos en el estado podría degradar la estimación posterior.
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.95\textwidth]{images/triangulacion_carac.png}
-    \caption{Triangulación espacial de características.}
+    \caption{Triangulación espacial de características. Fuente: Elaboración propia}
     \label{fig:trian_carac}
 \end{figure}
 
@@ -1049,7 +1056,7 @@ de reproyección observado en la imagen.
 
 Dependiendo del tipo de característica, el factor puede depender de distintas variables.
 Para una característica activa, el residuo depende tanto de la pose como de la posición 3D
-del punto. En cambio, para una característica \textit{pose-only}, la posición del punto se
+del punto. En cambio, para una característica de solo pose, la posición del punto se
 elimina del factor, de forma que la trayectoria visual aporta información sobre la pose sin
 aumentar la dimensión del estado.
 
@@ -1060,7 +1067,7 @@ pueden combinarse de manera coherente con la información procedente de la IMU.
 \subsection{Validación de las medidas visuales}
 
 Aunque una correspondencia haya superado el seguimiento KLT y el filtrado geométrico con
-RANSAC, todavía puede ser inconsistente con el estado actual. Por ejemplo, una feature puede
+RANSAC, todavía puede ser inconsistente con el estado actual. Por ejemplo, una característica puede
 haber sido mal triangulada, puede encontrarse sobre una región ambigua de la imagen o puede
 generar un residuo excesivamente grande.
 
@@ -1083,7 +1090,7 @@ estimado.
 
 \subsection{Actualización de la matriz de información}
 
-El estimador mantiene la información del sistema en forma square-root, es decir, mediante
+El estimador mantiene la información del sistema en forma de raíz cuadrada, es decir, mediante
 una matriz triangular que acumula las restricciones disponibles. Cuando se obtienen nuevos
 factores visuales, estos se incorporan apilando sus jacobianos y residuos sobre el factor
 local existente:
@@ -1114,7 +1121,7 @@ numéricamente.
 \subsection{Corrección del estado}
 
 Una vez incorporados todos los factores visuales válidos, el sistema calcula la corrección
-del estado resolviendo el sistema triangular asociado a la matriz square-root de
+del estado resolviendo el sistema triangular asociado a la matriz en forma de raíz cuadrada de
 información:
 
 \[
@@ -1161,7 +1168,7 @@ vuelve a triangularizar para seguir representando correctamente las restriccione
 acumuladas.
 
 Este cambio de referencia tiene varias ventajas. En primer lugar, mantiene acotado el
-tamaño del problema, ya que sólo se conserva una ventana local de poses recientes. En
+tamaño del problema porque el estimador conserva únicamente una ventana deslizante de poses recientes y marginaliza la información que deja de ser necesaria. En
 segundo lugar, mejora la estabilidad numérica, al trabajar con coordenadas locales en lugar
 de coordenadas globales que pueden crecer con el tiempo. Por último, facilita la
 marginalización de características y poses que dejan de ser necesarias para la estimación
@@ -1177,7 +1184,7 @@ representado en la Figura~\ref{fig:robocentric_comp}
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.95\textwidth]{images/comp_robocentrica.png}
-    \caption{Corrección visual y composición robocéntrica.}
+    \caption{Corrección visual y composición robocéntrica. Fuente: Elaboración propia}
     \label{fig:robocentric_comp}
 \end{figure}
 
@@ -1221,8 +1228,8 @@ donde \(\tilde{\boldsymbol{\Omega}}_k\) es la velocidad angular medida,
 \(\boldsymbol{\Omega}_k\) es la velocidad angular real, \(\mathbf{b}_{g,k}\) es el sesgo
 del giróscopo y \(\boldsymbol{\eta}(t)\) representa el ruido temporal de medida. 
 
-Este ruido se divide en un ruido blanco (\(\boldsymbol{\eta}_N(t)\) o Angular random walk), un ruido rosa (\(\boldsymbol{\eta}_B(t)\) o bias instability) y un 
-ruido marrón/rojo (\(\boldsymbol{\eta}_K(t)\) o rate random walk) de tal manera que:
+Este ruido se divide en un ruido blanco (\(\boldsymbol{\eta}_N(t)\) o paseo angular aleatorio, \textit{angular random walk}), una inestabilidad del sesgo (\(\boldsymbol{\eta}_B(t)\), \textit{bias instability}) y un 
+paseo aleatorio del sesgo (\(\boldsymbol{\eta}_K(t)\), \textit{bias random walk}) de tal manera que:
 
 \begin{equation}
     \boldsymbol{\eta}(t)
@@ -1280,7 +1287,7 @@ ese valor de \(\tau\). Habitualmente se representa la desviación de Allan,
     \includegraphics[width=1\textwidth]{images/allan_variance_explanation.png}
     \caption{Forma representativa de una curva de desviación de Allan. En escala
     logarítmica pueden identificarse distintas regiones asociadas al ruido blanco de
-    medida, la inestabilidad del sesgo y el bias random walk.}
+    medida, la inestabilidad del sesgo y el paseo aleatorio del sesgo. Fuente:~\cite{arar2022allan_variance}.}
     \label{fig:allan_variance_example}
 \end{figure}
 
@@ -1295,9 +1302,9 @@ suelen considerarse principalmente tres contribuciones:
 
     \item \textbf{Inestabilidad del sesgo} (\(B\)): aparece en la zona aproximadamente
     plana de la curva. Representa una variación lenta del sesgo que no sigue exactamente
-    un modelo de random walk ideal.
+    un modelo de paseo aleatorio ideal.
 
-    \item \textbf{bias random walk} (\(K\)): domina para tiempos de integración
+    \item \textbf{Paseo aleatorio del sesgo} (\(K\)): domina para tiempos de integración
     grandes. En la curva aparece como una recta con pendiente \(+1/2\). Este término
     modela la deriva lenta de los sesgos del acelerómetro y del giróscopo.
 \end{itemize}
@@ -1318,19 +1325,29 @@ De forma aproximada, estas tres regiones pueden representarse como
     K\sqrt{\tau}.
 \end{equation}
 
+Estas expresiones se emplean en este trabajo como aproximaciones operativas para identificar las regiones dominadas por cada tipo de ruido y extraer coeficientes representativos a partir de la curva de Allan. Por tanto, deben interpretarse dentro de la convención adoptada en esta memoria y no como una formulación única o exacta para todas las variantes existentes en la literatura.
+
 En este trabajo se han utilizado principalmente los parámetros \(N\) y \(K\).
 El término \(N\) se utiliza para describir el ruido blanco de las medidas instantáneas, y
-el término \(K\) para modelar la evolución temporal de los sesgos. En cambio, el término
+el término \(K\) para modelar de forma aproximada la evolución temporal de los sesgos. En cambio, el término
 \(B\), asociado a la inestabilidad del sesgo, no se ha incorporado explícitamente al modelo
 del estimador.
 
 La razón principal es que su estimación
 requiere identificar con claridad una región plana en la curva de Allan, lo cual no siempre
 es robusto con registros de duración limitada. En este caso, el ensayo realizado fue de una
-hora, suficiente para obtener una estimación práctica de \(N\) y \(K\), pero no
-necesariamente para caracterizar con fiabilidad la región de inestabilidad del sesgo. Por
+hora, lo que se ha considerado suficiente para obtener una estimación práctica de \(N\) y una
+aproximación útil de \(K\) en el contexto de este trabajo, aunque con menor fiabilidad para
+los términos dominantes a tiempos de integración largos. No obstante, este tiempo no es
+necesariamente suficiente para caracterizar con fiabilidad la región de inestabilidad del sesgo. Por
 este motivo, \(B\) se analiza únicamente como referencia cualitativa de la estabilidad del
 sensor, pero no se utiliza como parámetro de entrada del filtro.
+
+Desde el punto de vista de implementación, los coeficientes obtenidos por desviación de Allan se emplean como una caracterización 
+experimental por eje de las densidades de ruido y de la deriva lenta del sesgo. La conversión exacta entre estos coeficientes y las 
+covarianzas discretas de propagación depende del periodo de muestreo real y del modelo estocástico adoptado para la IMU. En este 
+trabajo se utiliza una aproximación práctica coherente con el modelo discreto implementado en el estimador, sin asumir que \(N\) y 
+\(K\) constituyan por sí solos una discretización exacta del proceso continuo.
 
 \subsection{Ensayo realizado}
 
@@ -1361,8 +1378,8 @@ integración mayores.
     \includegraphics[width=0.85\textwidth]{images/ax_allan.png}
     \caption{Desviación de Allan correspondiente al eje \(x\) del acelerómetro. A partir
     de la zona de pendiente \(-1/2\) se obtiene el parámetro de ruido blanco \(N_a\), y a
-    partir de la zona de pendiente \(+1/2\) se estima el parámetro de random walk del
-    sesgo \(K_a\).}
+    partir de la zona de pendiente \(+1/2\) se estima el parámetro de paseo aleatorio del
+    sesgo \(K_a\). Fuente: Elaboración propia}
     \label{fig:allan_ax}
 \end{figure}
 
@@ -1376,7 +1393,7 @@ giróscopo.
     \includegraphics[width=0.85\textwidth]{images/gx_allan.png}
     \caption{Desviación de Allan correspondiente al eje \(x\) del giróscopo. La región de
     pendiente \(-1/2\) permite estimar el ruido blanco de medida \(N_g\), mientras que la
-    región de pendiente \(+1/2\) permite estimar el bias random walk \(K_g\).}
+    región de pendiente \(+1/2\) permite estimar el paseo aleatorio del sesgo \(K_g\). Fuente: Elaboración propia}
     \label{fig:allan_gx}
 \end{figure}
 
@@ -1388,9 +1405,9 @@ del giróscopo, junto con los ajustes utilizados para extraer los parámetros de
 
 Los valores finalmente utilizados en el estimador se resumen en la
 Tabla~\ref{tab:allan_params}. Estos parámetros se introducen en el modelo de preintegración
-para construir la matriz de covarianza del ruido inercial. En particular, los términos
-\(N_g\) y \(N_a\) modelan el ruido blanco de las medidas del giróscopo y del acelerómetro,
-mientras que \(K_g\) y \(K_a\) modelan la evolución temporal de sus respectivos sesgos.
+como caracterización por eje del ruido inercial. En particular, los términos
+\(N_g\) y \(N_a\) se asocian al ruido blanco de las medidas del giróscopo y del acelerómetro,
+mientras que \(K_g\) y \(K_a\) se emplean para modelar de forma aproximada la evolución temporal de sus respectivos sesgos.
 
 \begin{table}[H]
     \centering
@@ -1401,12 +1418,12 @@ mientras que \(K_g\) y \(K_a\) modelan la evolución temporal de sus respectivos
         \hline
         Sensor & Eje & \(N\) & \(K\) \\
         \hline
-        Acelerómetro & \(x\) & 7.828322e-04 & 2.614310e-05 \\
-        Acelerómetro & \(y\) & 1.513294e-03 & 6.116699e-05 \\
-        Acelerómetro & \(z\) & 1.139234e-03 & 3.076175e-04 \\
-        Giróscopo & \(x\) & 1.760746e-04 & 9.688587e-06 \\
-        Giróscopo & \(y\) & 2.162940e-04 & 8.238686e-06 \\
-        Giróscopo & \(z\) & 1.744383e-04 & 9.037183e-07 \\
+        Acelerómetro & \(x\) & 7.828322e-04 \([\mathrm{m\,s^{-2}}/\sqrt{\mathrm{Hz}}]\) & 2.614310e-05 \([\mathrm{m\,s^{-3}}/\sqrt{\mathrm{Hz}}]\) \\
+        Acelerómetro & \(y\) & 1.513294e-03 \([\mathrm{m\,s^{-2}}/\sqrt{\mathrm{Hz}}]\) & 6.116699e-05 \([\mathrm{m\,s^{-3}}/\sqrt{\mathrm{Hz}}]\) \\
+        Acelerómetro & \(z\) & 1.139234e-03 \([\mathrm{m\,s^{-2}}/\sqrt{\mathrm{Hz}}]\) & 3.076175e-04 \([\mathrm{m\,s^{-3}}/\sqrt{\mathrm{Hz}}]\) \\
+        Giróscopo & \(x\) & 1.760746e-04 \([\mathrm{rad\,s^{-1}}/\sqrt{\mathrm{Hz}}]\) & 9.688587e-06 \([\mathrm{rad\,s^{-2}}/\sqrt{\mathrm{Hz}}]\) \\
+        Giróscopo & \(y\) & 2.162940e-04 \([\mathrm{rad\,s^{-1}}/\sqrt{\mathrm{Hz}}]\) & 8.238686e-06 \([\mathrm{rad\,s^{-2}}/\sqrt{\mathrm{Hz}}]\) \\
+        Giróscopo & \(z\) & 1.744383e-04 \([\mathrm{rad\,s^{-1}}/\sqrt{\mathrm{Hz}}]\) & 9.037183e-07 \([\mathrm{rad\,s^{-2}}/\sqrt{\mathrm{Hz}}]\) \\
         \hline
     \end{tabular}
 \end{table}
