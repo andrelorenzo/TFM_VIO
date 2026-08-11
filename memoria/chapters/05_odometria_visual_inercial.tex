@@ -175,22 +175,6 @@ mientras que el acelerómetro mide la fuerza específica, también afectada por 
 
 En estas expresiones, $\tilde{\boldsymbol{\omega}}_k$ y $\tilde{\mathbf{a}}_k$ son las medidas proporcionadas por la IMU, $\mathbf{b}_{g,k}$ y $\mathbf{b}_{a,k}$ son los sesgos del giróscopo y del acelerómetro, $\boldsymbol{\eta}_{g,k}$ y $\boldsymbol{\eta}_{a,k}$ representan el ruido de medida, $\mathbf{R}_{WB,k}$ es la rotación del cuerpo respecto al sistema global y $\mathbf{g}_{W}$ es el vector de gravedad.
 
-Corrigiendo las medidas con los sesgos estimados, se obtiene
-
-\begin{equation}
-    \boldsymbol{\omega}_k
-    =
-    \tilde{\boldsymbol{\omega}}_k
-    -
-    \mathbf{b}_{g,k},
-    \qquad
-    \mathbf{a}_k
-    =
-    \tilde{\mathbf{a}}_k
-    -
-    \mathbf{b}_{a,k}.
-\end{equation}
-
 A partir de estas medidas corregidas, el modelo cinemático continuo de la IMU puede escribirse como
 
 \begin{equation}
@@ -493,7 +477,7 @@ medidas inerciales como restricciones dentro del problema de optimización visua
 
 \section{Propagación de incertidumbre}
 
-La covarianza asociada a la propagación inercial se actualiza mediante el modelo linealizado discreto empleado en la implementación del estimador. En este contexto, \(\boldsymbol{\Phi}_i\) representa la matriz de transición del error y \(\mathbf{Q}_i\) la contribución discreta del ruido inercial en el intervalo \(\Delta t_i\):
+La covarianza asociada a la propagación inercial se actualiza mediante el modelo linealizado discreto empleado en la implementación del estimador. En este contexto, \(\boldsymbol{\Phi}_i\) representa la matriz de transición del error y \(\mathbf{Q}_i\) la contribución discreta del ruido inercial en el intervalo \(\Delta t_i\). Más concretamente, \(\mathbf{F}_i\) es la jacobiana de la dinámica continua del estado de error respecto al propio estado, evaluada en el instante \(i\), mientras que \(\mathbf{G}_i\) es la matriz que proyecta el ruido de la IMU sobre dicho estado de error, incluyendo el efecto de las perturbaciones del giróscopo, del acelerómetro y, si se modelan explícitamente, de las caminatas aleatorias de sus sesgos:
 
 \begin{equation}
     \boldsymbol{\Phi}_i
@@ -513,7 +497,7 @@ La covarianza asociada a la propagación inercial se actualiza mediante el model
     \mathbf{G}_i^{T},
 \end{equation}
 
-donde \(\mathbf{Q}_i\) se obtiene mediante una discretización de primer orden del ruido continuo, coherente con el modelo linealizado implementado en el estimador. Por tanto, esta expresión debe interpretarse como una aproximación práctica válida para pasos de integración pequeños, y no como una discretización exacta del proceso continuo.
+donde \(\mathbf{Q}_i\) se obtiene mediante una discretización de primer orden del ruido continuo, coherente con el modelo linealizado implementado en el estimador. En consecuencia, \(\mathbf{F}_i\) determina cómo evoluciona una pequeña perturbación del estado entre dos instantes consecutivos, mientras que \(\mathbf{G}_i\) determina cómo esa incertidumbre se inyecta en la covarianza a partir del modelo de ruido \(\boldsymbol{\Sigma}_{imu}\). Por tanto, esta expresión debe interpretarse como una aproximación práctica válida para pasos de integración pequeños, y no como una discretización exacta del proceso continuo.
 
 \begin{equation}
     \mathbf{P}_i
@@ -607,7 +591,10 @@ s(\mathbf{u}) = \min(\lambda_1(\mathbf{M}), \lambda_2(\mathbf{M}))
 Después de la detección inicial, las coordenadas de las esquinas se refinan a precisión
 subpíxel. Para cada punto detectado $\mathbf{u}_i$, se estima una corrección local
 $\Delta \mathbf{u}_i$ resolviendo un problema iterativo de mínimos cuadrados en una
-ventana alrededor del punto:
+ventana alrededor del punto. En esta expresión, $\nabla I_k^g(\mathbf{x})^\top$ denota el
+gradiente transpuesto de la imagen en escala de grises $I_k^g$ evaluado en el píxel
+$\mathbf{x}$, es decir, el vector fila formado por las derivadas espaciales de la
+intensidad respecto a las coordenadas de imagen:
 
 \[
 \Delta \mathbf{u}_i^\star =
@@ -673,25 +660,7 @@ y_{k,i}
 \]
 
 donde $\mathbf{K}$ es la matriz intrínseca y $\mathbf{D}$ contiene los coeficientes de
-distorsión. Para las etapas geométricas posteriores, esta medida se expresa también como
-un vector de dirección normalizado:
-
-\[
-\bar{\mathbf{z}}_{k,i}
-=
-\frac{
-\begin{bmatrix}
-x_{k,i} & y_{k,i} & 1
-\end{bmatrix}^\top
-}{
-\left\|
-\begin{bmatrix}
-x_{k,i} & y_{k,i} & 1
-\end{bmatrix}^\top
-\right\|
-}.
-\]
-
+distorsión.
 Cada característica aceptada recibe un identificador único y se almacena junto con su
 imagen raíz, su historial de observaciones normalizadas y su estado dentro del sistema.
 Este historial será utilizado posteriormente para decidir si la característica puede
@@ -839,7 +808,7 @@ de cámara y se expresan como rayos normalizados. Para cada correspondencia se c
 \operatorname{undistort}(\mathbf{u}_{k,i};\mathbf{K},\mathbf{D}),
 \]
 
-y posteriormente
+y posteriormente se calcula su valor normalizado donde $$\mathbf{z}_{k,i}=(x_{k,i}, y_{k,i})$$
 
 \[
 \bar{\mathbf{z}}_{k,i}
@@ -944,8 +913,7 @@ que se utilizan como puntos activos del mapa. En segundo lugar, aparecen nuevas
 características que han sido seguidas durante un número suficiente de imágenes y presentan
 un paralaje adecuado, por lo que pueden triangularse para inicializar nuevos puntos. Por
 último, algunas características no tienen suficiente información para ser trianguladas de
-forma fiable, pero todavía pueden aportar restricciones sobre la pose. Estas últimas se
-emplean como medidas de solo pose (\textit{pose-only}).
+forma fiable, pero todavía pueden aportar restricciones sobre la pose.
 
 \subsection{Parametrización de nuevas características}
 
@@ -1083,10 +1051,7 @@ normalizado es compatible con la incertidumbre esperada de la medida:
 \]
 
 Si este valor supera el umbral asociado al número de grados de libertad de la medida, el
-factor se considera inconsistente y se descarta. Esta validación actúa como una segunda
-barrera de seguridad: RANSAC elimina correspondencias geométricamente erróneas entre
-imágenes, mientras que el test $\chi^2$ comprueba la coherencia de la medida con el estado
-estimado.
+factor se considera inconsistente y se descarta.
 
 \subsection{Actualización de la matriz de información}
 
@@ -1102,6 +1067,16 @@ local existente:
 \end{bmatrix}.
 \]
 
+En esta expresión, \(\mathbf{R}_{k-1}\) es el factor triangular superior que resume toda la
+información acumulada hasta el instante anterior \(k-1\), mientras que \(\mathbf{b}_{k-1}\)
+es el término derecho asociado, es decir, el vector que acompaña a dicho factor en la forma
+de raíz cuadrada del problema. Por su parte, \(\mathbf{H}_{\mathrm{vis}}\) contiene los
+jacobianos de los nuevos factores visuales respecto a las variables del estado local, y
+\(\mathbf{r}_{\mathrm{vis}}\) agrupa los residuos de esas mismas observaciones, esto es, el
+error entre la medida visual predicha por el modelo y la realmente observada. El apilado de
+ambos bloques expresa que la información previa y las nuevas restricciones visuales pasan a
+tratarse conjuntamente dentro del mismo sistema lineal.
+
 A continuación, se aplican rotaciones de Givens para recuperar una estructura triangular
 superior:
 
@@ -1111,6 +1086,13 @@ superior:
 \mathbf{0} & *
 \end{bmatrix}.
 \]
+
+Tras esta triangularización, \(\mathbf{R}_{k}\) representa el nuevo factor de información ya
+actualizado con las observaciones visuales incorporadas, y \(\mathbf{b}_{k}\) es su término
+derecho correspondiente. El bloque \(\mathbf{0}\) indica que las entradas por debajo de la
+diagonal principal han sido anuladas mediante las rotaciones, recuperando así la forma
+triangular superior. El símbolo \(*\) representa un término residual que no interviene en la
+resolución posterior del estado, pero que recoge el error remanente tras la ortogonalización.
 
 Esta operación equivale a una actualización QR incremental. Su principal ventaja es que
 permite incorporar nuevas restricciones visuales sin reconstruir todo el problema desde
@@ -1122,7 +1104,12 @@ numéricamente.
 
 Una vez incorporados todos los factores visuales válidos, el sistema calcula la corrección
 del estado resolviendo el sistema triangular asociado a la matriz en forma de raíz cuadrada de
-información:
+información. En esta ecuación, \(\delta \mathbf{x}\) representa el incremento o corrección
+del estado estimado, es decir, la pequeña perturbación que debe aplicarse a la estimación
+actual para reducir el error linealizado. Por su parte, \(\mathbf{b}_k\) es el vector del
+lado derecho del sistema una vez acumuladas las restricciones disponibles hasta el instante
+\(k\); en él queda recogida la contribución conjunta de los residuos de las medidas ya
+linealizadas:
 
 \[
 \mathbf{R}_k\delta\mathbf{x}
@@ -1146,9 +1133,6 @@ rotacional y se compone con la orientación actual:
 \delta\mathbf{q} \otimes \mathbf{q}.
 \]
 
-Este tratamiento mantiene correctamente la orientación sobre el espacio de rotaciones.
-Tras la actualización, los vectores que deben conservar norma unitaria, como la dirección
-de la gravedad, se normalizan de nuevo.
 
 Desde un punto de vista intuitivo, la IMU proporciona una predicción inicial de la pose,
 mientras que las observaciones visuales indican cómo debe corregirse esa predicción para

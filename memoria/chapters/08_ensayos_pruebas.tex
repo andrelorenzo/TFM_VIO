@@ -3,13 +3,12 @@
 \section{Procedimiento de ensayos}
 Las pruebas se han desarrollado como medida de evaluaci\'on del sistema, referenciadas a una referencia de validaci\'on escogida en funci\'on del tipo de ensayo. Este procedimiento permite detectar errores, cuantificar el rendimiento de cada m\'odulo y comparar los resultados obtenidos con las expectativas te\'oricas del comportamiento del sistema. Cuando la referencia no procede de una medida externa exacta, se indica expl\'icitamente para evitar identificarla de forma impropia como \textit{ground truth}.
 
-No todos los ensayos tienen la misma naturaleza experimental. En particular, algunos se plantean como validaciones cualitativas del signo o la coherencia de la respuesta del sistema, otros utilizan casos sint\'eticos con referencia conocida y otros emplean referencias aproximadas obtenidas a partir de sensores embarcados o del propio monitor temporal. Por ello, en cada ensayo se especifica el alcance real de la validaci\'on realizada y las conclusiones deben interpretarse de acuerdo con ese contexto.
+No todos los ensayos tienen la misma naturaleza experimental. En particular, algunos se plantean como validaciones cualitativas del signo o la coherencia de la respuesta del sistema, otros utilizan casos sint\'eticos con referencia conocida y otros emplean referencias aproximadas obtenidas a partir de sensores embarcados. Por ello, en cada ensayo se especifica el alcance real de la validaci\'on realizada y las conclusiones deben interpretarse de acuerdo con ese contexto.
 
 \section{Ensayo 1: Validaci\'on cualitativa del c\'alculo de la direcci\'on de evitaci\'on}
 En este ensayo se comprueba de forma cualitativa que la direcci\'on de evitaci\'on calculada por el sistema sea coherente 
 con la escena observada y con el signo de los comandos generados. Para ello se aproxim\'o manualmente el dron a una pared, simulando 
-el vuelo con la mano. Por tanto, esta prueba no constituye una validaci\'on de la din\'amica completa de evitaci\'on en vuelo cerrado, 
-sino una verificaci\'on visual del comportamiento reactivo esperado ante un obst\'aculo cercano.
+el vuelo con la mano. Por tanto, esta prueba constituye una verificaci\'on visual del comportamiento reactivo esperado ante un obst\'aculo cercano.
 
 Como se observa en la Figura~\ref{fig:test1_evasion}, en la imagen visual se aprecia que el dron se encuentra muy 
 pr\'oximo a una pared situada en la parte izquierda del campo de visi\'on. De forma coherente con esa situaci\'on, el 
@@ -126,13 +125,13 @@ El error final vuelve a mantenerse en el orden de $10^{-5}\,\mathrm{m}$ y la rot
 la misma que en el caso de reposo. Esto indica que la integraci\'on de aceleraciones y la reconstrucci\'on de $\Delta v$ y 
 $\Delta p$ son correctas para maniobras lineales simples.
 
-\paragraph{\texttt{Giro constante}}
+\paragraph{\texttt{Caso 3: Giro constante}}
 En este ensayo se impone una velocidad angular constante alrededor del eje de gui\~nada, sin traslaci\'on neta. El 
 resultado esperado es una rotaci\'on pura, y la comparaci\'on muestra un error angular de s\'olo $0.0056^\circ$. 
 La posici\'on permanece pr\'acticamente nula, con error tambi\'en del orden de $10^{-5}\,\mathrm{m}$. Por tanto, 
 la integraci\'on de la actitud se considera correcta incluso con ruido y sesgos a\~nadidos.
 
-\paragraph{\texttt{Aceleraci\'on constante - giro - aceleraci\'on constante}}
+\paragraph{\texttt{Caso 4: Aceleraci\'on constante - giro - aceleraci\'on constante}}
 Este caso combina un tramo rectil\'ineo, un giro y un segundo tramo rectil\'ineo. Se trata de la primera prueba en la que 
 aparecen simult\'aneamente traslaci\'on y rotaci\'on, aunque todav\'ia en una ventana temporal muy corta. El error se 
 mantiene pr\'acticamente id\'entico al de los casos anteriores, lo que demuestra que el acoplamiento entre cinem\'atica 
@@ -141,13 +140,13 @@ lineal y angular est\'a bien resuelto en el horizonte corto.
 Los dos \'ultimos casos son m\'as exigentes porque prolongan la integraci\'on durante mucho m\'as tiempo y fuerzan 
 excitaci\'on en varios ejes:
 
-\paragraph{\texttt{Camino complejo en los 6 GDL}}
+\paragraph{\texttt{Caso 5: Camino complejo en los 6 GDL}}
 La secuencia dura 2 segundos y encadena varios tramos con aceleraciones y velocidades angulares en distintos ejes. 
 En este caso el error crece hasta aproximadamente $3.3\,\mathrm{cm}$ y $0.19^\circ$, lo cual es razonable al tratarse de 
 sometida a una preintegraci\'on pura con ruido blanco, sesgos constantes y paseo aleatorio. El resultado muestra que el modelo 
 sigue siendo consistente cuando la maniobra excita simult\'aneamente varios grados de libertad.
 
-\paragraph{\texttt{Camino complejo y de larga duración}}
+\paragraph{\texttt{Caso 6: Camino complejo y de larga duración}}
 Este es el caso m\'as severo del conjunto: una trayectoria de 69 segundos y 13801 muestras, con excitaci\'on prolongada 
 en los tres ejes lineales y angulares. Como era esperable, aqu\'i se observa el mayor error acumulado, 
 con $4,369\,\mathrm{m}$ en posici\'on y $0,238^\circ$ en orientaci\'on. El crecimiento del error confirma dos ideas 
@@ -239,12 +238,12 @@ En este ensayo se ha medido la frecuencia de funcionamiento del sistema completo
 implementado durante la ejecuci\'on. El objetivo es identificar qu\'e bloques dominan el coste temporal total y comprobar 
 si la cadena de control mantiene una ejecuci\'on razonable para el escenario evaluado.
 
-Los nuevos resultados muestran una mejora sustancial del comportamiento temporal del sistema. A partir de varias muestras 
+A partir de varias muestras 
 representativas del monitor de rendimiento, la frecuencia instant\'anea del sistema completo se sit\'ua entre \(10,61\) Hz y 
 \(16,19\) Hz, con un valor medio de \(13,01\) Hz. Esto equivale a un tiempo medio por iteraci\'on de aproximadamente 
 \(78,27\) ms, por debajo del objetivo de \(100\) ms fijado en los requisitos temporales del proyecto.
 
-El bloque con mayor coste sigue siendo la estimaci\'on VIO, con un tiempo medio de \(38,84\) ms, mientras que el m\'odulo 
+El bloque con mayor coste es la estimaci\'on VIO, con un tiempo medio de \(38,84\) ms, mientras que el m\'odulo 
 DA3 mantiene un coste reducido de \(1,53\) ms y el bloque de control resulta de nuevo pr\'acticamente despreciable, con 
 \(0,24\) ms de media. La lectura de fuente presenta un coste muy bajo, de \(0,21\) ms. Por tanto, puede concluirse que, 
 aunque el VIO sigue siendo el bloque dominante desde el punto de vista computacional, la optimizaci\'on realizada permite 

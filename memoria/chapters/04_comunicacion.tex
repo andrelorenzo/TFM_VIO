@@ -10,22 +10,11 @@ auxiliares y mantiene activo el servidor RTSP mediante el bucle principal de GSt
 de la cámara, otro adquiere los datos de la RealSense y un tercer hilo se encarga del envío periódico de la información inercial mediante 
 UDP.
 
-
-El flujo de ejecución comienza con la lectura de la configuración del sistema, donde se definen parámetros como el puerto RTSP, el punto 
-de montaje, la resolución de imagen, la frecuencia de captura y el modo de depuración. En modo normal, el sistema espera a detectar la 
-cámara física antes de iniciar la adquisición. En modo depuración, los datos se leen directamente desde un archivo \texttt{.bag}, lo que 
-permite reproducir capturas previas sin necesidad de disponer de la cámara conectada.
-
 Una vez iniciada la adquisición, cada paquete recibido desde la RealSense se clasifica según su tipo de flujo. Las muestras del giroscopio 
 y del acelerómetro se envían mediante un socket UDP junto con sus respectivos timestamps. Las imágenes RGB se encapsulan en buffers de 
 GStreamer, desde donde son codificadas en H.264 y publicadas mediante RTSP. Por otro lado, 
 el canal de profundidad se almacena en el archivo de registro para su posterior comparación con los resultados obtenidos por el algoritmo 
 de navegación.
-
-La comunicación con la estación de tierra se habilita mediante un mecanismo de conexión por UDP. Cuando el cliente envía un mensaje de 
-establecimiento de conexión, el sistema almacena su dirección y activa el envío periódico de datos inerciales. Esta misma variable de 
-estado también se utiliza para controlar el envío del flujo de vídeo, evitando introducir imágenes en el servidor RTSP cuando no existe 
-ningún cliente conectado.
 
 La arquitectura de funcionamiento se muestra en la Figura~\ref{fig:threads_comms}.
 
@@ -46,8 +35,6 @@ El módulo de adquisición se encarga de leer los datos procedentes de la Jetson
 sincronizados para el algoritmo de navegación. Cada paquete contiene una imagen RGB y un conjunto de muestras inerciales comprendidas 
 entre dos imágenes consecutivas.
 
-El proceso comienza en la inicialización del receptor RTSP y la creación del socket UDP para la recepción de los 
-datos inerciales.
 
 Una vez inicializado el sistema, se lanza un hilo de adquisición. Este hilo se ejecuta iterativamente. Las muestras 
 inerciales se almacenan en un buffer independiente, uno para el acelerómetro y otro para el giróscopo. Cada muestra queda asociada a una 

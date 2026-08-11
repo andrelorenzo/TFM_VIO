@@ -1,8 +1,6 @@
 % !TeX root = ../memoria.tex
 \chapter{Introducción}
 
-    Se dispone del código fuente, ejemplos y procedimientos de instalación en un 
-    \href{https://github.com/andrelorenzo/TFM_2dvision}{repositorio} público de GitHub.
 \section{Motivación}
     Uno de los principales retos de la navegación autónoma en UAV es la selección y el uso de sensores para la evitación de obstáculos. 
     Debido a las restricciones de peso y volumen, en la mayoría de los casos resulta inviable emplear LiDAR 3D o cámaras RGB-D. Además, 
@@ -30,7 +28,7 @@
     El objetivo principal de este trabajo es dotar a un UAV de pequeño tamaño de la capacidad de navegar de 
     forma autónoma en interiores. Para ello, el vehículo deberá ser capaz de desplazarse siguiendo una trayectoria previamente 
     definida por el usuario, a la vez que evita los obstáculos presentes en su recorrido. A continuación, se enumeran los requisitos 
-    fundamentales cuya consecución permitirá considerar satisfactoria la finalización del trabajo.
+    fundamentales cuyo cumplimiento permitirá considerar satisfactoria la finalización del trabajo.
 
     \begin{itemize}
         \item \textbf{Sistema de sensorización:} El conjunto de sensores queda estipulado y limitado, de antemano, a una cámara monocular 
@@ -42,10 +40,8 @@
         \item \textbf{Referencia de validación:} Los resultados se validarán mediante información tridimensional capturada por la cámara de a bordo. Sin 
         embargo, dicha información no podrá emplearse en el algoritmo de navegación, utilizándose exclusivamente como referencia de validación. Aunque esta referencia resulta útil para comparar el comportamiento del sistema, no debe interpretarse como un \textit{ground truth} externo exacto. 
         Esta información se almacenará en la memoria a bordo y no se transmitirá al sistema de cómputo central.
-        \item \textbf{Precisión:} La precisión del sistema se medirá como la diferencia entre la trayectoria estipulada por el usuario y la 
-        trayectoria seguida por el vehículo, estimada y validada mediante las referencias disponibles durante los ensayos. En ningún tramo del recorrido dicha diferencia deberá superar los 1~m.
         \item \textbf{Seguridad:} El UAV deberá ser capaz de esquivar obstáculos estáticos y dinámicos manteniendo una distancia de 
-        seguridad equivalente al doble de su \textit{bounding box}.
+        seguridad equivalente al doble de la \textit{bounding box} del propio UAV.
         \item \textbf{Rango de operabilidad:} Dado que el objetivo principal del trabajo es el estudio de la navegación y no de las 
         comunicaciones, el alcance máximo de operación del algoritmo estará limitado por la tecnología inalámbrica empleada. Este alcance 
         se definirá como un radio centrado en la posición del ordenador central.

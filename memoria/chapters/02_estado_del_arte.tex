@@ -140,7 +140,7 @@ localización.
             \hline
             RRT & Eficiente en alta dimensionalidad. & Trayectoria subóptima. \\
             \hline
-            RRT* & Es probabilísticamente completo y asintóticamente óptimo. & Mayor tiempo de cómputo. \\
+            RRT* & Probabilísticamente completo. & Mayor tiempo de cómputo. \\
             \hline
             DWA & Respeta restricciones cinemáticas. & Propenso a mínimos locales. \\
             \hline
@@ -355,9 +355,7 @@ restricciones computacionales y temporales del sistema objetivo.
     A pesar de los avances, los estimadores monoculares de profundidad presentan limitaciones inherentes. La más relevante, en escenarios 
     generales, es que la predicción suele ser \textit{relativa}: sin información adicional (calibración, escala conocida o múltiples vistas), 
     la profundidad monocular no determina de forma única la escala métrica, lo que obliga a realizar alineamientos posteriores 
-    (escala y/o desplazamiento) cuando se requiere una medida absoluta. En Depth Anything 3 esta problemática se aborda explícitamente 
-    mediante alineamiento de pseudo-profundidad con medidas métricas disponibles y, en el caso multivista~\cite{overview-da}, mediante el uso combinado de 
-    mapas de profundidad y rayos para recuperar geometría consistente.
+    (escala y/o desplazamiento) cuando se requiere una medida absoluta.
 
     Asimismo, estos modelos están sujetos a errores sistemáticos que dependen del dominio: cambios de iluminación, superficies reflectantes 
     o translúcidas, regiones con baja textura y oclusiones pueden degradar la estimación. El documento señala de forma directa que parte de 
@@ -367,7 +365,7 @@ restricciones computacionales y temporales del sistema objetivo.
     supervisión condicionan el comportamiento final del estimador.
 
     Desde el punto de vista computacional, los modelos de última generación basados en \textit{Transformers} implican un coste elevado tanto 
-    en entrenamiento como en inferencia. Depth Anything 3 reporta entrenamiento a gran escala y evalúa variantes con distinto número de 
+    en entrenamiento como en inferencia. Depth Anything 3 demuestra un entrenamiento a gran escala y evalúa variantes con distinto número de 
     parámetros, mostrando que el rendimiento mejora con el escalado del modelo y de los datos, pero a costa de mayores requisitos de 
     hardware. Además, la extensión a múltiples vistas incrementa el coste por el crecimiento del número de \textit{tokens} y por los 
     mecanismos de atención entre vistas. En~\cite{overview-da} se cuantifican velocidades de ejecución y se discuten límites prácticos en el número 

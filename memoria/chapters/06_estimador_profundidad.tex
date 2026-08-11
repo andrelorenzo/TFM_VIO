@@ -104,10 +104,10 @@ Tabla~\ref{tab:depth_models_efficiency} resume los resultados más relevantes ob
         \texttt{Depth-Anything-V2.onnx} & OpenCV & GPU & 116,233 & 109,870 & 8,60 \\
         \texttt{Depth-Anything-V2.onnx} & ORT & GPU & 116,149 & 101,537 & 8,61 \\
         \texttt{depth\_anything\_v2\_vits.onnx} & ORT & GPU & 95,016 & 86,731 & 10,52 \\
-        \texttt{DA3METRIC-LARGE.onnx} & ORT & GPU & 303,545 & 215,126 & 3,29 \\
+        \texttt{DA3-LARGE.onnx} & ORT & GPU & 303,545 & 215,126 & 3,29 \\
         \hline
-        \texttt{DA3METRIC-SMALL.onnx} & ORT-DA3 & GPU & 56,765 & 43,850 & 17,62 \\
-        \texttt{DA3METRIC-SMALL.onnx} & ORT-DA3 & GPU, sin vídeo & 51,283 & 42,439 & 19,50 \\
+        \texttt{DA3-SMALL.onnx} & ORT-DA3 & GPU & 56,765 & 43,850 & 17,62 \\
+        \texttt{DA3-SMALL.onnx} & ORT-DA3 & GPU, sin vídeo & 51,283 & 42,439 & 19,50 \\
         \hline
     \end{tabular}
     }
@@ -115,9 +115,9 @@ Tabla~\ref{tab:depth_models_efficiency} resume los resultados más relevantes ob
 
 Los resultados muestran varias conclusiones relevantes. En primer lugar, ONNX Runtime ofrece, en general, mejores tiempos de inferencia que OpenCV DNN para los modelos evaluados. Esta diferencia es especialmente visible en el modelo ligero \texttt{model-small.onnx}, donde ONNX Runtime alcanza 88,95 fotogramas/s en GPU frente a los 74,98 fotogramas/s obtenidos con OpenCV. En CPU, la diferencia también es significativa, pasando de 85,849 ms con OpenCV a 20,011 ms con ONNX Runtime.
 
-En segundo lugar, se observa que los modelos de mayor tamaño, aunque pueden proporcionar estimaciones de profundidad más completas o detalladas, presentan tiempos de inferencia demasiado elevados para el sistema propuesto. Por ejemplo, \texttt{DA3METRIC-LARGE.onnx} alcanza únicamente 3,29 fotogramas/s, lo que lo hace inviable para una aplicación de evitación de obstáculos en tiempo real. De forma similar, algunas variantes de Depth Anything V2 se sitúan alrededor de 8--10 fotogramas/s, valores insuficientes si se considera que el módulo debe ejecutarse junto con el resto de procesos del sistema.
+En segundo lugar, se observa que los modelos de mayor tamaño, aunque pueden proporcionar estimaciones de profundidad más completas o detalladas, presentan tiempos de inferencia demasiado elevados para el sistema propuesto. Por ejemplo, \texttt{DA3-LARGE.onnx} alcanza únicamente 3,29 fotogramas/s, lo que lo hace inviable para una aplicación de evitación de obstáculos en tiempo real. De forma similar, algunas variantes de Depth Anything V2 se sitúan alrededor de 8--10 fotogramas/s, valores insuficientes si se considera que el módulo debe ejecutarse junto con el resto de procesos del sistema.
 
-Finalmente, la variante seleccionada fue \texttt{DA3METRIC-SMALL.onnx}, ejecutada mediante ONNX Runtime sobre GPU. Esta configuración alcanza un tiempo medio de 56,765 ms por fotograma, equivalente a 17,62 fotogramas/s, y mejora hasta 51,283 ms, es decir, 19,50 fotogramas/s, cuando se elimina la carga adicional asociada a la visualización de vídeo. Aunque no es el modelo más rápido en términos absolutos, representa un compromiso adecuado entre calidad de la estimación de profundidad, estabilidad temporal y coste computacional, por lo que se adopta como base para el algoritmo de evitación desarrollado en este trabajo. En cualquier caso, el hecho de utilizar una variante denominada \texttt{METRIC} no implica por sí mismo que toda la lógica posterior opere directamente sobre distancias físicas absolutas ya calibradas, ya que en el algoritmo propuesto la decisión de evitación se apoya principalmente en comparaciones relativas, percentiles y medidas de cercanía normalizada.
+Finalmente, la variante seleccionada fue \texttt{DA3-SMALL.onnx}, ejecutada mediante ONNX Runtime sobre GPU. Esta configuración alcanza un tiempo medio de 56,765 ms por fotograma, equivalente a 17,62 fotogramas/s, y mejora hasta 51,283 ms, es decir, 19,50 fotogramas/s, cuando se elimina la carga adicional asociada a la visualización de vídeo. Aunque no es el modelo más rápido en términos absolutos, representa un compromiso adecuado entre calidad de la estimación de profundidad, estabilidad temporal y coste computacional, por lo que se adopta como base para el algoritmo de evitación desarrollado en este trabajo.
 
 \subsection{Kernel de preprocesado}
 
@@ -157,7 +157,7 @@ R[H \times W], \quad G[H \times W], \quad B[H \times W].
 
 Cada hilo CUDA procesa un píxel de la imagen. Para cada posición \((x,y)\), el kernel lee los tres canales RGB, los convierte a coma flotante, aplica la normalización y escribe el resultado en la posición correspondiente del tensor de salida. La estructura de ejecución se organiza mediante bloques de \(16 \times 16\) hilos, cubriendo toda la imagen mediante una malla bidimensional.
 
-Esta implementación presenta varias ventajas. En primer lugar, reduce el número de copias entre CPU y GPU dentro de la cadena de procesado, ya que la imagen permanece en memoria de GPU desde el preprocesado hasta la inferencia una vez disponible en dicho entorno de ejecución. En segundo lugar, fusiona en una única operación la conversión de tipo, la normalización y el cambio de disposición de memoria. En tercer lugar, permite ejecutar el preprocesado en el mismo \textit{stream} CUDA que el resto de operaciones, facilitando una integración más eficiente con OpenCV CUDA y ONNX Runtime.
+Esta implementación presenta varias ventajas. En primer lugar, reduce el número de copias entre CPU y GPU dentro de la cadena de procesado, ya que la imagen permanece en memoria de GPU desde el preprocesado hasta la inferencia una vez disponible en dicho entorno de ejecución. En segundo lugar, fusiona en una única operación la conversión de tipo, la normalización y el cambio de disposición de memoria. En tercer lugar, permite ejecutar el preprocesado en el mismo \textit{stream} CUDA que el resto de operaciones, facilitando una integración más eficiente con ONNX Runtime.
 
 Por tanto, el kernel de preprocesado contribuye a reducir la latencia global del sistema y a mantener una arquitectura coherente con el objetivo de ejecución en tiempo real. En lugar de tratar la inferencia como una operación aislada, se optimiza toda la cadena de procesamiento: captura, transferencia a GPU, preprocesado, inferencia y postprocesado.
 
@@ -175,7 +175,7 @@ donde valores mayores representan regiones más lejanas y valores menores region
 \subsection{Normalización de la profundidad}
 Para eliminar posibles errores de cómputo se escogen los píxeles con valores dentro de un rango configurable \([d_{\min}, d_{\max}]\). En este contexto, dichos límites se utilizan como filtro práctico sobre la salida del modelo y no como una garantía de exactitud métrica absoluta en todo el rango. Denotando por \(D\) al mapa de profundidad bruto y por \(D_v\) al conjunto de profundidades válidas dentro de ese rango, primero se calcula la proporción de píxeles válidos y, a continuación, los percentiles \(p_{10}\) y \(p_{90}\) de \(D_v\). Con ellos se obtiene el mapa de profundidad normalizada:
 \[
-D_n(x,y) = \mathrm{clamp}\!\left(\frac{D(x,y) - p_{10}}{p_{90} - p_{10}},\, 0,\, 1\right).
+D_n(x,y) = \mathrm{clamp}\!\left(\frac{D_v(x,y) - p_{10}}{p_{90} - p_{10}},\, 0,\, 1\right).
 \]
 
 A continuación se define un mapa de cercanía:
@@ -206,7 +206,10 @@ según los indicadores de cercanía y ocupación definidos.
 \subsection{Máscara de ocupación frontal}
 Dentro de la ROI frontal se umbraliza el mapa de cercanía para obtener una máscara binaria de obstáculo (\(M_F\)),~Figura \ref{fig:mask_obj}, obteniendo 1 en el caso 
 de que el valor del píxel en \(C(ROI_F)\) sea mayor a un umbral de cercanía y 0 en otro caso. A partir de esta 
-máscara y de la profundidad frontal se calculan las siguientes métricas:
+máscara y de la profundidad frontal se calculan las siguientes métricas. En todas ellas,
+\(N_F\) representa el número total de píxeles contenidos en la ROI frontal \(ROI_F\), por lo
+que actúa como factor de normalización para expresar las magnitudes de forma relativa al
+tamaño de la región analizada:
 
 
 \begin{figure}[H]
@@ -240,9 +243,8 @@ c_{p} = \mathrm{clip}\!\left(1-\frac{d_{p}-p_{10}}{p_{90}-p_{10}},\,0,\,1\right)
 
 \subsection{Cálculo de la puntuación de obstáculo}
 
-Con las métricas anteriores se construye una puntuación escalar de obstáculo, esto se puede observar en la Figuras~\ref{fig:prop_noevad} y \ref{fig:prop_evad}:
+Con las métricas anteriores y un conjunto de pesos ($$w_x$$) seleccionados mediante prueba y error, se construye una puntuación escalar de obstáculo, esto se puede observar en la Figuras~\ref{fig:prop_noevad} y \ref{fig:prop_evad}:
 \[ S_t = w_1 \bar{C}_F + w_2 A_F + w_3 B_F + w_4 c_{20} + w_5 c_p. \]
-
 
 Esta puntuación se filtra temporalmente mediante un suavizado exponencial:
 

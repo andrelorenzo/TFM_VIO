@@ -2,22 +2,19 @@
 
 \section{Conclusiones}
 \par
-Este trabajo ha permitido desarrollar e integrar un prototipo funcional de navegaci\'on para un UAV en entornos interiores, 
-combinando percepci\'on, estimaci\'on, planificaci\'on y control dentro de una misma arquitectura funcional. El resultado 
-final no debe entenderse como una suma de bloques aislados, sino como una prueba de concepto integrada en la que cada m\'odulo aporta 
-una parte necesaria para conseguir un comportamiento global coherente en los escenarios evaluados.
+Este trabajo ha permitido desarrollar un algoritmo funcional de navegaci\'on para un UAV en entornos interiores, 
+combinando percepci\'on, estimaci\'on, planificaci\'on y control dentro de una misma arquitectura funcional.
 
 Desde el punto de vista de la arquitectura del sistema, se ha definido una separaci\'on adecuada entre la plataforma a\'erea 
 y la estaci\'on de tierra, lo que ha permitido aprovechar mejor los recursos de c\'omputo disponibles y simplificar el 
-desarrollo experimental. De forma complementaria, el sistema de comunicaciones implementado ha permitido transportar de 
-manera operativa la informaci\'on visual, inercial y de control en los ensayos realizados, resolviendo de forma pr\'actica las necesidades del proyecto.
+desarrollo experimental.
 
 En la parte de estimaci\'on, el sistema de odometr\'ia visual-inercial desarrollado ha demostrado ser capaz de proporcionar 
 una estimaci\'on de pose utilizable en los escenarios evaluados. Los ensayos realizados han mostrado tanto las ventajas de la fusi\'on 
 visual-inercial en el sistema completo como las limitaciones de una soluci\'on puramente visual, especialmente en escala y 
 en maniobras con giro. Esto confirma que la integraci\'on de la IMU aporta una mejora real en robustez y consistencia.
 
-En paralelo, el estimador de profundidad y el sistema de evitaci\'on de obst\'aculos han permitido dotar al dron de una 
+El estimador de profundidad y el sistema de evitaci\'on de obst\'aculos han permitido dotar al dron de una 
 capacidad reactiva frente a obst\'aculos cercanos. Los resultados obtenidos muestran que la direcci\'on de evitaci\'on y los 
 comandos generados son coherentes con la escena observada en los ensayos cualitativos, lo que respalda el enfoque adoptado para esta parte del problema.
 
@@ -26,14 +23,8 @@ a partir de ellas, en comandos de velocidad ejecutables por el veh\'iculo. La va
 planificador local selecciona puntos de seguimiento coherentes con la trayectoria y que esta decisi\'on se refleja 
 correctamente en los comandos de gui\~nada y movimiento.
 
-Finalmente, el conjunto de ensayos realizados ha permitido validar de forma progresiva los distintos bloques del sistema, 
-desde pruebas sint\'eticas de preintegraci\'on IMU hasta evaluaciones del sistema completo. En conjunto, puede concluirse 
-que el proyecto ha alcanzado una base funcional integrada capaz de responder de forma coherente en los escenarios evaluados. 
-Adem\'as, los ensayos temporales actualizados muestran que el sistema cumple el requisito fijado de operar por debajo de 
-\(100\) ms y por encima de \(10\) Hz, alcanzando en r\'egimen representativo una frecuencia media del orden de \(13\) Hz. 
-No obstante, siguen existiendo limitaciones relevantes: no se demuestra todav\'ia un vuelo aut\'onomo cerrado validado con 
-una referencia externa independiente y el bloque VIO contin\'ua siendo el elemento dominante en coste computacional, por lo 
-que su mejora sigue siendo una l\'inea de trabajo importante.
+Finalmente, el conjunto de ensayos realizados ha permitido validar de forma progresiva los distintos bloques del sistema. En conjunto, puede concluirse 
+que el proyecto ha alcanzado una base funcional integrada capaz de responder de forma coherente en los escenarios evaluados.
 
 
 \section{Líneas futuras}
@@ -45,8 +36,8 @@ definido para este proyecto, no se han desarrollado en profundidad, pero que pod
 
 \begin{itemize}
     \item Seguir optimizando computacionalmente el sistema, en especial el bloque de odometr\'ia visual-inercial, con el objetivo de aumentar el margen temporal disponible y mejorar la robustez de funcionamiento en escenarios m\'as exigentes.
-    \item Desarrollar un sistema VI-SLAM completo, incorporando la generación de un mapa del entorno y técnicas de cierre de bucle (\textit{loop closure}).
-    \item Implementar un generador de trayectoria de referencia que tenga en cuenta el mapa del entorno y genere una trayectoria en función de la construcción del mapa en línea.
+    \item Desarrollar un sistema VI-SLAM completo, incorporando la generación de un mapa del entorno y técnicas de (\textit{loop closure}).
+    \item Implementar un generador de trayectoria de referencia que tenga en cuenta el mapa del entorno y genere una trayectoria en función de la construcción del mapa durante la operación.
     \item Aumentar el tiempo de calibración mediante varianza de Allan hasta, al menos, 24 a 48 horas, con el objetivo de obtener una caracterización más precisa de la IMU.
     \item Implementar una interfaz gráfica de control que permita utilizar el algoritmo de forma más visual e intuitiva.
     \item Explorar e investigar algoritmos de planificación más avanzados para UAV en entornos interiores.
