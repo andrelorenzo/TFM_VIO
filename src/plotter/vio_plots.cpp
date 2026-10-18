@@ -111,17 +111,23 @@ void VioPlotter::configure(const Config& config, VioPlotterOptions options) {
     }
 
     if (config.gen.plot_dpos) {
-        auto plot = addTimePlot("preint_dpos", "Preintegrated dPos", "m");
-        bind(plot, "dp x", [](const StateOut& s) { return plotlib::Point{timeSeconds(s), preimuAt(s, 0)}; });
-        bind(plot, "dp y", [](const StateOut& s) { return plotlib::Point{timeSeconds(s), preimuAt(s, 1)}; });
-        bind(plot, "dp z", [](const StateOut& s) { return plotlib::Point{timeSeconds(s), preimuAt(s, 2)}; });
+        auto plot = addTimePlot("preint_dpos", "IMU position increment (local frame)", "m");
+        bind(plot, "dp local x", [](const StateOut& s) { return plotlib::Point{timeSeconds(s), preimuAt(s, 0)}; });
+        bind(plot, "dp local y", [](const StateOut& s) { return plotlib::Point{timeSeconds(s), preimuAt(s, 1)}; });
+        bind(plot, "dp local z", [](const StateOut& s) { return plotlib::Point{timeSeconds(s), preimuAt(s, 2)}; });
+        bind(plot, "propagated pk x", [](const StateOut& s) { return plotlib::Point{timeSeconds(s), s.x(4)}; });
+        bind(plot, "propagated pk y", [](const StateOut& s) { return plotlib::Point{timeSeconds(s), s.x(5)}; });
+        bind(plot, "propagated pk z", [](const StateOut& s) { return plotlib::Point{timeSeconds(s), s.x(6)}; });
     }
 
     if (config.gen.plot_dvel) {
-        auto dvel = addTimePlot("preint_dvel", "Preintegrated dVel", "m/s");
-        bind(dvel, "dv x", [](const StateOut& s) { return plotlib::Point{timeSeconds(s), preimuAt(s, 3)}; });
-        bind(dvel, "dv y", [](const StateOut& s) { return plotlib::Point{timeSeconds(s), preimuAt(s, 4)}; });
-        bind(dvel, "dv z", [](const StateOut& s) { return plotlib::Point{timeSeconds(s), preimuAt(s, 5)}; });
+        auto dvel = addTimePlot("preint_dvel", "IMU velocity: preintegrated dv and propagated vk", "m/s");
+        bind(dvel, "dv local x", [](const StateOut& s) { return plotlib::Point{timeSeconds(s), preimuAt(s, 3)}; });
+        bind(dvel, "dv local y", [](const StateOut& s) { return plotlib::Point{timeSeconds(s), preimuAt(s, 4)}; });
+        bind(dvel, "dv local z", [](const StateOut& s) { return plotlib::Point{timeSeconds(s), preimuAt(s, 5)}; });
+        bind(dvel, "propagated vk x", [](const StateOut& s) { return plotlib::Point{timeSeconds(s), s.x(7)}; });
+        bind(dvel, "propagated vk y", [](const StateOut& s) { return plotlib::Point{timeSeconds(s), s.x(8)}; });
+        bind(dvel, "propagated vk z", [](const StateOut& s) { return plotlib::Point{timeSeconds(s), s.x(9)}; });
 
         auto vel = addTimePlot("state_velocity", "State velocity", "m/s");
         bindVec3Time(vel, "vel", [](const StateOut& s) { return s.state.vel; });
@@ -225,6 +231,10 @@ void VioPlotter::render() {
     renderDashboard();
 }
 
+void VioPlotter::exportPlots(const std::string& directory) const {
+    plots_.exportCsv(directory);
+}
+
 void VioPlotter::clearSamples() {
     plots_.clearSamples();
 }
@@ -271,7 +281,7 @@ void VioPlotter::bind(const plotlib::PlotHandle& plot,
                       bool scatter) {
     plotlib::SeriesConfig series;
     series.label = label;
-    series.line_weight = line_weight;
+    series.line_weight = std::max(2.5f, line_weight);
     series.scatter = scatter;
 
     auto handle = plots_.addSeries(plot, std::move(series));
@@ -285,7 +295,7 @@ void VioPlotter::bindCollection(const plotlib::PlotHandle& plot,
                                 bool scatter) {
     plotlib::SeriesConfig series;
     series.label = label;
-    series.line_weight = line_weight;
+    series.line_weight = std::max(2.5f, line_weight);
     series.scatter = scatter;
 
     auto handle = plots_.addSeries(plot, std::move(series));

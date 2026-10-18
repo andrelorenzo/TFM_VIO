@@ -2,6 +2,10 @@
 
 #include <algorithm>
 #include <cmath>
+#include <fstream>
+#include <iomanip>
+#include <sstream>
+#include <filesystem>
 
 namespace plotlib {
 
@@ -149,6 +153,17 @@ std::vector<PlotData> PlotRegistry::snapshot() const {
     return plots_;
 }
 
+void PlotRegistry::exportCsv(const std::string& directory) const {
+    const auto plots = snapshot();
+    std::error_code ec;
+    std::filesystem::create_directories(directory, ec);
+    if (ec) return;
+    for (const auto& plot : plots) {
+        const auto path = std::filesystem::path(directory) / (plot.config.id + ".csv");
+        exportPlotCsv(plot, path.string());
+    }
+}
+
 void PlotRegistry::renderAll() const {
     const auto plots = snapshot();
     for (const auto& plot : plots) {
@@ -232,6 +247,30 @@ void PlotRegistry::renderPlotWidget(const PlotData& plot, const ImVec2& requeste
         }
 
         ImPlot::EndPlot();
+    }
+}
+
+void PlotRegistry::exportPlotCsv(const PlotData& plot, const std::string& path) {
+    std::ofstream out(path, std::ios::binary);
+    if (!out) return;
+    out << "x";
+    for (const auto& s : plot.series) {
+        out << ',' << '"';
+        for (char ch : s.config.label) { if (ch == '"') out << '"'; out << ch; }
+        out << '"';
+    }
+    out << '\n' << std::setprecision(17);
+    std::size_t rows = 0;
+    for (const auto& s : plot.series) rows = std::max(rows, s.x.size());
+    for (std::size_t i = 0; i < rows; ++i) {
+        double x = 0.0;
+        for (const auto& s : plot.series) if (i < s.x.size()) { x = s.x[i]; break; }
+        out << x;
+        for (const auto& s : plot.series) {
+            out << ',';
+            if (i < s.y.size()) out << s.y[i];
+        }
+        out << '\n';
     }
 }
 

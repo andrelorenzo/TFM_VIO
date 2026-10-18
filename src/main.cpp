@@ -17,6 +17,7 @@
 #include <csignal>
 
 #include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <limits>
 #include <string>
@@ -33,10 +34,41 @@ static SourceIn source;
 static StateOut state;
 static Command cmd;
 static Waypoints path;
+static std::atomic<int> g_shutdown_signal_count{0};
+static std::atomic<bool> g_shutdown_watchdog_started{false};
+static std::atomic<bool> g_shutdown_complete{false};
 
 static double elapsedMs(const std::chrono::steady_clock::time_point& start,
                         const std::chrono::steady_clock::time_point& end) {
     return std::chrono::duration<double, std::milli>(end - start).count();
+}
+
+static void forceTerminateNow(unsigned int exit_code) {
+    TerminateProcess(GetCurrentProcess(), exit_code);
+}
+
+static void requestShutdownFromSignal(const char* origin, unsigned int exit_code) {
+    const int signal_count = g_shutdown_signal_count.fetch_add(1) + 1;
+    Logger(WARN, "%s recibido: solicitando parada (intento %d)", origin, signal_count);
+
+    runtimeRequestStop();
+    runtimeSetPaused(false);
+
+    if (signal_count >= 2) {
+        Logger(ERROR, "Segundo intento de parada recibido. Forzando terminacion inmediata.");
+        forceTerminateNow(exit_code);
+    }
+
+    bool expected = false;
+    if (g_shutdown_watchdog_started.compare_exchange_strong(expected, true)) {
+        std::thread([exit_code]() {
+            std::this_thread::sleep_for(std::chrono::seconds(3));
+            if (!g_shutdown_complete.load()) {
+                Logger(ERROR, "La parada no finalizo a tiempo. Forzando terminacion del proceso.");
+                forceTerminateNow(exit_code);
+            }
+        }).detach();
+    }
 }
 
 static BOOL WINAPI handleConsoleSignal(DWORD signal){
@@ -45,7 +77,7 @@ static BOOL WINAPI handleConsoleSignal(DWORD signal){
         case CTRL_BREAK_EVENT:
         case CTRL_CLOSE_EVENT:
         case CTRL_SHUTDOWN_EVENT:
-            runtimeRequestStop();
+            requestShutdownFromSignal("Console control signal", 130u);
             return TRUE;
         default:
             return FALSE;
@@ -70,24 +102,16 @@ void projectInit(int argc, char ** argv){
 
 void signalHandler(int sig)
 {
-    printf("Exiting\n");
-
-    runtimeRequestStop();
-    runtimeSetPaused(false);
-    commanderClose();
-    closeSource2();
-    closePlotters();
-    da3Close();
-    vioClose();
-    SetConsoleCtrlHandler(handleConsoleSignal, FALSE);
-
-    exit(sig);
+    requestShutdownFromSignal("SIGINT", static_cast<unsigned int>(128 + sig));
 }
 
 
 int main(int argc, char ** argv){
     projectInit(argc, argv);
     runtimeResetControl();
+    g_shutdown_signal_count.store(0);
+    g_shutdown_watchdog_started.store(false);
+    g_shutdown_complete.store(false);
     SetConsoleCtrlHandler(handleConsoleSignal, TRUE);
 
     signal(SIGINT, signalHandler);
@@ -292,12 +316,18 @@ int main(int argc, char ** argv){
     }
 
     runtimeSetPaused(false);
+    Logger(INFO, "Shutdown: closing commander");
     commanderClose();
+    Logger(INFO, "Shutdown: closing source");
     closeSource2();
+    Logger(INFO, "Shutdown: closing plotters");
     closePlotters();
+    Logger(INFO, "Shutdown: closing da3");
     da3Close();
+    Logger(INFO, "Shutdown: closing vio");
     vioClose();
     SetConsoleCtrlHandler(handleConsoleSignal, FALSE);
+    g_shutdown_complete.store(true);
     perf_monitor.printSummary();
     Logger(INFO, "Exiting succesfully, bye..");
     return 0;

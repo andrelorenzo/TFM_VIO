@@ -85,8 +85,10 @@ public:
     std::size_t sampleCount() const;
 
     std::vector<PlotData> snapshot() const;
+    void exportCsv(const std::string& directory) const;
     void renderAll() const;
     static void renderPlotWidget(const PlotData& plot, const ImVec2& size = ImVec2(-1.0f, 0.0f));
+    static void exportPlotCsv(const PlotData& plot, const std::string& path);
 
 private:
     static void trim(SeriesData& series, std::size_t max_points);

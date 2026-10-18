@@ -571,7 +571,6 @@ bool RunInference(const cv::Mat& frame_cpu)
 
 void WorkerLoop()
 {
-    signal(SIGINT, signalHandler);
     while (true) {
         if (runtimeWaitIfPaused()) {
             break;

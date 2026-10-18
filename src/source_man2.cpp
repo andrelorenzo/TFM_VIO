@@ -420,13 +420,14 @@ static void closeRtspUdp() {
 
     rtsp_udp_run.store(false);
 
-    if (rtsp_udp_thread.joinable()) rtsp_udp_thread.join();
-    if (rtsp_udp_recv_thread.joinable()) rtsp_udp_recv_thread.join();
-
+    // Cerrar el socket antes del join para desbloquear cualquier UDPReceive pendiente.
     if (hsocket != INVALID_SOCKET) {
         UDPDeInit(&hsocket);
         hsocket = INVALID_SOCKET;
     }
+
+    if (rtsp_udp_thread.joinable()) rtsp_udp_thread.join();
+    if (rtsp_udp_recv_thread.joinable()) rtsp_udp_recv_thread.join();
 }
 
 static bool initRtspUdp(const std::string& host) {
@@ -1349,6 +1350,11 @@ bool initSource2(Config * config) {
             rs2::device bag_device = profile.get_device();
             if (bag_device.is<rs2::playback>()) {
                 g_bag_playback = std::make_unique<rs2::playback>(bag_device.as<rs2::playback>());
+                g_bag_playback->set_status_changed_callback([](rs2_playback_status status) {
+                    if (status == RS2_PLAYBACK_STATUS_STOPPED && !source_stop_requested.load()) {
+                        source_finished.store(true);
+                    }
+                });
             }
         }
         catch (const rs2::error&) {
@@ -1503,6 +1509,8 @@ static void updateSource2(Config * config) {
             break;
         }
 
+        if (config->gen.type == SOURCE_BAG && !did_work && source_finished.load()) break;
+
         if (!did_work) std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 }
@@ -1513,7 +1521,8 @@ int getSource2(SourceIn * out) {
     if (source_config.gen.type == SOURCE_BAG || source_config.gen.type == SOURCE_RTSP || source_config.gen.type == SOURCE_CSV) {
         std::lock_guard<std::mutex> lock(dout_mutex);
         if (vout.empty()) {
-            if (source_config.gen.type == SOURCE_CSV && source_finished.load()) {
+            if ((source_config.gen.type == SOURCE_CSV || source_config.gen.type == SOURCE_BAG) &&
+                source_finished.load()) {
                 *out = SourceIn{};
                 return -1;
             }
@@ -1541,31 +1550,36 @@ void closeSource2() {
     source_stop_requested.store(true);
     runtimeSetPaused(false);
 
-    if (poll_thread.joinable()) {
-        poll_thread.join();
-    }
-
     if (source_config.gen.type == SOURCE_BAG) {
+        // Detener la tubería antes del join para liberar posibles bloqueos en la captura.
         try {
             pipe.stop();
         }
         catch (const rs2::error&) {
         }
 
-        if (g_align_to_color != nullptr) {
-            delete g_align_to_color;
-            g_align_to_color = nullptr;
-        }
-
         g_bag_playback.reset();
     }
     else if (source_config.gen.type == SOURCE_RTSP) {
+        // Desmontar primero RTSP/UDP para desbloquear los hilos de polling/recepción.
         closeRtspPipeline();
         closeRtspUdp();
     }
     else if (source_config.gen.type == SOURCE_PORT && husb != INVALID_HANDLE_VALUE) {
         COMDeInit(husb);
         husb = INVALID_HANDLE_VALUE;
+    }
+
+    if (poll_thread.joinable()) {
+        poll_thread.join();
+    }
+
+    if (source_config.gen.type == SOURCE_BAG) {
+
+        if (g_align_to_color != nullptr) {
+            delete g_align_to_color;
+            g_align_to_color = nullptr;
+        }
     }
 
     {

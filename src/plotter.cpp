@@ -233,7 +233,10 @@ void plotThreadMain() {
     ImGui::CreateContext();
     ImPlot::CreateContext();
 
-    ImGui::StyleColorsDark();
+    ImGui::StyleColorsLight();
+    ImGui::GetIO().FontGlobalScale = 1.25f;
+    ImGui::GetStyle().ScaleAllSizes(1.2f);
+    ImPlot::StyleColorsLight();
     ImGui_ImplWin32_Init(hwnd);
     ImGui_ImplDX11_Init(g_pd3dDevice, g_pd3dDeviceContext);
 
@@ -260,7 +263,7 @@ void plotThreadMain() {
         renderPlotsUi();
 
         ImGui::Render();
-        const float clear_color[4] = {0.08f, 0.08f, 0.10f, 1.0f};
+        const float clear_color[4] = {0.96f, 0.96f, 0.96f, 1.0f};
         g_pd3dDeviceContext->OMSetRenderTargets(1, &g_mainRenderTargetView, nullptr);
         g_pd3dDeviceContext->ClearRenderTargetView(g_mainRenderTargetView, clear_color);
         ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
@@ -346,6 +349,10 @@ void closePlotters() {
 
     if (g_plot_thread.joinable()) {
         g_plot_thread.join();
+    }
+
+    if (g_vio_plotter != nullptr) {
+        g_vio_plotter->exportPlots("output/plots_export");
     }
 
     g_plot_on.store(false, std::memory_order_relaxed);

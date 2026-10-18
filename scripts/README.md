@@ -1,5 +1,23 @@
 # PYTHON SCRIPT TOOLS
 
+### MOSTRAR LAS GRÁFICAS EXPORTADAS DEL DASHBOARD
+
+Al cerrar VISLAM con `q` o `Esc`, las series del dashboard se exportan a
+`output/plots_export` como un CSV por gráfica. Para mostrar todas juntas en
+ventanas de Matplotlib:
+
+```bash
+python scripts/show_dashboard_plots.py
+```
+
+Para guardar una imagen PNG por gráfica:
+
+```bash
+python scripts/show_dashboard_plots.py --save output/plots_png
+```
+
+También se puede indicar otra carpeta de CSV como primer argumento.
+
 ### CALIBRATION OF IMU USING ALLAN VARIANCE METHOD (HOW TO)
 
 * Measurements are espected in m/s2 and rad/s

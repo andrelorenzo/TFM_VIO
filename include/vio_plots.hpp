@@ -26,6 +26,7 @@ public:
     void configure(const Config& config, VioPlotterOptions options = {});
     void update(const StateOut& state);
     void render();
+    void exportPlots(const std::string& directory) const;
     void clearSamples();
     void reset();
 
